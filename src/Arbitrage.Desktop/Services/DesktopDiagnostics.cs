@@ -18,27 +18,64 @@ public sealed class DesktopDiagnostics
     private readonly HashSet<(Guid Instance, long Sequence)> seen = [];
     private Guid? scope;
     private Guid? instance;
+    private Guid? authorizedInstance;
+    private bool restarted;
+    private bool historyGap;
     public Guid? BackendInstanceId => instance;
     public long LastBackendSequence { get; private set; }
+    // Only a completed REST history response advances recovery. Live events are not a cursor.
+    public long HistoryCursor { get; private set; }
 
     public void SetBackendScope(Guid workspaceId)
     {
         if (scope == workspaceId) return;
-        scope = workspaceId; instance = null; LastBackendSequence = 0;
-        BackendEvents.Clear(); seen.Clear();
+        scope = workspaceId; authorizedInstance = null; restarted = false;
+        ResetBackend();
         BackendNotice = "Backend diagnostic history is synchronizing.";
         BackendChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void SetBackendIdentity(Guid workspaceId, Guid backendInstanceId)
+    {
+        if (scope != workspaceId) SetBackendScope(workspaceId);
+        if (authorizedInstance == backendInstanceId && instance == backendInstanceId) return;
+        restarted = instance is { } previous && previous != backendInstanceId;
+        authorizedInstance = backendInstanceId;
+        ResetBackend();
+        instance = backendInstanceId;
+        BackendNotice = restarted ? "Backend restarted. Diagnostic history is synchronizing." :
+            "Backend diagnostic history is synchronizing.";
+        BackendChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ClearBackend()
+    {
+        scope = null; authorizedInstance = null; restarted = false;
+        ResetBackend();
+        BackendNotice = "Backend diagnostics cleared after access was invalidated.";
+        BackendChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ResetBackend()
+    {
+        instance = null; LastBackendSequence = 0; HistoryCursor = 0;
+        BackendEvents.Clear(); seen.Clear(); historyGap = false;
+    }
+
     public void AddBackend(BackendDiagnosticEvent entry)
     {
-        if (entry.WorkspaceId != scope || !seen.Add((entry.BackendInstanceId, entry.Sequence))) return;
+        if (entry.WorkspaceId != scope ||
+            (authorizedInstance is { } expected && entry.BackendInstanceId != expected)) return;
         if (instance is { } old && old != entry.BackendInstanceId)
-            BackendNotice = "Backend restarted. Events from the prior process may have a gap.";
+        {
+            ResetBackend(); restarted = true;
+            BackendNotice = "Backend restarted. Diagnostic history is synchronizing.";
+        }
         instance = entry.BackendInstanceId;
+        if (entry.Sequence <= HistoryCursor || !seen.Add((entry.BackendInstanceId, entry.Sequence))) return;
         LastBackendSequence = Math.Max(LastBackendSequence, entry.Sequence);
         var index = 0;
-        while (index < BackendEvents.Count && BackendEvents[index].OccurredAtUtc > entry.OccurredAtUtc) index++;
+        while (index < BackendEvents.Count && BackendEvents[index].Sequence > entry.Sequence) index++;
         BackendEvents.Insert(index, entry);
         while (BackendEvents.Count > Limit)
         {
@@ -50,18 +87,22 @@ public sealed class DesktopDiagnostics
 
     public void MergeBackend(RecentDiagnosticsResponse history)
     {
-        if (history.WorkspaceId != scope) return;
+        if (history.WorkspaceId != scope ||
+            (authorizedInstance is { } expected && history.BackendInstanceId != expected)) return;
         if (instance is { } old && old != history.BackendInstanceId)
         {
-            BackendNotice = "Backend restarted. Earlier diagnostic delivery may be incomplete.";
-            LastBackendSequence = 0;
+            ResetBackend(); restarted = true;
         }
         instance = history.BackendInstanceId;
-        if (history.Gap || history.DroppedCount > 0)
-            BackendNotice = "Diagnostic gap: some backend events were not retained or delivered.";
+        historyGap |= history.Gap || history.DroppedCount > 0;
         foreach (var entry in history.Events) AddBackend(entry);
-        if (BackendEvents.Count == 0 && !history.Gap)
-            BackendNotice = "No backend diagnostic events are available for this workspace.";
+        var recovered = history.Events.Where(e => e.WorkspaceId == scope && e.BackendInstanceId == instance)
+            .Select(e => e.Sequence).DefaultIfEmpty(HistoryCursor).Max();
+        HistoryCursor = Math.Max(HistoryCursor, recovered);
+        BackendNotice = historyGap ? "Diagnostic gap: some backend events were not retained or delivered." :
+            restarted ? "Backend restarted. Retained diagnostic history synchronized." :
+            BackendEvents.Count == 0 ? "No backend diagnostic events are available for this workspace." :
+            "Backend diagnostic history synchronized.";
         BackendChanged?.Invoke(this, EventArgs.Empty);
     }
 

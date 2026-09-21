@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.IO;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -13,6 +14,57 @@ public sealed record LocalBackendObservation(LocalProcessState ProcessState, Loc
     string Explanation, ApplicationSnapshotResponse? Snapshot = null, int? ProcessId = null);
 public sealed record ManagedRuntimeMetadata(Guid BackendInstanceId, Guid LocalProfileId, Guid WorkspaceId,
     int ProcessId, DateTimeOffset ProcessStartedAtUtc, string ArtifactPath, string DataDirectory, string BaseUrl);
+public enum ManagedProcessEvidence { Running, Exited, Unverified }
+public interface IManagedProcessHandle : IDisposable
+{
+    bool HasExited { get; }
+    Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken cancellationToken);
+}
+public sealed record ManagedProcessInspection(ManagedProcessEvidence Evidence, IManagedProcessHandle? Handle = null);
+public interface IManagedProcessInspector
+{
+    ManagedProcessInspection Inspect(ManagedRuntimeMetadata metadata, string expectedExecutable);
+}
+
+public sealed class OsManagedProcessInspector : IManagedProcessInspector
+{
+    public ManagedProcessInspection Inspect(ManagedRuntimeMetadata metadata, string expectedExecutable)
+    {
+        Process? process = null;
+        try
+        {
+            process = Process.GetProcessById(metadata.ProcessId);
+            if (process.HasExited) return new(ManagedProcessEvidence.Exited);
+            var actualExecutable = process.MainModule?.FileName;
+            if (Math.Abs((process.StartTime.ToUniversalTime() - metadata.ProcessStartedAtUtc.UtcDateTime).TotalSeconds) >= 2 ||
+                string.IsNullOrEmpty(actualExecutable) ||
+                !string.Equals(Path.GetFullPath(actualExecutable), expectedExecutable,
+                    StringComparison.OrdinalIgnoreCase))
+                return new(ManagedProcessEvidence.Unverified);
+            _ = process.Handle; // Retain the OS process handle before a shutdown request can make the PID disappear.
+            var owned = process; process = null;
+            return new(ManagedProcessEvidence.Running, new OsManagedProcessHandle(owned));
+        }
+        catch (ArgumentException) { return new(ManagedProcessEvidence.Exited); }
+        catch (InvalidOperationException) { return new(ManagedProcessEvidence.Unverified); }
+        catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or IOException)
+        { return new(ManagedProcessEvidence.Unverified); }
+        finally { process?.Dispose(); }
+    }
+
+    private sealed class OsManagedProcessHandle(Process process) : IManagedProcessHandle
+    {
+        public bool HasExited => process.HasExited;
+        public async Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            limit.CancelAfter(timeout);
+            try { await process.WaitForExitAsync(limit.Token); return true; }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return false; }
+        }
+        public void Dispose() => process.Dispose();
+    }
+}
 public sealed record LocalBackendLaunchOptions(string DataDirectory, string RuntimeDirectory, string BaseUrl, string ArtifactPath, string? DotnetHost)
 {
     public static LocalBackendLaunchOptions FromEnvironment()
@@ -44,12 +96,15 @@ public interface ILocalBackendController
     string ArtifactExplanation { get; }
     Task<LocalBackendObservation> ObserveAsync(CancellationToken cancellationToken);
     Task<LocalBackendObservation> StartAsync(CancellationToken cancellationToken);
-    Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action onAccepted, CancellationToken cancellationToken);
+    Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action<Guid> onAccepted, CancellationToken cancellationToken);
 }
 
 // Explicitly invoked only. This service never owns the backend lifetime after launch.
-public sealed class LocalBackendController(BackendClient client, LocalBackendLaunchOptions options) : ILocalBackendController
+public sealed class LocalBackendController(BackendClient client, LocalBackendLaunchOptions options,
+    IManagedProcessInspector? processInspector = null, TimeSpan? stopTimeout = null) : ILocalBackendController
 {
+    private readonly IManagedProcessInspector inspector = processInspector ?? new OsManagedProcessInspector();
+    private readonly TimeSpan shutdownTimeout = stopTimeout ?? TimeSpan.FromSeconds(20);
     private readonly SemaphoreSlim operationGate = new(1, 1);
     private readonly string runtimeDirectory = options.RuntimeDirectory;
     private readonly string dataDirectory = options.DataDirectory;
@@ -68,6 +123,10 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
 
     public async Task<LocalBackendObservation> ObserveAsync(CancellationToken cancellationToken)
     {
+        var metadata = await ReadMetadataAsync(cancellationToken);
+        var metadataExists = File.Exists(MetadataPath);
+        var evidence = metadata is null ? null : inspector.Inspect(metadata, ExpectedExecutable);
+        using var handle = evidence?.Handle;
         try
         {
             var session = await client.GetSessionAsync(cancellationToken);
@@ -75,13 +134,16 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
             if (snapshot.Session.UserId != session.UserId || snapshot.Workspace.WorkspaceId != session.DefaultWorkspaceId)
                 return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
                     "Backend identity changed during observation; process control is disabled.");
-            var metadata = await ReadMetadataAsync(cancellationToken);
-            if (metadata is not null && metadata.BackendInstanceId == snapshot.BackendInstanceId &&
+            if (metadata is not null && evidence?.Evidence == ManagedProcessEvidence.Running &&
+                metadata.BackendInstanceId == snapshot.BackendInstanceId &&
                 metadata.LocalProfileId == snapshot.LocalProfileId && metadata.WorkspaceId == snapshot.Workspace.WorkspaceId &&
                 metadata.DataDirectory == dataDirectory && metadata.BaseUrl == baseUrl && metadata.ArtifactPath == artifact &&
-                ProcessMatches(metadata))
+                IsAlive(handle))
                 return new(LocalProcessState.Running, LocalManagementCapability.ManagedLocal,
                     "Verified application-managed backend is running.", snapshot, metadata.ProcessId);
+            if (metadataExists && (metadata is null || evidence?.Evidence is not ManagedProcessEvidence.Exited))
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
+                    "A managed process or its identity is uncertain; endpoint access does not prove ownership.", snapshot);
             return new(LocalProcessState.Running, LocalManagementCapability.ExternalUnmanaged,
                 "Backend is reachable, but local management ownership is unverified. Stop is unavailable.", snapshot);
         }
@@ -91,12 +153,32 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
             "Backend authentication or workspace access failed. Process control is unavailable."); }
         catch (Exception)
         {
+            if (metadataExists && metadata is null)
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
+                    "Protected management metadata cannot be verified. Start and Stop are unavailable.");
+            if (evidence?.Evidence == ManagedProcessEvidence.Running)
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ManagedLocal,
+                    "The verified managed process is alive, but its endpoint is unavailable. Wait or Refresh; Start is disabled.",
+                    ProcessId: metadata!.ProcessId);
+            if (evidence?.Evidence == ManagedProcessEvidence.Unverified)
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
+                    "Management process identity cannot be verified. Start and Stop are unavailable.");
             if (await PortIsOccupiedAsync(cancellationToken))
                 return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
                     "The configured loopback port is occupied or backend identity is uncertain. Nothing will be terminated.");
             return new(LocalProcessState.NotRunning, LocalManagementCapability.ExternalUnmanaged,
                 "No backend was verified at the configured local endpoint.");
         }
+    }
+
+    private string ExpectedExecutable => Path.GetExtension(artifact).Equals(".dll", StringComparison.OrdinalIgnoreCase)
+        ? options.DotnetHost is { } host && Path.IsPathFullyQualified(host) ? Path.GetFullPath(host) : ""
+        : artifact;
+
+    private static bool IsAlive(IManagedProcessHandle? handle)
+    {
+        try { return handle is not null && !handle.HasExited; }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception) { return false; }
     }
 
     public async Task<LocalBackendObservation> StartAsync(CancellationToken cancellationToken)
@@ -142,6 +224,9 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
                 observed = await ObserveAsync(cancellationToken);
                 if (observed.Snapshot is { } ready)
                 {
+                    if (process.HasExited)
+                        return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
+                            "The launched process exited before its endpoint identity could be confirmed.");
                     var metadata = new ManagedRuntimeMetadata(ready.BackendInstanceId, ready.LocalProfileId,
                         ready.Workspace.WorkspaceId, process.Id, started, artifact, dataDirectory, baseUrl);
                     await WriteMetadataAsync(metadata, cancellationToken);
@@ -161,29 +246,57 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
         finally { operationGate.Release(); }
     }
 
-    public async Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action onAccepted, CancellationToken cancellationToken)
+    public async Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action<Guid> onAccepted, CancellationToken cancellationToken)
     {
         await operationGate.WaitAsync(cancellationToken);
         try
         {
+            var metadata = await ReadMetadataAsync(cancellationToken);
+            if (metadata is null || current.Snapshot is not { } expected ||
+                metadata.BackendInstanceId != expected.BackendInstanceId || metadata.LocalProfileId != expected.LocalProfileId ||
+                metadata.WorkspaceId != expected.Workspace.WorkspaceId || metadata.DataDirectory != dataDirectory ||
+                metadata.BaseUrl != baseUrl || metadata.ArtifactPath != artifact || metadata.ProcessId != current.ProcessId)
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
+                    "Managed backend identity could not be reconfirmed. Stop was not sent.");
+            var evidence = inspector.Inspect(metadata, ExpectedExecutable);
+            using var handle = evidence.Handle;
+            if (evidence.Evidence == ManagedProcessEvidence.Exited)
+            {
+                await RemoveMatchingMetadataAsync(expected.BackendInstanceId, cancellationToken);
+                return new(LocalProcessState.NotRunning, LocalManagementCapability.ExternalUnmanaged,
+                    "The verified managed process had already exited. No stop request was sent.");
+            }
+            if (evidence.Evidence != ManagedProcessEvidence.Running || handle is null)
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
+                    "Managed process identity is inaccessible or changed. Stop was not sent.");
             var verified = await ObserveAsync(cancellationToken);
             if (verified.ProcessState != LocalProcessState.Running ||
                 verified.Capability != LocalManagementCapability.ManagedLocal || verified.ProcessId is not { } pid ||
-                verified.Snapshot is not { } snapshot || snapshot.BackendInstanceId != current.Snapshot?.BackendInstanceId)
+                verified.Snapshot is not { } snapshot || snapshot.BackendInstanceId != expected.BackendInstanceId ||
+                !IsAlive(handle))
                 return new(LocalProcessState.Unknown, LocalManagementCapability.ExternalUnmanaged,
                     "Managed backend identity could not be reconfirmed. Stop was not sent.");
-            var accepted = await client.StopLocalRuntimeAsync(snapshot.BackendInstanceId, cancellationToken);
+            StopLocalRuntimeResponse accepted;
+            try { accepted = await client.StopLocalRuntimeAsync(snapshot.BackendInstanceId, cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception exception)
+            {
+                if (await handle.WaitForExitAsync(shutdownTimeout, cancellationToken))
+                {
+                    await RemoveMatchingMetadataAsync(snapshot.BackendInstanceId, cancellationToken);
+                    return new(LocalProcessState.NotRunning, LocalManagementCapability.ExternalUnmanaged,
+                        "The verified process exited, but the stop acknowledgment was unavailable.");
+                }
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ManagedLocal,
+                    $"Stop acknowledgment was unavailable ({exception.GetType().Name}); process exit was not confirmed.", snapshot, pid);
+            }
             if (accepted.BackendInstanceId != snapshot.BackendInstanceId || accepted.Status != "StopRequested")
                 return new(LocalProcessState.Unknown, LocalManagementCapability.ManagedLocal,
                     "Stop acknowledgment did not match this backend instance.", snapshot, pid);
-            onAccepted();
-            using var process = Process.GetProcessById(pid);
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(20));
-            try { await process.WaitForExitAsync(timeout.Token); }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            { return new(LocalProcessState.Unknown, LocalManagementCapability.ManagedLocal,
-                "Stop was accepted, but process exit was not confirmed within 20 seconds. No force kill was used.", snapshot, pid); }
+            onAccepted(snapshot.BackendInstanceId);
+            if (!await handle.WaitForExitAsync(shutdownTimeout, cancellationToken))
+                return new(LocalProcessState.Unknown, LocalManagementCapability.ManagedLocal,
+                    "Stop was accepted, but process exit was not confirmed within the shutdown timeout. No force kill was used.", snapshot, pid);
             await RemoveMatchingMetadataAsync(snapshot.BackendInstanceId, cancellationToken);
             return new(LocalProcessState.NotRunning, LocalManagementCapability.ExternalUnmanaged,
                 "Managed backend process exit was confirmed.");
@@ -245,17 +358,6 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
         using var metadataLock = new FileStream(MetadataLockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         var metadata = await ReadMetadataAsync(cancellationToken);
         if (metadata?.BackendInstanceId == instanceId) File.Delete(MetadataPath);
-    }
-
-    private static bool ProcessMatches(ManagedRuntimeMetadata value)
-    {
-        try
-        {
-            using var process = Process.GetProcessById(value.ProcessId);
-            return !process.HasExited && Math.Abs((process.StartTime.ToUniversalTime() - value.ProcessStartedAtUtc.UtcDateTime).TotalSeconds) < 2;
-        }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
-        { return false; }
     }
 
     private async Task<bool> PortIsOccupiedAsync(CancellationToken cancellationToken)

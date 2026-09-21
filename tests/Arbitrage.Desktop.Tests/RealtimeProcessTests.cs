@@ -60,6 +60,7 @@ public sealed class RealtimeProcessTests
         using var realtime = new RealtimeSession(client, desktopState, desktopEvents, new InlineDispatcher(), new RealtimeDelay());
         LocalBackendObservation? first = null;
         LocalBackendObservation? second = null;
+        LocalBackendObservation? third = null;
         var ownedStarts = new Dictionary<int, DateTime>();
         try
         {
@@ -84,13 +85,22 @@ public sealed class RealtimeProcessTests
             Assert.Equal(url, connection.BaseUrl);
             var badConnection = new BadConnection(url);
             var badDelay = new CountingDelay();
+            var badDiagnostics = new DesktopDiagnostics();
             using (var badHttp = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }))
-            using (var badState = new MainViewModel(new BackendClient(badHttp, badConnection), NullLogger<MainViewModel>.Instance))
+            using (var badState = new MainViewModel(new BackendClient(badHttp, badConnection),
+                NullLogger<MainViewModel>.Instance, badDiagnostics))
             using (var badSession = new RealtimeSession(new BackendClient(badHttp, badConnection), badState,
-                new DesktopDiagnostics(), new InlineDispatcher(), badDelay))
+                badDiagnostics, new InlineDispatcher(), badDelay))
             {
+                badState.ApplyRealtimeSnapshot(first.Snapshot!, url);
+                badDiagnostics.SetBackendIdentity(first.Snapshot!.Workspace.WorkspaceId, first.Snapshot.BackendInstanceId);
+                badDiagnostics.AddBackend(new(first.Snapshot.BackendInstanceId, 1, DateTimeOffset.UtcNow,
+                    "Information", "Backend", "Private", "Private event.", first.Snapshot.Workspace.WorkspaceId, null));
                 badSession.Start();
                 await WaitUntilAsync(() => badState.ConnectionStatus == "AuthenticationFailed");
+                Assert.False(badState.HasSnapshot);
+                Assert.Empty(badDiagnostics.BackendEvents);
+                Assert.Equal(0, badDiagnostics.HistoryCursor);
                 var readsAfterFailure = badConnection.Reads;
                 await Task.Yield();
                 Assert.Equal(readsAfterFailure, badConnection.Reads);
@@ -159,16 +169,28 @@ public sealed class RealtimeProcessTests
             second = await controller.StartAsync(default);
             Assert.Equal(LocalProcessState.Running, second.ProcessState);
             TrackOwned(second, ownedStarts);
-            realtime.ResumeAfterStart();
+            // Refresh must validate a replacement process without launching or stopping it.
+            await realtime.RefreshAsync();
             await WaitUntilAsync(() => desktopState.ConnectionStatus == "Connected" &&
                 desktopState.BackendInstance == second.Snapshot!.BackendInstanceId.ToString());
+            Assert.True(realtime.IsSynchronized);
             Assert.NotEqual(first.Snapshot.BackendInstanceId, second.Snapshot!.BackendInstanceId);
             var rotated = await file.ReadAsync(default);
             Assert.NotEqual(connection.Credential, rotated.Credential);
             using var old = new HttpClient(new HttpClientHandler { UseProxy = false });
             old.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", connection.Credential);
             Assert.Equal(HttpStatusCode.Unauthorized, (await old.GetAsync(url + "/api/v1/session")).StatusCode);
-            Assert.Equal(LocalProcessState.NotRunning, (await controller.StopAsync(second, realtime.SuspendAfterStopRequest, default)).ProcessState);
+            // A later unexpected disconnect from B must use normal automatic reconnect, with no process launch.
+            Assert.Equal(LocalProcessState.NotRunning, (await controller.StopAsync(second, _ => { }, default)).ProcessState);
+            await WaitUntilAsync(() => desktopState.ConnectionStatus == "Disconnected");
+            third = await controller.StartAsync(default);
+            Assert.Equal(LocalProcessState.Running, third.ProcessState);
+            TrackOwned(third, ownedStarts);
+            await WaitUntilAsync(() => desktopState.ConnectionStatus == "Connected" &&
+                desktopState.BackendInstance == third.Snapshot!.BackendInstanceId.ToString());
+            Assert.NotEqual(second.Snapshot.BackendInstanceId, third.Snapshot!.BackendInstanceId);
+            Assert.Equal(LocalProcessState.NotRunning,
+                (await controller.StopAsync(third, realtime.SuspendAfterStopRequest, default)).ProcessState);
             var backendLog = Directory.GetFiles(Path.Combine(data, "logs"), "*.log");
             Assert.DoesNotContain(connection.Credential, string.Join("", backendLog.Select(File.ReadAllText)));
             Assert.DoesNotContain(rotated.Credential, string.Join("", backendLog.Select(File.ReadAllText)));

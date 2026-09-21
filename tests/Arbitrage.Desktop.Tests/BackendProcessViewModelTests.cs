@@ -23,7 +23,7 @@ public sealed class BackendProcessViewModelTests
         }
         public Task<LocalBackendObservation> StartAsync(CancellationToken cancellationToken)
         { Interlocked.Increment(ref Starts); throw new InvalidOperationException("Refresh launched a process."); }
-        public Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action onAccepted,
+        public Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action<Guid> onAccepted,
             CancellationToken cancellationToken)
         { Interlocked.Increment(ref Stops); throw new InvalidOperationException("Refresh stopped a process."); }
     }

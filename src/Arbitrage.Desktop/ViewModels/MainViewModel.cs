@@ -14,6 +14,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     private Guid? workspaceId;
     private string savedWorkspaceName = "";
     private int operationActive;
+    private long privateStateGeneration;
     public Func<Task>? RefreshRequested { get; set; }
 
     [ObservableProperty] private string connectionStatus = "Not loaded";
@@ -70,10 +71,12 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     {
         if (RefreshRequested is not null) { await RefreshRequested(); return; }
         if (!BeginOperation()) return;
+        var requestedGeneration = Volatile.Read(ref privateStateGeneration);
         diagnostics?.Record("Information", "Backend refresh requested.");
         try
         {
             var result = await backend.LoadAsync(lifetime.Token);
+            if (requestedGeneration != Volatile.Read(ref privateStateGeneration)) return;
             ApplyBackendSnapshot(result);
             ConnectionStatus = ConnectionState.Connected.ToString();
             Message = "Backend state refreshed. Trading data remains unavailable in this phase.";
@@ -81,8 +84,8 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
             NotifyDerived();
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        catch (BackendFailure failure) { ReportFailure(failure); }
-        catch (Exception exception) { ReportUnexpected(exception); }
+        catch (BackendFailure failure) { if (requestedGeneration == Volatile.Read(ref privateStateGeneration)) ReportFailure(failure); }
+        catch (Exception exception) { if (requestedGeneration == Volatile.Read(ref privateStateGeneration)) ReportUnexpected(exception); }
         finally { EndOperation(); }
     }
 
@@ -90,12 +93,14 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     private async Task SaveAsync()
     {
         if (!CanSave || workspaceId is not { } id || !BeginOperation()) return;
+        var requestedGeneration = Volatile.Read(ref privateStateGeneration);
         var submittedName = WorkspaceName;
         var committed = false;
         diagnostics?.Record("Information", "Workspace display-name update requested.");
         try
         {
             var result = await backend.RenameAsync(id, submittedName, lifetime.Token);
+            if (requestedGeneration != Volatile.Read(ref privateStateGeneration) || workspaceId != id || IsWorkspaceAccessDenied) return;
             savedWorkspaceName = result.DisplayName;
             if (WorkspaceName == submittedName) WorkspaceName = result.DisplayName;
             IsDirty = WorkspaceName != savedWorkspaceName;
@@ -109,8 +114,16 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
             NotifyDerived();
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        catch (BackendFailure failure) { WorkspaceFeedback = failure.Message; ReportFailure(failure); }
-        catch (Exception exception) { WorkspaceFeedback = "Workspace update failed; Refresh to inspect backend state."; ReportUnexpected(exception); }
+        catch (BackendFailure failure)
+        {
+            if (requestedGeneration == Volatile.Read(ref privateStateGeneration))
+            { WorkspaceFeedback = failure.Message; ReportFailure(failure); }
+        }
+        catch (Exception exception)
+        {
+            if (requestedGeneration == Volatile.Read(ref privateStateGeneration))
+            { WorkspaceFeedback = "Workspace update failed; Refresh to inspect backend state."; ReportUnexpected(exception); }
+        }
         finally { EndOperation(); }
         if (committed && RefreshRequested is not null) await RefreshRequested();
     }
@@ -176,10 +189,15 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
 
     private void ClearPrivateState()
     {
+        Interlocked.Increment(ref privateStateGeneration);
         workspaceId = null; savedWorkspaceName = "";
         Snapshot = null; HasSnapshot = false; IsStale = false;
         WorkspaceName = ""; UserId = "Unavailable"; WorkspaceIdentifier = "Unavailable";
-        ServerChangeNotice = ""; CanEdit = false;
+        BackendVersion = "Unavailable"; Persistence = "Unavailable"; TradingMode = "Unavailable";
+        Execution = "Unavailable"; Exchanges = "Unavailable"; Endpoint = "Unavailable";
+        BackendInstance = "Unavailable"; HeartbeatStatus = "No heartbeat"; LastSuccessfulRefresh = null;
+        WorkspaceFeedback = ""; ValidationMessage = ""; ServerChangeNotice = ""; CanEdit = false;
+        diagnostics?.ClearBackend();
         NotifyDerived();
     }
 
@@ -202,7 +220,10 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
 
     private void ReportFailure(BackendFailure failure)
     {
-        ConnectionStatus = failure.State.ToString(); Message = failure.Message; IsStale = HasSnapshot;
+        ConnectionStatus = failure.State.ToString(); Message = failure.Message;
+        if (failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied)
+            ClearPrivateState();
+        else IsStale = HasSnapshot;
         diagnostics?.Record(failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied ? "Warning" : "Information",
             failure.State switch
             {

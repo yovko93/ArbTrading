@@ -1,0 +1,63 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel MaxWidth="1100" HorizontalAlignment="Left">
+      <controls:SectionHeader Title="Workspace overview" Subtitle="Latest completed backend request. No market or execution feed is active." />
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="{Binding State.Message}" Margin="0,7,0,0" />
+          <TextBlock Text="Last successful refresh" Style="{StaticResource FieldLabel}" Margin="0,14,0,5" />
+          <TextBlock Text="{Binding State.LastRefreshLabel}" />
+        </StackPanel>
+      </Border>
+      <WrapPanel>
+        <Border Style="{StaticResource CardBorder}" Width="266" Margin="0,0,14,14">
+          <StackPanel>
+            <TextBlock Text="BACKEND" Style="{StaticResource FieldLabel}" />
+            <TextBlock Text="{Binding State.ConnectionStatus}" Style="{StaticResource MetricText}" />
+            <TextBlock Text="Version" Style="{StaticResource FieldLabel}" Margin="0,10,0,2" />
+            <TextBlock Text="{Binding State.BackendVersion}" />
+            <TextBlock Text="Persistence" Style="{StaticResource FieldLabel}" Margin="0,10,0,2" />
+            <TextBlock Text="{Binding State.Persistence}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource CardBorder}" Width="266" Margin="0,0,14,14">
+          <StackPanel>
+            <TextBlock Text="WORKSPACE" Style="{StaticResource FieldLabel}" />
+            <TextBlock Text="{Binding State.WorkspaceHeader}" Style="{StaticResource SectionTitleText}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="Identifier" Style="{StaticResource FieldLabel}" Margin="0,10,0,2" />
+            <TextBlock Text="{Binding State.VisibleWorkspaceIdentifier}" TextTrimming="CharacterEllipsis" ToolTip="{Binding State.VisibleWorkspaceIdentifier}" />
+            <TextBlock Text="Local application user" Style="{StaticResource FieldLabel}" Margin="0,10,0,2" />
+            <TextBlock Text="{Binding State.VisibleUserId}" TextTrimming="CharacterEllipsis" ToolTip="{Binding State.VisibleUserId}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource CardBorder}" Width="266" Margin="0,0,14,14">
+          <StackPanel>
+            <TextBlock Text="TRADING ENVIRONMENT" Style="{StaticResource FieldLabel}" />
+            <TextBlock Text="{Binding State.TradingMode}" Style="{StaticResource MetricText}" />
+            <TextBlock Text="Paper execution" Style="{StaticResource FieldLabel}" Margin="0,10,0,2" />
+            <TextBlock Text="{Binding State.PaperExecutionLabel}" />
+            <TextBlock Text="Live order submission" Style="{StaticResource FieldLabel}" Margin="0,10,0,2" />
+            <TextBlock Text="{Binding State.LiveExecutionLabel}" />
+          </StackPanel>
+        </Border>
+      </WrapPanel>
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="Exchange integration" Style="{StaticResource SectionTitleText}" />
+          <Grid Margin="0,13,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="29" /><RowDefinition Height="29" /></Grid.RowDefinitions>
+            <TextBlock Text="Polymarket" /><TextBlock Grid.Column="1" Text="{Binding State.PolymarketLabel}" />
+            <TextBlock Grid.Row="1" Text="Kalshi" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding State.KalshiLabel}" />
+          </Grid>
+          <TextBlock Text="Market counts, balances, P&amp;L, and opportunities: — (not available)"
+                     Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

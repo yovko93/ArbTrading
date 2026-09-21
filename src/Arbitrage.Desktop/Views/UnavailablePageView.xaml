@@ -1,0 +1,11 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.UnavailablePageView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="850" HorizontalAlignment="Left">
+      <controls:SectionHeader Title="{Binding Title}" Subtitle="Planned capability · no operational feed" />
+      <controls:EmptyState Title="{Binding Title}" Purpose="{Binding Purpose}" Dependency="{Binding Dependency}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

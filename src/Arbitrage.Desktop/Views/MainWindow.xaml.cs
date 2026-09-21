@@ -5,5 +5,5 @@ namespace Arbitrage.Desktop.Views;
 
 public partial class MainWindow : Window
 {
-    public MainWindow(MainViewModel viewModel) { InitializeComponent(); DataContext = viewModel; }
+    public MainWindow(ShellViewModel viewModel) { InitializeComponent(); DataContext = viewModel; }
 }

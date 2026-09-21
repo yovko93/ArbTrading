@@ -6,6 +6,11 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.cs" Link="Desktop/BackendClient.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MainViewModel.cs" Link="Desktop/MainViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ThemeSelectionViewModel.cs" Link="Desktop/ThemeSelectionViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ShellViewModel.cs" Link="Desktop/ShellViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/Services/DesktopPreferences.cs" Link="Desktop/DesktopPreferences.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/Services/ThemeService.cs" Link="Desktop/ThemeService.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/Services/DesktopDiagnostics.cs" Link="Desktop/DesktopDiagnostics.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <Using Include="Xunit" />

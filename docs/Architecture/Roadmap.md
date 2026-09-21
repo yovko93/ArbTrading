@@ -8,7 +8,7 @@ Future AI-assisted market matching can approve automatically only when independe
 
 Phase 01A delivers the narrow chain: persistent local profile → authenticated local API → authorized/audited workspace operation → actual backend state in a minimal WPF screen. Registration, password resets, email verification, social login, exchange connectivity/authentication, exchange credential collection, signing, orders, transfers, settlement, simulation, web UI, and cloud synchronization are excluded.
 
-Phase 01B implements full desktop navigation and exactly Dark, Light, System themes. Persist the preference per OS user in desktop storage. Switch dynamically without recreating the window. In System mode respond to Windows application-theme changes. Presentation preferences are independent of backend trading settings. Phase 01A intentionally has no theme selector.
+Phase 01B implements full desktop navigation and exactly Dark, Light, System themes. The preference persists per OS user in desktop storage. The shell switches dynamically without recreating the window. In System mode it responds to Windows application-theme changes, falling back to Light if detection is unavailable. Windows High Contrast overrides the palette without changing the saved preference. Dashboard, Settings, and Diagnostics use request/response backend state and actual session diagnostics; deferred pages show unavailable states. Presentation preferences remain independent of backend trading settings.
 
 Phase 01C implements SignalR and comprehensive reconnect behavior. Authorize workspace subscriptions and avoid leaking private state across caches or events. The foundation's manual Refresh and one 401 credential refresh are not the complete reconnect design.
 

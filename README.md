@@ -1,6 +1,6 @@
 # Arbitrage Trading
 
-Phase 01A is a local-first foundation: persistent local identity and workspace ownership, authenticated loopback HTTP, audited workspace-name updates, and a minimal WPF client showing actual backend state.
+Phase 01A established persistent local identity and workspace ownership, authenticated loopback HTTP, and audited workspace-name updates. Phase 01B adds a WPF workstation shell with ten navigation destinations, actual dashboard/settings/diagnostics state, and Dark, Light, and System appearance preferences.
 
 There is no exchange connection, exchange credential collection, order submission, AI call, arbitrage algorithm, or paper fill simulator. Paper is the only supported environment, and all execution capabilities are explicitly unavailable. No balances or profits are fabricated.
 
@@ -27,7 +27,7 @@ dotnet run --project src/Arbitrage.Desktop
 
 The backend listens at `http://127.0.0.1:5274`. The desktop can open before the backend: use **Refresh** after starting it. Closing the desktop does not stop the backend. Use Ctrl+C in the backend terminal to stop it.
 
-See the [verification record](docs/Development/Verification.md) for the actual build/test results, UI checks, and unexecuted platform checks.
+See the [Phase 01A verification record](docs/Development/Verification.md) and [Phase 01B verification record](docs/Development/Phase01BVerification.md) for actual results and remaining visual checks.
 
 The only anonymous endpoint is `GET /health/live`, which returns minimal process liveness. API data requires a per-user credential delivered through protected local storage; no API returns that credential.
 
@@ -43,7 +43,7 @@ The only anonymous endpoint is `GET /health/live`, which returns minimal process
 | Arbitrage.Desktop | WPF, CommunityToolkit.Mvvm, DI and typed HTTP client |
 | Arbitrage.Connectors / Strategies / Execution | Documented deferred module boundaries |
 
-`tests/` contains Domain, Application, and Backend.IntegrationTests projects. Integration tests use temporary real SQLite databases and the production authentication handler. `src/Shared/LocalConnectionFile.cs` is a small source-linked OS adapter shared by Infrastructure and Desktop; it creates no business-layer dependency from Desktop.
+`tests/` contains Domain, Application, Backend.IntegrationTests, and Windows-only Desktop.Tests projects. Integration tests use temporary real SQLite databases and the production authentication handler. `src/Shared/LocalConnectionFile.cs` is a small source-linked OS adapter shared by Infrastructure and Desktop; it creates no business-layer dependency from Desktop.
 
 ## Runtime locations and maintenance
 
@@ -54,7 +54,7 @@ On Windows the application root is `%LOCALAPPDATA%\ArbitrageTrading`:
 | `backend/arbitrage.db` | Persistent identity, membership, workspace settings, audit, migration history |
 | `backend/logs/` | Backend rolling logs |
 | `desktop/logs/` | Desktop rolling logs |
-| `desktop/` | Reserved home for future per-user presentation preferences |
+| `desktop/preferences.json` | Versioned per-user appearance preference, separate from backend settings |
 | `runtime/connection.json` | Protected loopback address and rotating local credential; never share or commit |
 | `backend/backend.lock`, `runtime/backend.lock` | Exclusive backend leases; file presence alone does not mean a backend is running |
 
@@ -70,4 +70,4 @@ This explicitly migrates and verifies local ownership, then exits without servin
 
 ## Next phases
 
-Phase 01B adds full desktop navigation and exactly **Dark, Light, System** theme preferences, persisted per OS user, with dynamic switching and Windows theme-change handling. Presentation preferences remain separate from backend trading settings. Phase 01C adds authorized workspace-scoped SignalR and comprehensive reconnect behavior. See [roadmap](docs/Architecture/Roadmap.md).
+Phase 01B provides full desktop navigation and exactly **Dark, Light, System** theme preferences, persisted per OS user, with dynamic switching and Windows application-theme change handling. When Windows theme detection is unavailable, System uses Light while remaining saved as System; Windows High Contrast overrides appearance without changing that preference. Set `ARBITRAGE_DESKTOP_DIRECTORY` to an absolute path to isolate preferences and desktop logs. Phase 01C adds authorized workspace-scoped SignalR, backend log streaming, and comprehensive reconnect behavior. See [roadmap](docs/Architecture/Roadmap.md).

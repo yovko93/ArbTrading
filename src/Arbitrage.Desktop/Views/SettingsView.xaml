@@ -1,0 +1,58 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel MaxWidth="850" HorizontalAlignment="Left">
+      <controls:SectionHeader Title="Settings" Subtitle="Appearance stays on this Windows user profile. Workspace changes go through the authorized backend API." />
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="Appearance" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="Dark, Light, or System (Windows applications theme)" Style="{StaticResource FieldLabel}" Margin="0,12,0,5" />
+          <controls:ThemePicker DataContext="{Binding Theme}" HorizontalAlignment="Left" />
+          <TextBlock Text="Effective appearance" Style="{StaticResource FieldLabel}" Margin="0,13,0,3" />
+          <TextBlock Text="{Binding Theme.EffectiveAppearance}" />
+          <TextBlock Text="This preference is stored only for this desktop user." Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+          <TextBlock Text="{Binding Theme.SaveNotice}" Foreground="{DynamicResource Warning}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+      </Border>
+      <Border Style="{StaticResource CardBorder}" Visibility="{Binding State.IsWorkspaceAuthorized, Converter={StaticResource BooleanToVisibility}}">
+        <StackPanel>
+          <TextBlock Text="Workspace" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="Display name" Style="{StaticResource FieldLabel}" Margin="0,13,0,4" />
+          <TextBox Text="{Binding State.WorkspaceName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding State.CanEdit}"
+                   MaxLength="100" AutomationProperties.Name="Workspace display name" />
+          <TextBlock Text="{Binding State.ValidationMessage}" Foreground="{DynamicResource Error}" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite" />
+          <Button Content="Save workspace name" Command="{Binding State.SaveCommand}" IsEnabled="{Binding State.CanSave}"
+                  HorizontalAlignment="Left" Margin="0,11,0,0" AutomationProperties.Name="Save workspace display name" />
+          <TextBlock Text="{Binding State.WorkspaceFeedback}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+          <TextBlock Text="Backend authorization and audit remain authoritative." Style="{StaticResource MutedText}" Margin="0,8,0,0" />
+        </StackPanel>
+      </Border>
+      <TextBlock Text="Workspace editing is hidden until local authentication and authorization succeed. Unsaved input is retained for this session."
+                 Foreground="{DynamicResource Warning}" Margin="0,0,0,12"
+                 Visibility="{Binding State.IsWorkspaceAccessDenied, Converter={StaticResource BooleanToVisibility}}" />
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="Connection" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="Local endpoint" Style="{StaticResource FieldLabel}" Margin="0,13,0,3" />
+          <TextBlock Text="{Binding State.Endpoint}" />
+          <TextBlock Text="{Binding State.ConnectionStatus}" Margin="0,9,0,0" />
+          <Button Content="Refresh backend state" Command="{Binding State.RefreshCommand}" HorizontalAlignment="Left" Margin="0,11,0,0" />
+        </StackPanel>
+      </Border>
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="Application" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="Backend version" Style="{StaticResource FieldLabel}" Margin="0,13,0,3" />
+          <TextBlock Text="{Binding State.BackendVersion}" />
+          <TextBlock Text="Deployment: Local" Margin="0,10,0,0" />
+          <TextBlock Text="Effective environment" Style="{StaticResource FieldLabel}" Margin="0,10,0,3" />
+          <TextBlock Text="{Binding State.TradingMode}" />
+          <TextBlock Text="{Binding State.Execution}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+          <TextBlock Text="Manual and Automatic operation are unavailable." Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

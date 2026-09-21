@@ -17,31 +17,46 @@ public partial class App : System.Windows.Application
     private readonly CancellationTokenSource lifetime = new();
     private Serilog.Core.Logger? logger;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         try
         {
-            var desktopDirectory = Path.Combine(LocalPaths.Root, "desktop");
+            var desktopDirectory = DesktopPaths.Directory;
+            var runtimeDirectory = DesktopPaths.RuntimeDirectory;
+            if (string.Equals(desktopDirectory, runtimeDirectory, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Desktop preferences and runtime metadata need separate directories.");
             ProtectedStorage.CreatePrivateDirectory(desktopDirectory);
             logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console()
                 .WriteTo.File(Path.Combine(desktopDirectory, "logs", "desktop-.log"), rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 7, fileSizeLimitBytes: 5_000_000, rollOnFileSizeLimit: true, shared: true).CreateLogger();
             var collection = new ServiceCollection();
             collection.AddLogging(b => b.ClearProviders().AddSerilog(logger));
-            collection.AddSingleton<ILocalConnectionFile>(new ProtectedLocalConnectionFile(
-                Environment.GetEnvironmentVariable("ARBITRAGE_RUNTIME_DIRECTORY") ?? LocalPaths.Runtime));
+            collection.AddSingleton(new DesktopPreferencesStore(desktopDirectory));
+            collection.AddSingleton<IDesktopPreferencesStore>(s => s.GetRequiredService<DesktopPreferencesStore>());
+            collection.AddSingleton<ISystemThemeProvider, WindowsSystemThemeProvider>();
+            collection.AddSingleton<IUiDispatcher>(new WpfUiDispatcher(Dispatcher));
+            collection.AddSingleton<IThemePaletteApplier>(new WpfThemePaletteApplier(Resources));
+            collection.AddSingleton<IThemeService, ThemeService>();
+            collection.AddSingleton<DesktopDiagnostics>();
+            collection.AddSingleton<ThemeSelectionViewModel>();
+            collection.AddSingleton<ShellViewModel>();
+            collection.AddSingleton<ILocalConnectionFile>(new ProtectedLocalConnectionFile(runtimeDirectory));
             collection.AddHttpClient<BackendClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
                 .RemoveAllLoggers();
             collection.AddSingleton<MainViewModel>();
             collection.AddSingleton<MainWindow>();
             services = collection.BuildServiceProvider();
+            var diagnostics = services.GetRequiredService<DesktopDiagnostics>();
+            await services.GetRequiredService<IThemeService>().InitializeAsync(lifetime.Token);
+            diagnostics.Record("Information", "Desktop appearance preference loaded.");
             var window = services.GetRequiredService<MainWindow>();
             MainWindow = window;
             window.Show();
             _ = services.GetRequiredService<MainViewModel>().InitializeAsync(lifetime.Token);
         }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception exception)
         {
             logger?.Error("Desktop startup failed: {ErrorType}", exception.GetType().Name);

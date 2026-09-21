@@ -1,34 +1,85 @@
 <Window x:Class="Arbitrage.Desktop.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Arbitrage Trading — Local foundation" Width="800" Height="660" MinWidth="620" MinHeight="550">
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel Margin="28">
-      <TextBlock Text="Arbitrage Trading" FontSize="28" FontWeight="SemiBold" />
-      <TextBlock Text="Phase 01A · Local foundation" Margin="0,4,0,24" />
-      <DockPanel>
-        <Button Content="Refresh" Command="{Binding RefreshCommand}" DockPanel.Dock="Right" Padding="18,7" />
-        <TextBlock Text="{Binding ConnectionStatus}" FontSize="20" VerticalAlignment="Center" />
-      </DockPanel>
-      <ProgressBar Height="3" Margin="0,10" IsIndeterminate="{Binding IsBusy}" />
-      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,20" />
-      <Grid>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="32" /><RowDefinition Height="32" /><RowDefinition Height="32" />
-          <RowDefinition Height="32" /><RowDefinition Height="32" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <TextBlock Text="Backend version" /><TextBlock Grid.Column="1" Text="{Binding BackendVersion}" />
-        <TextBlock Grid.Row="1" Text="Local user" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UserId}" />
-        <TextBlock Grid.Row="2" Text="Workspace ID" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding WorkspaceIdentifier}" />
-        <TextBlock Grid.Row="3" Text="Persistence" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Persistence}" />
-        <TextBlock Grid.Row="4" Text="Effective environment" /><TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding TradingMode}" />
-        <TextBlock Grid.Row="5" Text="Execution" /><TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Execution}" TextWrapping="Wrap" Margin="0,0,0,12" />
-        <TextBlock Grid.Row="6" Text="Integrations" /><TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Exchanges}" TextWrapping="Wrap" />
+        xmlns:vm="clr-namespace:Arbitrage.Desktop.ViewModels"
+        xmlns:views="clr-namespace:Arbitrage.Desktop.Views"
+        xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls"
+        Title="Arbitrage Trading" Width="1240" Height="790" MinWidth="830" MinHeight="590"
+        Background="{DynamicResource ApplicationBackground}" Foreground="{DynamicResource PrimaryText}"
+        FontFamily="Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <Window.Resources>
+    <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TradingViewModel}"><views:TradingView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:UnavailablePageViewModel}"><views:UnavailablePageView /></DataTemplate>
+  </Window.Resources>
+  <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+    <Border Grid.RowSpan="3" Grid.Column="0" Background="{DynamicResource SurfaceBackground}"
+            BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,1,0">
+      <Grid Margin="12,16,12,12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <StackPanel Margin="8,0,8,20">
+          <TextBlock Text="AT  /  ARBITRAGE TRADING" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Accent}" />
+          <TextBlock Text="Local workstation" Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+        </StackPanel>
+        <ListBox Grid.Row="1" ItemsSource="{Binding Navigation}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                 ItemContainerStyle="{StaticResource SidebarItem}" BorderThickness="0" Background="Transparent"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Application navigation">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <DockPanel LastChildFill="True">
+                <Path DockPanel.Dock="Left" Data="{Binding Icon}" Width="16" Height="16" Stretch="Uniform"
+                      Stroke="{DynamicResource Accent}" StrokeThickness="1.8" Margin="0,0,12,0" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Label}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                           VerticalAlignment="Center" />
+              </DockPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Border Grid.Row="2" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="8,14,8,0">
+          <StackPanel>
+            <TextBlock Text="LOCAL MODE" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold" FontSize="11" />
+            <TextBlock Text="No exchange or execution service" Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+          </StackPanel>
+        </Border>
       </Grid>
-      <TextBlock Text="Workspace display name" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,8" />
-      <TextBox Text="{Binding WorkspaceName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEdit}" MaxLength="100" Padding="8" AutomationProperties.Name="Workspace display name" />
-      <Button Content="Save workspace name" Command="{Binding SaveCommand}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Left" Padding="16,8" Margin="0,10,0,0" />
-    </StackPanel>
-  </ScrollViewer>
+    </Border>
+
+    <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource SurfaceBackground}"
+            BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,0,1" Padding="24,16,24,14">
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <StackPanel>
+          <TextBlock Text="ARBITRAGE TRADING" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Accent}" />
+          <TextBlock Text="{Binding PageTitle}" FontSize="20" FontWeight="SemiBold" Margin="0,2,0,3" />
+          <TextBlock Text="{Binding State.WorkspaceHeader}" Style="{StaticResource MutedText}"
+                     TextTrimming="CharacterEllipsis" MaxWidth="400" HorizontalAlignment="Left" />
+          <WrapPanel Margin="0,9,0,0">
+            <controls:StatusBadge Label="Local" Tone="Neutral" Margin="0,0,7,0" />
+            <controls:StatusBadge Label="{Binding State.ConnectionStatus}" Tone="Neutral" Margin="0,0,7,0" />
+            <controls:StatusBadge Label="{Binding State.TradingMode}" Tone="Neutral" Margin="0,0,7,0" />
+            <controls:StatusBadge Label="Execution unavailable" Tone="Warning" />
+          </WrapPanel>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+          <controls:ThemePicker DataContext="{Binding Theme}" Margin="0,0,10,0" />
+          <Button Content="Refresh" Command="{Binding State.RefreshCommand}" AutomationProperties.Name="Refresh backend state" />
+        </StackPanel>
+      </Grid>
+    </Border>
+    <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}" Margin="24,20,24,10" />
+    <Border Grid.Row="2" Grid.Column="1" Background="{DynamicResource SurfaceBackground}"
+            BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="24,9">
+      <DockPanel LastChildFill="True">
+        <TextBlock DockPanel.Dock="Right" Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" />
+        <TextBlock DockPanel.Dock="Right" Text="  ·  " Style="{StaticResource MutedText}" />
+        <TextBlock DockPanel.Dock="Left" Text="{Binding State.ConnectionStatus}" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding State.Message}" Foreground="{DynamicResource SecondaryText}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+  </Grid>
 </Window>

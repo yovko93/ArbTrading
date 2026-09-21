@@ -87,7 +87,7 @@ public sealed class DesktopClientTests
 
     [Theory]
     [InlineData(HttpStatusCode.ServiceUnavailable, ConnectionState.Unavailable)]
-    [InlineData(HttpStatusCode.Forbidden, ConnectionState.AuthenticationFailed)]
+    [InlineData(HttpStatusCode.Forbidden, ConnectionState.AuthorizationDenied)]
     public async Task Failure_states_are_explicit(HttpStatusCode status, ConnectionState expected)
     {
         using var http = new HttpClient(new Handler((_, _) => Task.FromResult(new HttpResponseMessage(status))));

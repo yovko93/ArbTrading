@@ -1,0 +1,27 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.TradingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="850" HorizontalAlignment="Left">
+      <controls:SectionHeader Title="Trading" Subtitle="Execution availability from the latest authenticated backend snapshot." />
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="Effective environment" Style="{StaticResource FieldLabel}" />
+          <TextBlock Text="{Binding State.TradingMode}" Style="{StaticResource MetricText}" />
+          <TextBlock Text="Paper fills are not simulated in this phase." Style="{StaticResource MutedText}" Margin="0,7,0,15" />
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="190" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" /></Grid.RowDefinitions>
+            <TextBlock Text="Paper execution" /><TextBlock Grid.Column="1" Text="{Binding State.PaperExecutionLabel}" />
+            <TextBlock Grid.Row="1" Text="Live order submission" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding State.LiveExecutionLabel}" />
+            <TextBlock Grid.Row="2" Text="Manual live execution" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding State.ManualExecutionLabel}" />
+            <TextBlock Grid.Row="3" Text="Automatic live execution" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding State.AutomaticExecutionLabel}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+      <controls:EmptyState Title="Trading is unavailable" Purpose="Paper, Manual, and Automatic remain planned modes."
+                           Dependency="Order submission, signing, exchange connections, and paper execution are not implemented." />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

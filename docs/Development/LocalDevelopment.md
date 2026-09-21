@@ -15,7 +15,7 @@ Equivalent commands:
 ```powershell
 dotnet restore ArbitrageTrading.sln
 dotnet build ArbitrageTrading.sln -c Release --no-restore
-dotnet test ArbitrageTrading.sln -c Release --no-build --no-restore --logger 'trx;LogFilePrefix=phase01a'
+dotnet test ArbitrageTrading.sln -c Release --no-build --no-restore --logger 'trx;LogFilePrefix=verification'
 ```
 
 Linux/backend-only:
@@ -25,7 +25,7 @@ bash scripts/verify-backend.sh
 dotnet run --project src/Arbitrage.Backend --no-launch-profile
 ```
 
-The backend script restores/builds the backend project, then restores/tests the three non-WPF test projects. It never loads the WPF project. CI has separate Windows and Linux jobs. WPF compilation is not a UI smoke check; see `Verification.md` for checks actually executed.
+The backend script restores/builds the backend project, then restores/tests the three non-WPF test projects. It never loads the WPF project. Windows solution verification includes the dedicated STA WPF tests. CI has separate Windows and Linux jobs. Compilation and automated WPF resource tests do not replace an actual visual review; see `Phase01BVerification.md` for checks actually executed.
 
 Integration fixtures use unique temporary disk SQLite databases, apply the real migration, and authenticate using the protected runtime file with the production handler. Extra identities are inserted only in fixture code. Reverse-direction ownership checks invoke the production store with the second fixture actor, without exposing a production impersonation mechanism.
 
@@ -45,7 +45,21 @@ $env:Local__BaseUrl = 'http://127.0.0.1:5275'
 dotnet run --project src/Arbitrage.Backend --no-launch-profile
 ```
 
-In the desktop terminal, set `ARBITRAGE_RUNTIME_DIRECTORY` to that same absolute runtime directory before starting Desktop. The URL comes from validated protected metadata, not an arbitrary remote endpoint. Storage must be outside any Git checkout/worktree. Keep backend storage, desktop preferences/logs, and runtime metadata in distinct locations. Never put a credential in an environment variable or command argument. Do not use `ASPNETCORE_URLS`, `DOTNET_URLS`, HTTP/HTTPS port overrides, or Kestrel endpoint sections: the backend rejects them. Containers and reverse proxies are outside this local-only deployment.
+In the desktop terminal, set `ARBITRAGE_RUNTIME_DIRECTORY` to that same absolute runtime directory before starting Desktop. Set `ARBITRAGE_DESKTOP_DIRECTORY` to an absolute desktop directory when isolating preferences and desktop logs; otherwise they live at `%LOCALAPPDATA%\ArbitrageTrading\desktop`. The versioned `preferences.json` stores only Dark, Light, or System. First run selects System. System follows the Windows **applications** theme; if detection fails it displays Light while keeping System saved. Windows High Contrast overrides the palette while active and does not change the saved choice. A failed preference save leaves the chosen theme in this session with a visible warning. The URL comes from validated protected metadata, not an arbitrary remote endpoint. Storage must be outside any Git checkout/worktree. Keep backend storage, desktop preferences/logs, and runtime metadata in distinct locations. Never put a credential in an environment variable or command argument. Do not use `ASPNETCORE_URLS`, `DOTNET_URLS`, HTTP/HTTPS port overrides, or Kestrel endpoint sections: the backend rejects them. Containers and reverse proxies are outside this local-only deployment.
+
+For an isolated Windows smoke run, choose a new empty temporary root and an unused loopback port. Use **the same shell environment** for the backend and desktop, and set all paths before starting either process:
+
+```powershell
+$smokeRoot = Join-Path ([IO.Path]::GetTempPath()) ("ArbitrageTrading-smoke-" + [guid]::NewGuid().ToString('N'))
+$env:Local__DataDirectory = Join-Path $smokeRoot 'backend'
+$env:Local__RuntimeDirectory = Join-Path $smokeRoot 'runtime'
+$env:ARBITRAGE_RUNTIME_DIRECTORY = $env:Local__RuntimeDirectory
+$env:ARBITRAGE_DESKTOP_DIRECTORY = Join-Path $smokeRoot 'desktop'
+$env:Local__BaseUrl = 'http://127.0.0.1:5276' # replace if this port is in use
+dotnet run --project src/Arbitrage.Backend --no-launch-profile
+```
+
+After the backend starts, launch `dotnet run --project src/Arbitrage.Desktop` from another terminal with those **same** environment values. Stop only the processes you started, then remove only that smoke root after verifying its resolved absolute path is the newly created temporary directory. A disconnected-startup check can launch Desktop first with the same isolated values.
 
 ## Schema lifecycle
 

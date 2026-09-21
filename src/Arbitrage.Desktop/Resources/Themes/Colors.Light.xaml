@@ -1,0 +1,20 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <sys:String xmlns:sys="clr-namespace:System;assembly=System.Runtime" x:Key="ThemePaletteMarker">Light</sys:String>
+  <Color x:Key="Color.ApplicationBackground">#F5F7F8</Color>
+  <Color x:Key="Color.SurfaceBackground">#FFFFFF</Color>
+  <Color x:Key="Color.ElevatedSurfaceBackground">#EDF2F4</Color>
+  <Color x:Key="Color.PrimaryText">#182631</Color>
+  <Color x:Key="Color.SecondaryText">#526472</Color>
+  <Color x:Key="Color.DefaultBorder">#CCD7DE</Color>
+  <Color x:Key="Color.Accent">#087B9F</Color>
+  <Color x:Key="Color.AccentMuted">#D7EDF3</Color>
+  <Color x:Key="Color.FocusIndicator">#087B9F</Color>
+  <Color x:Key="Color.Success">#197451</Color>
+  <Color x:Key="Color.Warning">#8D6000</Color>
+  <Color x:Key="Color.Error">#B73333</Color>
+  <Color x:Key="Color.SelectionBackground">#B4DBE9</Color>
+  <Color x:Key="Color.SelectionText">#132E39</Color>
+  <Color x:Key="Color.DisabledBackground">#E9EDF0</Color>
+  <Color x:Key="Color.DisabledText">#7B8993</Color>
+</ResourceDictionary>

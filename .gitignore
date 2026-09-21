@@ -427,3 +427,18 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Arbitrage Trading local runtime and secrets
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+connection.json
+appsettings.Local.json
+appsettings.*.local.json
+credentials/
+secrets/
+.env
+backend.lock

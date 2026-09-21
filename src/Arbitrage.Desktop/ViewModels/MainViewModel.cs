@@ -16,6 +16,10 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     private int operationActive;
     private long privateStateGeneration;
     public Func<Task>? RefreshRequested { get; set; }
+    // Raised synchronously before clearing private UI state so realtime work is invalidated too.
+    public event EventHandler? AccessInvalidated;
+
+    internal void BeginAuthorizedRealtimeSession() => Interlocked.Increment(ref privateStateGeneration);
 
     [ObservableProperty] private string connectionStatus = "Not loaded";
     [ObservableProperty] private string message = "Start the local backend independently, then Refresh.";
@@ -150,7 +154,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         ConnectionStatus = status;
         Message = description;
         if (status != "Connected") { IsStale = HasSnapshot; CanEdit = false; }
-        if (status is "AuthenticationFailed" or "AuthorizationDenied") ClearPrivateState();
+        if (status is "AuthenticationFailed" or "AuthorizationDenied") ClearPrivateState(accessInvalid: true);
         UpdateCanSave();
     }
 
@@ -187,9 +191,10 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         NotifyDerived();
     }
 
-    private void ClearPrivateState()
+    private void ClearPrivateState(bool accessInvalid = false)
     {
         Interlocked.Increment(ref privateStateGeneration);
+        if (accessInvalid) AccessInvalidated?.Invoke(this, EventArgs.Empty);
         workspaceId = null; savedWorkspaceName = "";
         Snapshot = null; HasSnapshot = false; IsStale = false;
         WorkspaceName = ""; UserId = "Unavailable"; WorkspaceIdentifier = "Unavailable";
@@ -222,7 +227,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     {
         ConnectionStatus = failure.State.ToString(); Message = failure.Message;
         if (failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied)
-            ClearPrivateState();
+            ClearPrivateState(accessInvalid: true);
         else IsStale = HasSnapshot;
         diagnostics?.Record(failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied ? "Warning" : "Information",
             failure.State switch

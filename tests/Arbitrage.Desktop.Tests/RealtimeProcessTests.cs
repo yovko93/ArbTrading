@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Arbitrage.Desktop.Tests;
 
-public sealed class RealtimeProcessTests
+public sealed partial class RealtimeProcessTests
 {
     private sealed class InlineDispatcher : IUiDispatcher
     {

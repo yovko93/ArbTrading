@@ -50,7 +50,7 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
     private int wakeQueued;
     private readonly object stopGate = new();
     private Guid stoppedInstance;
-    private bool authPaused;
+    private volatile bool authPaused;
     private long lastHeartbeatTick;
     private Guid currentInstance;
     private Guid currentWorkspace;
@@ -62,7 +62,17 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
     public void Start()
     {
         if (runner is not null) return;
+        state.AccessInvalidated += OnAccessInvalidated;
         runner = RunSafelyAsync(lifetime.Token);
+    }
+
+    private void OnAccessInvalidated(object? sender, EventArgs args)
+    {
+        // No dispatcher wait, cancellation callback, or HubConnection disposal on the Save stack.
+        authPaused = true;
+        Interlocked.Increment(ref generation);
+        Interlocked.Exchange(ref notifications, 0);
+        Signal();
     }
 
     private async Task RunSafelyAsync(CancellationToken cancellationToken)
@@ -70,7 +80,8 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
         try { await RunAsync(cancellationToken); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception)
-        { await dispatcher.InvokeAsync(() => state.SetRealtimeStatus("Disconnected", "Realtime session stopped unexpectedly.")); }
+        { await dispatcher.InvokeAsync(() =>
+            { if (!authPaused) state.SetRealtimeStatus("Disconnected", "Realtime session stopped unexpectedly."); }); }
     }
 
     public Task RefreshAsync()
@@ -127,8 +138,9 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
             LocalConnection? attemptedConnection = null;
             try
             {
-                await UiAsync(() => state.SetRealtimeStatus(attempt == 0 ? "Connecting" : "Reconnecting",
+                await SessionUiAsync(session, () => state.SetRealtimeStatus(attempt == 0 ? "Connecting" : "Reconnecting",
                     "Connecting to the authorized local backend."), cancellationToken);
+                if (session != Volatile.Read(ref generation)) throw new OperationCanceledException("Desktop access context was superseded.");
                 var local = await backend.ReadConnectionAsync(cancellationToken);
                 attemptedConnection = local;
                 LocalPaths.ValidateBaseUrl(local.BaseUrl);
@@ -162,12 +174,18 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                     await AuthorizedUiAsync(session, heartbeat.BackendInstanceId, currentWorkspace,
                         () => state.SetHeartbeatStatus("Recent application heartbeat"), cancellationToken);
                 }));
-                hub.Closed += _ => { closed = true; Signal(); return Task.CompletedTask; };
+                hub.Closed += _ =>
+                {
+                    closed = true;
+                    if (session == Volatile.Read(ref generation)) Signal();
+                    return Task.CompletedTask;
+                };
                 using var startTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 startTimeout.CancelAfter(TimeSpan.FromSeconds(8));
                 await hub.StartAsync(startTimeout.Token);
                 var acknowledgment = await hub.InvokeAsync<WorkspaceSubscriptionResponse>(
                     "SubscribeDefaultWorkspace", startTimeout.Token);
+                if (session != Volatile.Read(ref generation)) throw new OperationCanceledException("Desktop access context was superseded.");
                 currentInstance = acknowledgment.BackendInstanceId;
                 currentWorkspace = acknowledgment.WorkspaceId;
                 connectedInstance = acknowledgment.BackendInstanceId;
@@ -176,6 +194,8 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                 connected = true; attempt = 0;
                 await AuthorizedUiAsync(session, currentInstance, currentWorkspace, () =>
                 {
+                    // Even a reconnect to the same actor/workspace supersedes old command completions.
+                    state.BeginAuthorizedRealtimeSession();
                     diagnostics.SetBackendIdentity(currentWorkspace, currentInstance);
                     state.SetRealtimeStatus("Synchronizing", "Loading the authoritative workspace snapshot.", true);
                 }, cancellationToken);
@@ -185,11 +205,12 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                         () => state.SetRealtimeStatus("StopRequested",
                             "Backend stop was requested; awaiting process exit.", true), cancellationToken);
                 var lastConsistencyTick = Stopwatch.GetTimestamp();
-                while (!closed && hub.State == HubConnectionState.Connected && !cancellationToken.IsCancellationRequested)
+                while (!closed && hub.State == HubConnectionState.Connected && !cancellationToken.IsCancellationRequested &&
+                    session == Volatile.Read(ref generation) && !authPaused)
                 {
                     var signaled = await wake.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
                     Interlocked.Exchange(ref wakeQueued, 0);
-                    if (closed || hub.State != HubConnectionState.Connected) break;
+                    if (closed || hub.State != HubConnectionState.Connected || session != Volatile.Read(ref generation)) break;
                     var heartbeatTick = Interlocked.Read(ref lastHeartbeatTick);
                     if (Stopwatch.GetElapsedTime(heartbeatTick == 0 ? subscriptionTick : heartbeatTick) > settings.HeartbeatStaleAfter)
                         await AuthorizedUiAsync(session, currentInstance, currentWorkspace,
@@ -202,25 +223,29 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
+            catch (Exception) when (session != Volatile.Read(ref generation)) { }
             catch (Exception exception)
             {
                 var status = Classify(exception);
                 failureStatus = status;
                 var accessInvalid = status is "AuthenticationFailed" or "AuthorizationDenied";
-                authPaused = accessInvalid;
-                if (accessInvalid) Interlocked.Increment(ref generation);
+                if (accessInvalid) authPaused = true;
+                var failureGeneration = accessInvalid ? Interlocked.Increment(ref generation) : session;
+                var credentialRotated = false;
                 if (status == "AuthenticationFailed" && attemptedConnection is not null)
                 {
                     try
                     {
                         var updated = await backend.ReadConnectionAsync(cancellationToken);
                         if (updated.Credential != attemptedConnection.Credential || updated.BaseUrl != attemptedConnection.BaseUrl)
-                        { authPaused = false; Signal(); }
+                        { credentialRotated = true; }
                     }
                     catch (Exception) when (!cancellationToken.IsCancellationRequested) { }
                 }
+                var appliedFailureGeneration = 0L;
                 await UiAsync(() =>
                 {
+                    if (failureGeneration != Volatile.Read(ref generation)) return;
                     var visibleStatus = status == "Disconnected" && StoppedInstance != Guid.Empty ? "StopRequested" : status;
                     state.SetRealtimeStatus(visibleStatus, status switch
                     {
@@ -235,21 +260,27 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                         diagnostics.Record("Warning", status == "AuthenticationFailed" ?
                             "Backend authentication failed." : "Workspace subscription denied.");
                     }
+                    appliedFailureGeneration = Volatile.Read(ref generation);
                 }, cancellationToken);
+                if (credentialRotated && appliedFailureGeneration != 0 && appliedFailureGeneration == Volatile.Read(ref generation))
+                { authPaused = false; Signal(); }
             }
             finally
             {
-                Interlocked.Increment(ref generation);
+                var accessInvalidated = session != Volatile.Read(ref generation);
+                var cleanupGeneration = Interlocked.Increment(ref generation);
                 currentInstance = Guid.Empty; currentWorkspace = Guid.Empty;
                 var hub = activeHub; activeHub = null;
                 if (hub is not null) await hub.DisposeAsync();
-                if (connected && failureStatus is not ("AuthenticationFailed" or "AuthorizationDenied") &&
+                if (connected && !accessInvalidated && failureStatus is not ("AuthenticationFailed" or "AuthorizationDenied") &&
                     !cancellationToken.IsCancellationRequested)
-                    await UiAsync(() => state.SetRealtimeStatus(StoppedInstance == connectedInstance ? "StopRequested" : "Disconnected",
+                    await SessionUiAsync(cleanupGeneration, () => state.SetRealtimeStatus(StoppedInstance == connectedInstance ? "StopRequested" : "Disconnected",
                         StoppedInstance == connectedInstance ? "Backend stop requested; process exit is not yet confirmed." :
                         "Realtime transport disconnected. Retained snapshot is stale."), cancellationToken);
             }
             if (cancellationToken.IsCancellationRequested) break;
+            // Invalidation wakes an active wait; it is not permission to retry the revoked session.
+            if (authPaused) { wake.Wait(0); Interlocked.Exchange(ref wakeQueued, 0); }
             if (authPaused || StoppedInstance != Guid.Empty) continue;
             attempt = Math.Min(attempt + 1, 5);
             var backoff = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt))) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 500));
@@ -300,8 +331,10 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
     }
 
     private Task UiAsync(Action action, CancellationToken cancellationToken) => dispatcher.InvokeAsync(action, cancellationToken);
+    private Task SessionUiAsync(long session, Action action, CancellationToken cancellationToken) =>
+        DispatchIfCurrentAsync(dispatcher, () => !authPaused && session == Volatile.Read(ref generation), action, cancellationToken);
     private bool IsCurrent(long session, Guid instance, Guid workspace) =>
-        session == Volatile.Read(ref generation) && currentInstance == instance && currentWorkspace == workspace;
+        !authPaused && session == Volatile.Read(ref generation) && currentInstance == instance && currentWorkspace == workspace;
     private Task AuthorizedUiAsync(long session, Guid instance, Guid workspace, Action action,
         CancellationToken cancellationToken) => DispatchIfCurrentAsync(dispatcher,
         () => IsCurrent(session, instance, workspace), action, cancellationToken);
@@ -323,6 +356,7 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
 
     public void Dispose()
     {
+        state.AccessInvalidated -= OnAccessInvalidated;
         lifetime.Cancel(); Signal();
         // The run loop owns HubConnection disposal; shutdown never stops the backend host.
     }

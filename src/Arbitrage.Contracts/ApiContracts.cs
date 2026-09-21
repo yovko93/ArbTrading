@@ -13,3 +13,17 @@ public sealed record ExchangeStatusResponse(string Exchange, string IntegrationS
 public sealed record WorkspaceSettingsResponse(Guid WorkspaceId, string DisplayName);
 public sealed record UpdateWorkspaceSettingsRequest(string? DisplayName);
 public sealed record ApiError(string Code, string Message, string CorrelationId);
+
+// REST is authoritative; hub messages only invalidate this snapshot or carry diagnostics.
+public sealed record ApplicationSnapshotResponse(int Version, Guid BackendInstanceId, Guid LocalProfileId, DateTimeOffset CapturedAtUtc,
+    SessionResponse Session, SystemStatusResponse System, WorkspaceSettingsResponse Workspace,
+    ExchangeStatusResponse[] Exchanges);
+public sealed record WorkspaceSubscriptionResponse(Guid BackendInstanceId, Guid WorkspaceId, DateTimeOffset SubscribedAtUtc);
+public sealed record StateInvalidation(Guid BackendInstanceId, Guid WorkspaceId, string Kind);
+public sealed record ApplicationHeartbeat(Guid BackendInstanceId, DateTimeOffset SentAtUtc, string PersistenceState);
+public sealed record BackendDiagnosticEvent(Guid BackendInstanceId, long Sequence, DateTimeOffset OccurredAtUtc,
+    string Severity, string Source, string Code, string Message, Guid WorkspaceId, string? CorrelationId);
+public sealed record RecentDiagnosticsResponse(Guid BackendInstanceId, Guid WorkspaceId, long OldestSequence,
+    long NewestSequence, long DroppedCount, bool Gap, BackendDiagnosticEvent[] Events);
+public sealed record StopLocalRuntimeRequest(Guid ExpectedBackendInstanceId);
+public sealed record StopLocalRuntimeResponse(Guid BackendInstanceId, string Status);

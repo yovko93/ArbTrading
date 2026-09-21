@@ -20,6 +20,15 @@ public sealed record BackendSnapshot(SessionResponse Session, SystemStatusRespon
 public sealed class BackendClient(HttpClient http, ILocalConnectionFile connections)
 {
     public string? LastEndpoint { get; private set; }
+    public Task<LocalConnection> ReadConnectionAsync(CancellationToken cancellationToken) => connections.ReadAsync(cancellationToken);
+    public Task<SessionResponse> GetSessionAsync(CancellationToken cancellationToken) =>
+        SendAsync<SessionResponse>(HttpMethod.Get, "api/v1/session", null, cancellationToken);
+    public Task<ApplicationSnapshotResponse> LoadSnapshotAsync(Guid workspaceId, CancellationToken cancellationToken) =>
+        SendAsync<ApplicationSnapshotResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspaceId}/snapshot", null, cancellationToken);
+    public Task<RecentDiagnosticsResponse> RecentDiagnosticsAsync(Guid workspaceId, long after, CancellationToken cancellationToken) =>
+        SendAsync<RecentDiagnosticsResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspaceId}/diagnostics?after={after}&take=100", null, cancellationToken);
+    public Task<StopLocalRuntimeResponse> StopLocalRuntimeAsync(Guid instanceId, CancellationToken cancellationToken) =>
+        SendAsync<StopLocalRuntimeResponse>(HttpMethod.Post, "api/v1/local-runtime/stop", new StopLocalRuntimeRequest(instanceId), cancellationToken);
     public async Task<BackendSnapshot> LoadAsync(CancellationToken cancellationToken)
     {
         var session = await SendAsync<SessionResponse>(HttpMethod.Get, "api/v1/session", null, cancellationToken);
@@ -59,7 +68,7 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
             }
             throw new BackendFailure(ConnectionState.AuthenticationFailed, "Local authentication failed.");
         }
-        catch (HttpRequestException) { throw new BackendFailure(ConnectionState.Disconnected, "Backend disconnected. Start it independently, then Refresh."); }
+        catch (HttpRequestException) { throw new BackendFailure(ConnectionState.Disconnected, "Backend disconnected. Use Local Backend Start or Refresh to check again."); }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         { throw new BackendFailure(ConnectionState.Disconnected, "Backend did not respond. Refresh to retry."); }
         catch (FileNotFoundException) { throw new BackendFailure(ConnectionState.Disconnected, "Backend connection metadata is not available. Start the backend, then Refresh."); }

@@ -9,6 +9,7 @@
         <StackPanel>
           <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource SectionTitleText}" />
           <TextBlock Text="{Binding State.Message}" Margin="0,7,0,0" />
+          <TextBlock Text="{Binding LocalBackend.ProcessStatus}" Style="{StaticResource MutedText}" Margin="0,7,0,0" />
           <TextBlock Text="Last successful refresh" Style="{StaticResource FieldLabel}" Margin="0,14,0,5" />
           <TextBlock Text="{Binding State.LastRefreshLabel}" />
         </StackPanel>

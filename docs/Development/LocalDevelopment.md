@@ -25,7 +25,7 @@ bash scripts/verify-backend.sh
 dotnet run --project src/Arbitrage.Backend --no-launch-profile
 ```
 
-The backend script restores/builds the backend project, then restores/tests the three non-WPF test projects. It never loads the WPF project. Windows solution verification includes the dedicated STA WPF tests. CI has separate Windows and Linux jobs. Compilation and automated WPF resource tests do not replace an actual visual review; see `Phase01BVerification.md` for checks actually executed.
+The backend script restores/builds the backend project, then restores/tests the three non-WPF test projects. It never loads the WPF project. Windows solution verification includes dedicated STA WPF tests and the real-process SignalR/WebSocket test. CI has separate Windows and Linux jobs. Compilation and automated WPF resource tests do not replace an actual visual review; see `Phase01BVerification.md` and `Phase01CVerification.md` for checks actually executed.
 
 Integration fixtures use unique temporary disk SQLite databases, apply the real migration, and authenticate using the protected runtime file with the production handler. Extra identities are inserted only in fixture code. Reverse-direction ownership checks invoke the production store with the second fixture actor, without exposing a production impersonation mechanism.
 
@@ -89,4 +89,30 @@ Startup exits nonzero on invalid deployment/execution/binding configuration, sto
 
 All `/api/v1` routes require Bearer authentication: `system/status`, `session`, `exchanges/status`, `trading/mode`, and GET/PUT `workspaces/{workspaceId}/settings`. PUT accepts only `{ "displayName": "Name" }`, trims whitespace, rejects blank/control/overlong names, and audits successful changes atomically. Server-generated correlation IDs accompany responses. Invalid names are 400, missing/invalid credentials 401, inaccessible workspaces 404, and storage failures 503. No endpoint can activate execution.
 
-For desktop smoke testing: open with backend stopped; verify Disconnected; start backend and Refresh; compare displayed values with API; rename and Refresh; restart backend and Refresh to verify stable IDs and new credential; close desktop and check liveness remains available. Use an isolated test data/runtime directory and avoid displaying the credential file.
+## Phase 01C realtime and local backend controls
+
+The authenticated hub is `/hubs/v1/application`. Its only subscription method, `SubscribeDefaultWorkspace`, resolves the local profile and checks membership; it acknowledges the backend instance and workspace. The desktop then fetches the authoritative versioned snapshot at `GET /api/v1/workspaces/{id}/snapshot`. Successful workspace writes publish scoped `StateInvalidated` notifications **after** commit. The hub also carries selected structured `BackendDiagnostic` events and an `ApplicationHeartbeat`. Recent diagnostics are available through `GET /api/v1/workspaces/{id}/diagnostics?after={sequence}&take={1..100}`. History is per workspace and per backend instance; it reports oldest/newest sequence, retention gaps, and dropped live-queue count. It is not SQLite audit, a rolling-log parser, or durable event delivery.
+
+The backend heartbeat defaults to 15 seconds (`Local__HeartbeatSeconds`, valid 10–300). SignalR keepalive is 10 seconds and client timeout is 35 seconds. Desktop marks an application heartbeat stale after 45 monotonic seconds (`ARBITRAGE_HEARTBEAT_STALE_SECONDS`, valid 30–900). A consistency snapshot every 60 seconds (`ARBITRAGE_CONSISTENCY_SECONDS`, valid 30–300) recovers missed invalidations without rapid HTTP polling. Connecting, synchronizing, connected, reconnecting, authentication failure, and access denial are separate from local process state. Reconnect reauthenticates, resubscribes, and fetches a new snapshot before claiming synchronization. State and diagnostics are eventual; queue overflow or expired history shows a gap notice. No notification is an order acknowledgment or trading execution signal.
+
+**Start** explicitly launches a built backend executable configured by the absolute `ARBITRAGE_BACKEND_ARTIFACT` path (or one placed beside the desktop executable). A built DLL requires an absolute `ARBITRAGE_DOTNET_HOST`. Start never restores/builds, invokes a shell, or downloads an artifact. It passes the configured data/runtime paths, `Local__BaseUrl`, and managed-local opt-in as process environment values. A profile launch lock serializes concurrent desktop Start clicks; the backend's existing data/runtime leases still enforce single-instance ownership. Protected `runtime/managed-local.json` records the instance, profile, process ID/start time, and artifact after authenticated readiness. A later desktop can reattach and Stop only after verifying those values. An externally started backend is observable but not stoppable through Desktop. Stop requires confirmation, backend authentication, the current instance ID and local owner authority; its acknowledgment means **requested**, while Desktop waits separately for actual process exit. Refresh only observes and resynchronizes. Closing Desktop never sends Stop; neither reconnect nor retry launches an OS process. There is no Force Kill control.
+
+For a safe two-desktop manual check, build Release first, then choose a fresh temporary root and unused port. In one PowerShell terminal from the repository root:
+
+```powershell
+dotnet build ArbitrageTrading.sln -c Release
+$smokeRoot = Join-Path ([IO.Path]::GetTempPath()) ("ArbitrageTrading-01C-manual-" + [guid]::NewGuid().ToString('N'))
+$listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+$listener.Start(); $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port; $listener.Stop()
+$env:Local__DataDirectory = Join-Path $smokeRoot 'backend'
+$env:Local__RuntimeDirectory = Join-Path $smokeRoot 'runtime'
+$env:ARBITRAGE_RUNTIME_DIRECTORY = $env:Local__RuntimeDirectory
+$env:ARBITRAGE_DESKTOP_DIRECTORY = Join-Path $smokeRoot 'desktop-one'
+$env:Local__BaseUrl = "http://127.0.0.1:$port"
+$env:ARBITRAGE_BACKEND_ARTIFACT = (Resolve-Path 'src/Arbitrage.Backend/bin/Release/net10.0/Arbitrage.Backend.exe').Path
+dotnet run --project src/Arbitrage.Desktop -c Release --no-build
+```
+
+Open a second PowerShell terminal with the **same** data/runtime/URL/artifact values, but set `ARBITRAGE_DESKTOP_DIRECTORY` to `$smokeRoot\desktop-two` before launching Desktop. The second client shares the backend profile, not desktop preferences. Start once from either client; the other should connect automatically. Change the workspace name in one client and check the other without pressing Refresh. Confirm Stop from the managed client and check both clients' state. Close both desktops before deleting only the verified temporary root. Do not point these commands at the default runtime directory or remove a live backend's storage.
+
+The local profile currently has one owner and no user-management or revocation operation. Future server identity work must add a hook to remove/terminate live subscriptions on revocation. Backend diagnostic retention is 256 events per workspace and the outgoing queue is capped at 256; the desktop retains at most 200 backend and 200 local events. Live delivery can be missed; the snapshot and recent history recover what is still available, with explicit gap/restart notices when complete recovery is impossible.

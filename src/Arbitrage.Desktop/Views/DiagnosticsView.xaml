@@ -1,34 +1,62 @@
 <UserControl x:Class="Arbitrage.Desktop.Views.DiagnosticsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls"
+             Loaded="OnLoaded" Unloaded="OnUnloaded">
   <Grid>
-    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-    <controls:SectionHeader Title="Logs &amp; Diagnostics" Subtitle="Desktop events from this run. Backend log streaming is deferred to Phase 01C." />
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="2*" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+    <controls:SectionHeader Title="Logs &amp; Diagnostics" Subtitle="Authorized backend events and desktop-local events. This bounded recent feed is not an audit ledger." />
     <Border Grid.Row="1" Style="{StaticResource CardBorder}">
       <StackPanel>
-        <TextBlock Text="Backend status (latest request)" Style="{StaticResource SectionTitleText}" />
-        <TextBlock Text="{Binding State.ConnectionStatus}" Margin="0,8,0,0" />
+        <TextBlock Text="Backend connection and synchronization" Style="{StaticResource SectionTitleText}" />
+        <WrapPanel Margin="0,8,0,0">
+          <TextBlock Text="{Binding State.ConnectionStatus}" Margin="0,0,14,0" />
+          <TextBlock Text="{Binding State.TransportStatus}" Margin="0,0,14,0" />
+          <TextBlock Text="{Binding State.HeartbeatStatus}" />
+        </WrapPanel>
         <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-        <TextBlock Text="Last successful refresh" Style="{StaticResource FieldLabel}" Margin="0,11,0,3" />
-        <TextBlock Text="{Binding State.LastRefreshLabel}" />
-        <TextBlock Text="{Binding State.Message}" Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+        <TextBlock Text="{Binding State.LastRefreshLabel}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
       </StackPanel>
     </Border>
-    <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,0,0,0">
+    <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,0,0,8">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-          <TextBlock Text="Desktop events" Style="{StaticResource SectionTitleText}" />
-          <TextBlock Text="Current run only · newest first · maximum 200 events" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,9">
+          <TextBlock Text="Backend events" Style="{StaticResource SectionTitleText}" />
+          <TextBlock x:Name="BackendNoticeText" Foreground="{DynamicResource Warning}" Margin="0,4,0,5" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Severity" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,5,0" />
+            <ComboBox x:Name="SeverityFilter" Width="120" SelectedIndex="0" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Backend severity filter">
+              <ComboBoxItem Content="All" /><ComboBoxItem Content="Information" /><ComboBoxItem Content="Warning" /><ComboBoxItem Content="Error" />
+            </ComboBox>
+            <TextBlock Text="Source" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="12,0,5,0" />
+            <ComboBox x:Name="SourceFilter" Width="120" SelectedIndex="0" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Backend source filter">
+              <ComboBoxItem Content="All" /><ComboBoxItem Content="Backend" /><ComboBoxItem Content="Workspace" /><ComboBoxItem Content="Realtime" /><ComboBoxItem Content="Runtime" />
+            </ComboBox>
+          </StackPanel>
+        </StackPanel>
+        <ListView x:Name="BackendList" ItemsSource="{Binding Diagnostics.BackendEvents}" BorderThickness="0"
+                  AutomationProperties.Name="Authorized backend diagnostic events">
+          <ListView.View><GridView>
+            <GridViewColumn Header="UTC time" Width="170" DisplayMemberBinding="{Binding OccurredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+            <GridViewColumn Header="Severity" Width="90" DisplayMemberBinding="{Binding Severity}" />
+            <GridViewColumn Header="Source" Width="90" DisplayMemberBinding="{Binding Source}" />
+            <GridViewColumn Header="Event" Width="370" DisplayMemberBinding="{Binding Message}" />
+          </GridView></ListView.View>
+        </ListView>
+      </DockPanel>
+    </Border>
+    <Border Grid.Row="3" Style="{StaticResource CardBorder}" Margin="0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+          <TextBlock Text="Desktop-local events" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="Current desktop run only · newest first · maximum 200 events" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
         </StackPanel>
         <ListView ItemsSource="{Binding Diagnostics.Events}" BorderThickness="0" AutomationProperties.Name="Desktop diagnostic events">
-          <ListView.View>
-            <GridView>
-              <GridViewColumn Header="Time (local)" Width="175" DisplayMemberBinding="{Binding LocalTimestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
-              <GridViewColumn Header="Severity" Width="100" DisplayMemberBinding="{Binding Severity}" />
-              <GridViewColumn Header="Event" Width="480" DisplayMemberBinding="{Binding Description}" />
-            </GridView>
-          </ListView.View>
+          <ListView.View><GridView>
+            <GridViewColumn Header="Local time" Width="175" DisplayMemberBinding="{Binding LocalTimestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+            <GridViewColumn Header="Severity" Width="100" DisplayMemberBinding="{Binding Severity}" />
+            <GridViewColumn Header="Event" Width="450" DisplayMemberBinding="{Binding Description}" />
+          </GridView></ListView.View>
         </ListView>
       </DockPanel>
     </Border>

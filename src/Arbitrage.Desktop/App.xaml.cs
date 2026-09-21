@@ -40,7 +40,15 @@ public partial class App : System.Windows.Application
             collection.AddSingleton<IThemeService, ThemeService>();
             collection.AddSingleton<DesktopDiagnostics>();
             collection.AddSingleton<ThemeSelectionViewModel>();
-            collection.AddSingleton<ShellViewModel>();
+            collection.AddSingleton<IRealtimeDelay, RealtimeDelay>();
+            collection.AddSingleton(RealtimeOptions.FromEnvironment());
+            collection.AddSingleton<RealtimeSession>();
+            collection.AddSingleton(LocalBackendLaunchOptions.FromEnvironment());
+            collection.AddSingleton<ILocalBackendController, LocalBackendController>();
+            collection.AddSingleton<BackendProcessViewModel>();
+            collection.AddSingleton<ShellViewModel>(s => new ShellViewModel(s.GetRequiredService<MainViewModel>(),
+                s.GetRequiredService<ThemeSelectionViewModel>(), s.GetRequiredService<DesktopDiagnostics>(),
+                s.GetRequiredService<BackendProcessViewModel>()));
             collection.AddSingleton<ILocalConnectionFile>(new ProtectedLocalConnectionFile(runtimeDirectory));
             collection.AddHttpClient<BackendClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
@@ -53,8 +61,15 @@ public partial class App : System.Windows.Application
             diagnostics.Record("Information", "Desktop appearance preference loaded.");
             var window = services.GetRequiredService<MainWindow>();
             MainWindow = window;
+            var state = services.GetRequiredService<MainViewModel>();
+            var process = services.GetRequiredService<BackendProcessViewModel>();
+            state.RefreshRequested = process.RefreshAsync;
+            process.ConfirmStop = () => MessageBox.Show(window,
+                "Stop this shared local backend? All connected desktop clients using this instance will lose backend access.",
+                "Stop Local Backend", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
             window.Show();
-            _ = services.GetRequiredService<MainViewModel>().InitializeAsync(lifetime.Token);
+            services.GetRequiredService<RealtimeSession>().Start();
+            _ = ObserveLocalBackendAsync(process);
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception exception)
@@ -65,9 +80,17 @@ public partial class App : System.Windows.Application
         }
     }
 
+    private async Task ObserveLocalBackendAsync(BackendProcessViewModel process)
+    {
+        try { await process.InitializeAsync(lifetime.Token); }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { logger?.Warning("Local backend observation failed: {ErrorType}", exception.GetType().Name); }
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         lifetime.Cancel();
+        services?.GetService<RealtimeSession>()?.Dispose();
         services?.GetService<MainViewModel>()?.Dispose();
         services?.Dispose();
         logger?.Dispose();

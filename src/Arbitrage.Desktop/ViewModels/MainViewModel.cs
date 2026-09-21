@@ -1,4 +1,5 @@
 using Arbitrage.Desktop.Services;
+using Arbitrage.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     private Guid? workspaceId;
     private string savedWorkspaceName = "";
     private int operationActive;
+    public Func<Task>? RefreshRequested { get; set; }
 
     [ObservableProperty] private string connectionStatus = "Not loaded";
     [ObservableProperty] private string message = "Start the local backend independently, then Refresh.";
@@ -35,6 +37,10 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     [ObservableProperty] private bool isDirty;
     [ObservableProperty] private bool canSave;
     [ObservableProperty] private BackendSnapshot? snapshot;
+    [ObservableProperty] private string transportStatus = "Disconnected";
+    [ObservableProperty] private string heartbeatStatus = "No heartbeat";
+    [ObservableProperty] private string backendInstance = "Unavailable";
+    [ObservableProperty] private string serverChangeNotice = "";
 
     public string WorkspaceHeader => HasSnapshot && ConnectionStatus is not ("AuthenticationFailed" or "AuthorizationDenied")
         ? WorkspaceName : "Workspace unavailable";
@@ -62,31 +68,13 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        if (RefreshRequested is not null) { await RefreshRequested(); return; }
         if (!BeginOperation()) return;
         diagnostics?.Record("Information", "Backend refresh requested.");
         try
         {
             var result = await backend.LoadAsync(lifetime.Token);
-            var workspaceChanged = workspaceId != result.Workspace.WorkspaceId;
-            workspaceId = result.Workspace.WorkspaceId;
-            if (workspaceChanged || !IsDirty)
-            {
-                savedWorkspaceName = result.Workspace.DisplayName;
-                WorkspaceName = savedWorkspaceName;
-            }
-            else savedWorkspaceName = result.Workspace.DisplayName;
-            IsDirty = WorkspaceName != savedWorkspaceName;
-            Snapshot = result;
-            UserId = result.Session.UserId.ToString();
-            WorkspaceIdentifier = result.Workspace.WorkspaceId.ToString();
-            BackendVersion = result.System.BackendVersion;
-            Persistence = result.System.PersistenceState;
-            TradingMode = result.System.EffectiveTradingMode;
-            Execution = result.System.Capabilities.PaperExecutionImplemented ? "Paper execution available" : "Execution is not implemented (including paper fills)";
-            Exchanges = string.Join("  ·  ", result.Exchanges.Select(e => $"{e.Exchange}: {e.IntegrationState}"));
-            Endpoint = result.Endpoint;
-            LastSuccessfulRefresh = DateTimeOffset.UtcNow;
-            HasSnapshot = true; IsStale = false;
+            ApplyBackendSnapshot(result);
             ConnectionStatus = ConnectionState.Connected.ToString();
             Message = "Backend state refreshed. Trading data remains unavailable in this phase.";
             diagnostics?.Record("Information", "Backend refresh succeeded.");
@@ -103,6 +91,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     {
         if (!CanSave || workspaceId is not { } id || !BeginOperation()) return;
         var submittedName = WorkspaceName;
+        var committed = false;
         diagnostics?.Record("Information", "Workspace display-name update requested.");
         try
         {
@@ -111,9 +100,11 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
             if (WorkspaceName == submittedName) WorkspaceName = result.DisplayName;
             IsDirty = WorkspaceName != savedWorkspaceName;
             WorkspaceFeedback = "Workspace name saved and audited by the backend.";
+            ServerChangeNotice = "";
+            committed = true;
             Message = WorkspaceFeedback;
-            ConnectionStatus = ConnectionState.Connected.ToString();
-            IsStale = true;
+            ConnectionStatus = RefreshRequested is null ? ConnectionState.Connected.ToString() : "Synchronizing";
+            IsStale = RefreshRequested is not null;
             diagnostics?.Record("Information", "Workspace display-name update succeeded.");
             NotifyDerived();
         }
@@ -121,6 +112,75 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         catch (BackendFailure failure) { WorkspaceFeedback = failure.Message; ReportFailure(failure); }
         catch (Exception exception) { WorkspaceFeedback = "Workspace update failed; Refresh to inspect backend state."; ReportUnexpected(exception); }
         finally { EndOperation(); }
+        if (committed && RefreshRequested is not null) await RefreshRequested();
+    }
+
+    public void ApplyRealtimeSnapshot(ApplicationSnapshotResponse response, string endpoint)
+    {
+        if (response.Version != 1) throw new InvalidOperationException("Unsupported backend snapshot version.");
+        if (HasSnapshot && (UserId != response.Session.UserId.ToString() || workspaceId != response.Workspace.WorkspaceId))
+            ClearPrivateState();
+        var backendChanged = BackendInstance != response.BackendInstanceId.ToString();
+        ApplyBackendSnapshot(new(response.Session, response.System, response.Workspace, response.Exchanges, endpoint));
+        BackendInstance = response.BackendInstanceId.ToString();
+        TransportStatus = "Connected";
+        if (backendChanged) HeartbeatStatus = "Awaiting heartbeat";
+        ConnectionStatus = ConnectionState.Connected.ToString();
+        CanEdit = true;
+        Message = "Backend state synchronized. Market data and execution remain unavailable.";
+        UpdateCanSave();
+    }
+
+    public void SetRealtimeStatus(string status, string description, bool transportConnected = false)
+    {
+        TransportStatus = transportConnected ? "Connected" : status;
+        ConnectionStatus = status;
+        Message = description;
+        if (status != "Connected") { IsStale = HasSnapshot; CanEdit = false; }
+        if (status is "AuthenticationFailed" or "AuthorizationDenied") ClearPrivateState();
+        UpdateCanSave();
+    }
+
+    public void SetHeartbeatStatus(string status) => HeartbeatStatus = status;
+
+    private void ApplyBackendSnapshot(BackendSnapshot result)
+    {
+        var workspaceChanged = workspaceId != result.Workspace.WorkspaceId;
+        workspaceId = result.Workspace.WorkspaceId;
+        var serverChanged = savedWorkspaceName.Length > 0 && savedWorkspaceName != result.Workspace.DisplayName;
+        if (workspaceChanged || !IsDirty)
+        {
+            savedWorkspaceName = result.Workspace.DisplayName;
+            WorkspaceName = savedWorkspaceName;
+            ServerChangeNotice = "";
+        }
+        else
+        {
+            savedWorkspaceName = result.Workspace.DisplayName;
+            if (serverChanged) ServerChangeNotice = "The backend workspace name changed while your edit is unsaved. Review before saving.";
+        }
+        IsDirty = WorkspaceName != savedWorkspaceName;
+        Snapshot = result;
+        UserId = result.Session.UserId.ToString();
+        WorkspaceIdentifier = result.Workspace.WorkspaceId.ToString();
+        BackendVersion = result.System.BackendVersion;
+        Persistence = result.System.PersistenceState;
+        TradingMode = result.System.EffectiveTradingMode;
+        Execution = result.System.Capabilities.PaperExecutionImplemented ? "Paper execution available" : "Execution is not implemented (including paper fills)";
+        Exchanges = string.Join("  ·  ", result.Exchanges.Select(e => $"{e.Exchange}: {e.IntegrationState}"));
+        Endpoint = result.Endpoint;
+        LastSuccessfulRefresh = DateTimeOffset.UtcNow;
+        HasSnapshot = true; IsStale = false;
+        NotifyDerived();
+    }
+
+    private void ClearPrivateState()
+    {
+        workspaceId = null; savedWorkspaceName = "";
+        Snapshot = null; HasSnapshot = false; IsStale = false;
+        WorkspaceName = ""; UserId = "Unavailable"; WorkspaceIdentifier = "Unavailable";
+        ServerChangeNotice = ""; CanEdit = false;
+        NotifyDerived();
     }
 
     private bool BeginOperation()

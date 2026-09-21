@@ -45,6 +45,19 @@ public partial class Program
         builder.Services.AddSerilog(logger);
         builder.WebHost.ConfigureKestrel(k => k.Listen(IPAddress.Parse(endpoint.Host.Trim('[', ']')), endpoint.Port));
         builder.Services.Configure<LocalOptions>(builder.Configuration.GetSection("Local"));
+        builder.Services.AddSingleton(settings);
+        builder.Services.AddSingleton<BackendInstance>();
+        builder.Services.AddSingleton<BackendDiagnosticStore>();
+        builder.Services.AddSingleton<RealtimePublisher>();
+        builder.Services.AddSingleton<LocalShutdownCoordinator>();
+        builder.Services.AddHostedService<RealtimeDispatchService>();
+        builder.Services.AddHostedService<ApplicationHeartbeatService>();
+        builder.Services.AddSignalR(options =>
+        {
+            options.MaximumReceiveMessageSize = 4096;
+            options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(35);
+        });
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(dbOptions);
         builder.Services.AddScoped<TradingDbContext>();
@@ -88,6 +101,7 @@ public partial class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapGet("/health/live", () => Results.Ok(new { status = "Live" })).AllowAnonymous();
+        app.MapHub<ApplicationHub>("/hubs/v1/application").RequireAuthorization();
         var api = app.MapGroup("/api/v1").RequireAuthorization();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(
             Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown", started.Elapsed.TotalSeconds,
@@ -100,10 +114,58 @@ public partial class Program
         });
         api.MapGet("/exchanges/status", () => new[] { new ExchangeStatusResponse("Polymarket", "NotImplemented"), new ExchangeStatusResponse("Kalshi", "NotImplemented") });
         api.MapGet("/trading/mode", () => new TradingModeResponse(settings.TradingMode, "Paper", Capabilities.Phase01A));
+        api.MapGet("/workspaces/{workspaceId:guid}/snapshot", async (Guid workspaceId, WorkspaceService workspaces,
+            ILocalProfileStore profiles, BackendInstance instance, HttpContext context, CancellationToken ct) =>
+        {
+            var workspace = await workspaces.ReadAsync(workspaceId, ct);
+            if (!workspace.IsSuccess) return Map(workspace, context);
+            var profile = await profiles.GetAsync(ct);
+            var status = new SystemStatusResponse(Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown",
+                started.Elapsed.TotalSeconds, await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable",
+                "Local", settings.TradingMode, "Paper", Capabilities.Phase01A);
+            return Results.Ok(new ApplicationSnapshotResponse(1, instance.Id, profile.Id, DateTimeOffset.UtcNow,
+                new SessionResponse(profile.UserId, workspaceId, "Local", Capabilities.Phase01A), status,
+                new WorkspaceSettingsResponse(workspaceId, workspace.Value!.DisplayName),
+                [new("Polymarket", "NotImplemented"), new("Kalshi", "NotImplemented")]));
+        });
+        api.MapGet("/workspaces/{workspaceId:guid}/diagnostics", async (Guid workspaceId, long? after, int? take,
+            WorkspaceService workspaces, BackendDiagnosticStore diagnostics, HttpContext context, CancellationToken ct) =>
+        {
+            var workspace = await workspaces.ReadAsync(workspaceId, ct);
+            if (!workspace.IsSuccess) return Map(workspace, context);
+            if (after is < 0 || take is < 1 or > 100) return Results.BadRequest();
+            return Results.Ok(diagnostics.Recent(workspaceId, after ?? 0, take ?? 100));
+        });
         api.MapGet("/workspaces/{workspaceId:guid}/settings", async (Guid workspaceId, WorkspaceService service, HttpContext context, CancellationToken ct) =>
             Map(await service.ReadAsync(workspaceId, ct), context));
-        api.MapPut("/workspaces/{workspaceId:guid}/settings", async (Guid workspaceId, UpdateWorkspaceSettingsRequest request, WorkspaceService service, HttpContext context, CancellationToken ct) =>
-            Map(await service.RenameAsync(workspaceId, request.DisplayName, context.TraceIdentifier, ct), context));
+        api.MapPut("/workspaces/{workspaceId:guid}/settings", async (Guid workspaceId, UpdateWorkspaceSettingsRequest request,
+            WorkspaceService service, RealtimePublisher realtime, BackendInstance instance, HttpContext context, CancellationToken ct) =>
+        {
+            var result = await service.RenameAsync(workspaceId, request.DisplayName, context.TraceIdentifier, ct);
+            if (result.IsSuccess)
+            {
+                try { realtime.WorkspaceChanged(instance.Id, workspaceId, context.TraceIdentifier); }
+                catch (Exception exception) { logger.Warning("Committed workspace change notification failed: {ErrorType}", exception.GetType().Name); }
+            }
+            return Map(result, context);
+        });
+        api.MapPost("/local-runtime/stop", async (StopLocalRuntimeRequest request, IRequestActor actor,
+            ILocalProfileStore profiles, BackendInstance instance, LocalShutdownCoordinator shutdown,
+            RealtimePublisher realtime, HttpContext context, CancellationToken ct) =>
+        {
+            if (!settings.ManagedLocal) return Results.StatusCode(403);
+            var profile = await profiles.GetAsync(ct);
+            if (actor.UserId != profile.UserId) return Results.StatusCode(403);
+            if (request.ExpectedBackendInstanceId != instance.Id) return Results.Conflict();
+            try
+            {
+                realtime.Diagnostic(profile.DefaultWorkspaceId, "Warning", "Runtime", "StopRequested",
+                    "An authorized local desktop requested backend shutdown.", context.TraceIdentifier);
+            }
+            catch (Exception exception)
+            { logger.Warning("Stop notification failed: {ErrorType}", exception.GetType().Name); }
+            return Results.Ok(shutdown.Accept(context));
+        });
 
         // Publish credentials only after persistence and the listening socket are ready.
         await app.StartAsync();
@@ -111,6 +173,12 @@ public partial class Program
         {
             ILocalConnectionFile connectionFile = new ProtectedLocalConnectionFile(settings.RuntimeDirectory);
             await connectionFile.WriteAsync(new(endpoint.GetLeftPart(UriPartial.Authority), credential.Value), CancellationToken.None);
+            await using (var readyScope = app.Services.CreateAsyncScope())
+            {
+                var profile = await readyScope.ServiceProvider.GetRequiredService<ILocalProfileStore>().GetAsync(CancellationToken.None);
+                app.Services.GetRequiredService<RealtimePublisher>().Diagnostic(profile.DefaultWorkspaceId,
+                    "Information", "Backend", "Ready", "Local backend is ready; execution is unavailable.");
+            }
             logger.Information("Local backend initialized; execution unavailable");
             await app.WaitForShutdownAsync();
         }

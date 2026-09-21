@@ -9,11 +9,14 @@ public sealed class LocalOptions
     public string BaseUrl { get; set; } = "http://127.0.0.1:5274";
     public string DataDirectory { get; set; } = Path.Combine(LocalPaths.Root, "backend");
     public string RuntimeDirectory { get; set; } = LocalPaths.Runtime;
+    public bool ManagedLocal { get; set; }
+    public int HeartbeatSeconds { get; set; } = 15;
 
     public Uri Validate(IConfiguration configuration)
     {
         if (DeploymentMode != "Local") throw new InvalidOperationException("Server deployment is unavailable in Phase 01A.");
         if (TradingMode != "Paper") throw new InvalidOperationException("Requested execution mode is unavailable in Phase 01A; only the Paper environment is supported.");
+        if (HeartbeatSeconds is < 10 or > 300) throw new InvalidOperationException("Heartbeat interval must be 10–300 seconds.");
         foreach (var key in new[] { "urls", "http_ports", "https_ports", "ASPNETCORE_URLS", "DOTNET_URLS", "ASPNETCORE_HTTP_PORTS", "ASPNETCORE_HTTPS_PORTS", "DOTNET_HTTP_PORTS", "DOTNET_HTTPS_PORTS" })
             if (!string.IsNullOrWhiteSpace(configuration[key]))
                 throw new InvalidOperationException("Host binding overrides are not supported. Configure Local:BaseUrl with a literal loopback address.");

@@ -60,14 +60,23 @@
                      TextTrimming="CharacterEllipsis" MaxWidth="400" HorizontalAlignment="Left" />
           <WrapPanel Margin="0,9,0,0">
             <controls:StatusBadge Label="Local" Tone="Neutral" Margin="0,0,7,0" />
+            <controls:StatusBadge Label="{Binding LocalBackend.ProcessStatus}" Tone="Neutral" Margin="0,0,7,0" />
             <controls:StatusBadge Label="{Binding State.ConnectionStatus}" Tone="Neutral" Margin="0,0,7,0" />
             <controls:StatusBadge Label="{Binding State.TradingMode}" Tone="Neutral" Margin="0,0,7,0" />
             <controls:StatusBadge Label="Execution unavailable" Tone="Warning" />
           </WrapPanel>
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-          <controls:ThemePicker DataContext="{Binding Theme}" Margin="0,0,10,0" />
-          <Button Content="Refresh" Command="{Binding State.RefreshCommand}" AutomationProperties.Name="Refresh backend state" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
+          <controls:ThemePicker DataContext="{Binding Theme}" HorizontalAlignment="Right" Margin="0,0,0,8" />
+          <TextBlock Text="LOCAL BACKEND" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold"
+                     FontSize="10" HorizontalAlignment="Right" Margin="0,0,0,4" />
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
+                    ToolTip="{Binding LocalBackend.StartExplanation}" AutomationProperties.Name="Start local backend" Margin="0,0,6,0" />
+            <Button Content="Stop" Command="{Binding LocalBackend.StopCommand}" IsEnabled="{Binding LocalBackend.CanStop}"
+                    ToolTip="{Binding LocalBackend.StopExplanation}" AutomationProperties.Name="Stop local backend" Margin="0,0,6,0" />
+            <Button Content="Refresh" Command="{Binding State.RefreshCommand}" AutomationProperties.Name="Refresh backend state" />
+          </StackPanel>
         </StackPanel>
       </Grid>
     </Border>
@@ -78,6 +87,7 @@
         <TextBlock DockPanel.Dock="Right" Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" />
         <TextBlock DockPanel.Dock="Right" Text="  ·  " Style="{StaticResource MutedText}" />
         <TextBlock DockPanel.Dock="Left" Text="{Binding State.ConnectionStatus}" FontWeight="SemiBold" />
+        <TextBlock DockPanel.Dock="Left" Text="{Binding LocalBackend.ManagementStatus}" Margin="10,0,0,0" Style="{StaticResource MutedText}" />
         <TextBlock Text="{Binding State.Message}" Foreground="{DynamicResource SecondaryText}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" />
       </DockPanel>
     </Border>

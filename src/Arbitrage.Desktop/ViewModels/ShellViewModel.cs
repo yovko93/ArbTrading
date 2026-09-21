@@ -10,8 +10,8 @@ public enum PageDestination
 }
 
 public sealed record NavigationItem(PageDestination Destination, string Label, string Icon);
-public sealed record DashboardViewModel(MainViewModel State);
-public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme);
+public sealed record DashboardViewModel(MainViewModel State, object? LocalBackend = null);
+public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme, object? LocalBackend = null);
 public sealed record DiagnosticsViewModel(MainViewModel State, DesktopDiagnostics Diagnostics);
 public sealed record TradingViewModel(MainViewModel State);
 public sealed record UnavailablePageViewModel(string Title, string Purpose, string Dependency)
@@ -24,6 +24,7 @@ public partial class ShellViewModel : ObservableObject
     private readonly Dictionary<PageDestination, object> pages;
     public MainViewModel State { get; }
     public ThemeSelectionViewModel Theme { get; }
+    public object? LocalBackend { get; }
     public IReadOnlyList<NavigationItem> Navigation { get; } =
     [
         new(PageDestination.Dashboard, "Dashboard", "M 1,13 L 1,4 L 9,4 L 9,13 Z M 12,13 L 12,1 L 20,1 L 20,13 Z"),
@@ -42,13 +43,13 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty] private object? currentPage;
     [ObservableProperty] private string pageTitle = "Dashboard";
 
-    public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics)
+    public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics, object? localBackend = null)
     {
-        State = state; Theme = theme;
+        State = state; Theme = theme; LocalBackend = localBackend;
         pages = new()
         {
-            [PageDestination.Dashboard] = new DashboardViewModel(state),
-            [PageDestination.Settings] = new SettingsViewModel(state, theme),
+            [PageDestination.Dashboard] = new DashboardViewModel(state, localBackend),
+            [PageDestination.Settings] = new SettingsViewModel(state, theme, localBackend),
             [PageDestination.Diagnostics] = new DiagnosticsViewModel(state, diagnostics),
             [PageDestination.Trading] = new TradingViewModel(state),
             [PageDestination.Opportunities] = new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Market ingestion and strategy evaluation are not implemented."),

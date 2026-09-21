@@ -23,6 +23,8 @@
           <TextBox Text="{Binding State.WorkspaceName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding State.CanEdit}"
                    MaxLength="100" AutomationProperties.Name="Workspace display name" />
           <TextBlock Text="{Binding State.ValidationMessage}" Foreground="{DynamicResource Error}" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite" />
+          <TextBlock Text="{Binding State.ServerChangeNotice}" Foreground="{DynamicResource Warning}" Margin="0,6,0,0"
+                     TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
           <Button Content="Save workspace name" Command="{Binding State.SaveCommand}" IsEnabled="{Binding State.CanSave}"
                   HorizontalAlignment="Left" Margin="0,11,0,0" AutomationProperties.Name="Save workspace display name" />
           <TextBlock Text="{Binding State.WorkspaceFeedback}" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
@@ -38,6 +40,13 @@
           <TextBlock Text="Local endpoint" Style="{StaticResource FieldLabel}" Margin="0,13,0,3" />
           <TextBlock Text="{Binding State.Endpoint}" />
           <TextBlock Text="{Binding State.ConnectionStatus}" Margin="0,9,0,0" />
+          <TextBlock Text="{Binding LocalBackend.ProcessStatus}" Margin="0,4,0,0" />
+          <TextBlock Text="{Binding LocalBackend.ManagementStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+          <TextBlock Text="{Binding LocalBackend.Explanation}" Style="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding LocalBackend.StartExplanation}" Style="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding LocalBackend.StopExplanation}" Style="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding State.TransportStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+          <TextBlock Text="{Binding State.HeartbeatStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
           <Button Content="Refresh backend state" Command="{Binding State.RefreshCommand}" HorizontalAlignment="Left" Margin="0,11,0,0" />
         </StackPanel>
       </Border>

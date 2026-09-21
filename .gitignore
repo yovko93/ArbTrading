@@ -442,3 +442,6 @@ credentials/
 secrets/
 .env
 backend.lock
+managed-local.json
+managed-local.lock
+desktop-start.lock

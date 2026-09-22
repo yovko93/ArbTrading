@@ -44,7 +44,7 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty] private string pageTitle = "Dashboard";
 
     public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics,
-        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null)
+        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null)
     {
         State = state; Theme = theme; LocalBackend = localBackend;
         pages = new()
@@ -53,7 +53,7 @@ public partial class ShellViewModel : ObservableObject
             [PageDestination.Settings] = new SettingsViewModel(state, theme, localBackend, credentials),
             [PageDestination.Diagnostics] = new DiagnosticsViewModel(state, diagnostics),
             [PageDestination.Trading] = new TradingViewModel(state),
-            [PageDestination.Opportunities] = new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Market ingestion and strategy evaluation are not implemented."),
+            [PageDestination.Opportunities] = (object?)opportunities ?? new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Market ingestion and strategy evaluation are not implemented."),
             [PageDestination.MarketExplorer] = (object?)marketExplorer ?? new UnavailablePageViewModel("Market Explorer", "Browse locally cached public markets.", "Market Explorer is not available in this shell instance."),
             [PageDestination.MarketMatching] = (object?)relationships ?? new UnavailablePageViewModel("Market Matching", "Compare market rules and candidate equivalents.", "Relationships are unavailable in this shell instance."),
             [PageDestination.Strategies] = new UnavailablePageViewModel("Strategies", "Configure and review arbitrage strategies.", "Strategy evaluation and optimization are not implemented."),
@@ -68,6 +68,10 @@ public partial class ShellViewModel : ObservableObject
         if (value is null) return;
         PageTitle = value.Label;
         CurrentPage = pages[value.Destination];
+        if (pages[PageDestination.Opportunities] is OpportunitiesViewModel opportunities)
+        {
+            if (value.Destination == PageDestination.Opportunities) opportunities.Activate(); else opportunities.Deactivate();
+        }
         if (pages[PageDestination.MarketMatching] is RelationshipsViewModel relationships)
         {
             if (value.Destination == PageDestination.MarketMatching) relationships.Activate(); else relationships.Deactivate();

@@ -4,7 +4,7 @@ The eventual product covers all available Polymarket and Kalshi market categorie
 
 Paper, Manual, and Automatic are distinct modes. Phase 01A represents all three in the domain but accepts only the Paper environment; paper fills and all live execution capabilities are unavailable. Do not treat selecting Paper as an implemented simulator or silently downgrade an unavailable execution request.
 
-Future AI-assisted market matching can approve automatically only when independent deterministic validation establishes the necessary rule compatibility. There are no AI calls or matching algorithms now.
+Future AI-assisted market matching can approve automatically only when independent deterministic validation establishes the necessary rule compatibility. Phase 03A now provides deterministic relationship validation and audited manual review; no AI calls are implemented.
 
 Phase 01A delivers the narrow chain: persistent local profile → authenticated local API → authorized/audited workspace operation → actual backend state in a minimal WPF screen. Registration, password resets, email verification, social login, exchange connectivity/authentication, exchange credential collection, signing, orders, transfers, settlement, simulation, web UI, and cloud synchronization are excluded.
 
@@ -13,3 +13,5 @@ Phase 01B implements full desktop navigation and exactly Dark, Light, System the
 Phase 01C adds an authenticated workspace-scoped SignalR hub for invalidation, heartbeat, and bounded structured backend diagnostics. Versioned REST snapshots remain authoritative. Desktop reconnects, resubscribes, and resynchronizes after interruptions or backend restarts; low-frequency consistency refresh recovers missed notifications. Explicit Local Backend Start/Stop controls manage only verified desktop-launched local instances, while Refresh never changes the process lifecycle. This channel is not an execution bus, order acknowledgment path, or durable financial ledger. Session revocation and multi-workspace administration remain future work.
 
 Initial deployment is one Windows computer. Later, the same backend can move to a Windows or Linux server after the identity/server ADR prerequisites are met, and a web client can reuse the HTTP API. None of these later steps enable trading by implication.
+
+Phase 02A/02B provide explicit public discovery and canonical REST/realtime orderbooks, including optional OS-protected Kalshi WebSocket credentials. Phase 03B adds a bounded, read-only pre-fee candidate engine over approved relationships and cached actionable books. It does not add fees, balances, capital allocation, simulated fills or order execution. See [read-only opportunity architecture](ReadOnlyOpportunities.md). Fee schedules, execution mechanics and continuous monitoring remain later work.

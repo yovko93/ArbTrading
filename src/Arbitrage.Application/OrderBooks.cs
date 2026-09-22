@@ -25,6 +25,15 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
     private static TimeSpan Validate(int seconds) => seconds is >= 1 and <= 60 ? TimeSpan.FromSeconds(seconds) : throw new ArgumentOutOfRangeException(nameof(seconds));
     private readonly int limit = capacity is >= 1 and <= 1024 ? capacity : throw new ArgumentOutOfRangeException(nameof(capacity));
     public int Count { get { lock (gate) return entries.Count; } }
+    public CachedOrderBook[] ReadTogether(params OrderBookInstrumentId[] instruments)
+    {
+        if (instruments.Length > 2) throw new ArgumentException("Only two-leg evaluation reads are supported.");
+        lock (gate) return instruments.Select(Read).ToArray();
+    }
+    public bool VersionsMatch(IReadOnlyList<OrderBookInstrumentId> instruments, IReadOnlyList<long> versions)
+    {
+        lock (gate) return instruments.Count == versions.Count && instruments.Select((id, i) => (entries.GetValueOrDefault(id)?.Version ?? 0) == versions[i]).All(v => v);
+    }
     public CachedOrderBook Read(OrderBookInstrumentId id)
     {
         lock (gate)

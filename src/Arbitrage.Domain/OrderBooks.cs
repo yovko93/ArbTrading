@@ -7,6 +7,7 @@ public enum BookValidity { Valid, Invalid, Unsupported }
 public enum BookFreshness { Unavailable, Fresh, Stale }
 public enum DepthAction { Buy, Sell }
 public sealed record OrderBookInstrumentId(string Exchange, string NativeMarketId, string NativeInstrumentId, string Outcome);
+public sealed record LiquiditySourceId(string Exchange, string MarketId, string InstrumentId, DepthAction NativeSide, decimal NativePrice);
 public sealed record OrderBookLevel(decimal Price, decimal Quantity, LiquidityOrigin Origin);
 
 // Construct only through the normalizer. Immutable levels prevent cache readers from corrupting shared state.
@@ -33,6 +34,7 @@ public sealed class OrderBookSnapshot
     public BookValidity Validity { get; }
     public string Completeness => "FullReturnedDepth";
     public ImmutableArray<string> Warnings { get; }
+    public LiquiditySourceId? LiquiditySource(OrderBookLevel level) => OrderBookNormalizer.LiquiditySource(Instrument, level);
 }
 
 public static class OrderBookNormalizer
@@ -65,6 +67,15 @@ public static class OrderBookNormalizer
         return new(instrument, b, a, opposite, retrieved.ToUniversalTime(), source?.ToUniversalTime(),
             sourceMarket, hash, validity, warnings.ToImmutable());
     }
+
+    public static LiquiditySourceId? LiquiditySource(OrderBookInstrumentId instrument, OrderBookLevel l) => l.Origin switch
+        {
+            LiquidityOrigin.NativeBid => new(instrument.Exchange, instrument.NativeMarketId, instrument.NativeInstrumentId, DepthAction.Sell, l.Price),
+            LiquidityOrigin.NativeAsk => new(instrument.Exchange, instrument.NativeMarketId, instrument.NativeInstrumentId, DepthAction.Buy, l.Price),
+            LiquidityOrigin.DerivedComplement when instrument.Exchange == "Kalshi" && instrument.NativeInstrumentId is "yes" or "no" =>
+                new(instrument.Exchange, instrument.NativeMarketId, instrument.NativeInstrumentId == "yes" ? "no" : "yes", DepthAction.Sell, 1m - l.Price),
+            _ => null
+        };
 
     private static ImmutableArray<OrderBookLevel> Side(IEnumerable<OrderBookLevel> source, bool bid,
         ImmutableArray<string>.Builder warnings)

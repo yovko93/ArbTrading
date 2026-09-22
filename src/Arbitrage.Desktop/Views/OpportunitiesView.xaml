@@ -1,0 +1,87 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.OpportunitiesView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <UserControl.Resources>
+  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+     <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+    </Border>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- Native ComboBox chrome can ignore dark backgrounds; keep this review page's selectors readable. -->
+  <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+    <Grid>
+     <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"><TextBlock Text="▾" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0" Foreground="{DynamicResource PrimaryText}"/></Border></ControlTemplate></ToggleButton.Template>
+     </ToggleButton>
+     <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="8,0,25,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+     <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
+      <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1">
+       <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+      </Border>
+     </Popup>
+    </Grid>
+    <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger></ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </UserControl.Resources>
+ <Grid Margin="16">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="180"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="PRE-FEE opportunities" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}"/>
+   <TextBlock Text="Fees not evaluated · Net profit unknown · Execution unavailable" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
+   <TextBlock Text="Blocked diagnostics may retain historical values. Only Detected rows are current pre-fee candidates." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+   <WrapPanel Margin="0,8">
+    <TextBox Text="{Binding RelationshipId, UpdateSourceTrigger=PropertyChanged}" Width="265" AutomationProperties.Name="Selected relationship ID" ToolTip="Paste a verified relationship ID from Market Matching"/>
+    <Button Content="Evaluate Selected" Command="{Binding EvaluateSelectedCommand}" Margin="6,0"/>
+    <Button Content="Evaluate Verified Relationships" Command="{Binding EvaluateVerifiedCommand}"/>
+    <Button Content="Cancel Evaluation" Command="{Binding CancelEvaluationCommand}" Margin="6,0"/>
+   </WrapPanel>
+   <WrapPanel>
+    <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding Exchange}" Width="115" AutomationProperties.Name="Source exchange"/>
+    <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding TargetExchange}" Width="115" Margin="6,0" AutomationProperties.Name="Target exchange"/>
+    <CheckBox Content="Include manually verified relationships" IsChecked="{Binding IncludeManualRelationships}" VerticalAlignment="Center" Margin="8,0"/>
+   </WrapPanel>
+   <WrapPanel Margin="0,8">
+    <TextBlock Text="Minimum pre-fee gross edge" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
+    <TextBox Text="{Binding MinimumGrossEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum pre-fee gross edge"/>
+    <TextBlock Text="Diagnostic quantity cap" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
+    <TextBox Text="{Binding MaximumEvaluationQuantity, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="80" Margin="6,0" AutomationProperties.Name="Diagnostic quantity cap"/>
+    <TextBlock Text="Max skew (ms)" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
+    <TextBox Text="{Binding MaximumSkewMilliseconds, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="65" Margin="6,0" AutomationProperties.Name="Maximum observation skew in milliseconds"/>
+   </WrapPanel>
+   <WrapPanel><CheckBox Content="Show diagnostics (includes blocked results)" IsChecked="{Binding ShowDiagnostics}" Margin="0,0,12,0"/><CheckBox Content="Sort by gross profit (display only)" IsChecked="{Binding SortByGrossProfit}"/></WrapPanel>
+  </StackPanel>
+  <StackPanel Grid.Row="1" Margin="0,8">
+   <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+   <WrapPanel><TextBlock Text="{Binding Job.State}" Foreground="{DynamicResource PrimaryText}" Margin="0,0,8,0"/><TextBlock Text="{Binding Job.Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/></WrapPanel>
+  </StackPanel>
+  <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Pre-fee candidates and diagnostics">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="125"/>
+    <DataGridTextColumn Header="Strategy" Binding="{Binding Strategy}" Width="160"/>
+    <DataGridTextColumn Header="Leg A" Binding="{Binding Legs[0].Exchange}" Width="90"/>
+    <DataGridTextColumn Header="Leg B" Binding="{Binding Legs[1].Exchange}" Width="90"/>
+    <DataGridTextColumn Header="Quantity" Binding="{Binding PairedQuantity, StringFormat=0.########}" Width="80"/>
+    <DataGridTextColumn Header="Gross cost" Binding="{Binding GrossCost, StringFormat=0.########}" Width="90"/>
+    <DataGridTextColumn Header="Gross payout" Binding="{Binding GuaranteedGrossPayout, StringFormat=0.########}" Width="95"/>
+    <DataGridTextColumn Header="Gross profit" Binding="{Binding GrossProfit, StringFormat=0.########}" Width="95"/>
+    <DataGridTextColumn Header="Gross edge" Binding="{Binding GrossEdgePerShare, StringFormat=0.########}" Width="90"/>
+    <DataGridTextColumn Header="Input quality" Binding="{Binding InputQuality}" Width="130"/>
+    <DataGridTextColumn Header="Skew ms" Binding="{Binding ObservedSkewMilliseconds, StringFormat=0.###}" Width="80"/>
+    <DataGridTextColumn Header="Trust" Binding="{Binding RelationshipTrust}" Width="95"/>
+    <DataGridTextColumn Header="Relationship" Binding="{Binding RelationshipId}" Width="240"/>
+    <DataGridTextColumn Header="Evaluated UTC" Binding="{Binding EvaluatedAt}" Width="155"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <WrapPanel Grid.Row="3" Margin="0,6"><Button Content="Previous" Command="{Binding PreviousCommand}"/><TextBlock Text="{Binding PageLabel}" Margin="12,0" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/><Button Content="Next" Command="{Binding NextCommand}"/></WrapPanel>
+  <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <StackPanel>
+    <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/>
+    <TextBlock Text="Consumed paired depth — exact decimal values" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}" Margin="0,12,0,4"/>
+    <DataGrid ItemsSource="{Binding Selected.Segments}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Consumed paired depth"/>
+   </StackPanel>
+  </ScrollViewer>
+ </Grid>
+</UserControl>

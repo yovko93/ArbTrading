@@ -31,6 +31,12 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
         SendAsync<RelationshipJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/relationships/generate", request, ct);
     public Task<RelationshipJobResponse> RelationshipJobAsync(Guid workspace, Guid id, bool cancel, CancellationToken ct) =>
         SendAsync<RelationshipJobResponse>(cancel ? HttpMethod.Post : HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/jobs/{id}" + (cancel ? "/cancel" : ""), null, ct);
+    public Task<OpportunityJobResponse> EvaluateOpportunitiesAsync(Guid workspace, EvaluateOpportunitiesRequest request, CancellationToken ct) =>
+        SendAsync<OpportunityJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/opportunities/evaluate", request, ct);
+    public Task<OpportunityPageResponse> OpportunityResultsAsync(Guid workspace, Guid id, int page, bool diagnostics, bool sortProfit, CancellationToken ct) =>
+        SendAsync<OpportunityPageResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/opportunities/jobs/{id}/results?page={page}&pageSize=20&diagnostics={diagnostics}&sort={(sortProfit ? "grossProfit" : "key")}", null, ct);
+    public Task<OpportunityJobResponse> CancelOpportunityEvaluationAsync(Guid workspace, Guid id, CancellationToken ct) =>
+        SendAsync<OpportunityJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/opportunities/jobs/{id}/cancel", null, ct);
     public Task<OrderBookResponse> OrderBookAsync(Guid workspace, string exchange, string market, string? instrument,
         bool refresh, CancellationToken ct) => SendAsync<OrderBookResponse>(refresh ? HttpMethod.Post : HttpMethod.Get,
             $"api/v1/workspaces/{workspace}/orderbooks/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(market)}" +

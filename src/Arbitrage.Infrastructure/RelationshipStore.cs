@@ -225,22 +225,46 @@ public sealed class RelationshipStore(TradingDbContext db, TimeProvider clock) :
         JsonSerializer.Serialize(new { row.Id, row.SourceExchange, row.SourceId, row.TargetExchange, row.TargetId, row.PolicyVersion, row.SourceFingerprint, row.TargetFingerprint,
             row.ReviewReason, row.Type, row.State, row.MutuallyExclusive, row.CollectivelyExhaustive })));
     public async Task<IReadOnlyList<ApprovedRelationship>> ReadApprovedAsync(Guid actorId, Guid workspaceId, bool includeManual, CancellationToken ct)
+        => (await ReadEvaluationPageAsync(actorId, workspaceId, includeManual, null, null, 0, int.MaxValue, ct)).Items;
+    public async Task<ApprovedRelationshipPage> ReadEvaluationPageAsync(Guid actorId, Guid workspaceId, bool includeManual,
+        Guid? relationshipId, string? exchange, int skip, int take, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await RequireMemberAsync(actorId, workspaceId, false, ct);
-        var rows = await Query(workspaceId).Include(r => r.Mappings).Where(r => r.State == VerificationState.VerifiedDeterministic || includeManual && r.State == VerificationState.VerifiedManual).ToArrayAsync(ct);
+        var query = Query(workspaceId).AsNoTracking().Include(r => r.Mappings).Where(r => r.State == VerificationState.VerifiedDeterministic || includeManual && r.State == VerificationState.VerifiedManual);
+        if (relationshipId is { } id) query = query.Where(r => r.Id == id);
+        if (exchange is not null) query = query.Where(r => r.SourceExchange == exchange || r.TargetExchange == exchange);
+        var rows = await query.OrderBy(r => r.Id).Skip(skip).Take(take).ToArrayAsync(ct);
+        var hasMore = take != int.MaxValue && await query.OrderBy(r => r.Id).Skip(skip + take).AnyAsync(ct);
         var result = new List<ApprovedRelationship>();
         foreach (var row in rows)
         {
-            await RefreshStalenessAsync(row, ct);
+            // Detached reads prevent a scoped context from returning an old tracked review decision.
+            var current = await CurrentAsync(row, ct);
+            if (current is null || row.PolicyVersion != RelationshipPolicy.Version ||
+                RelationshipPolicy.Fingerprint(current.Value.A) != row.SourceFingerprint || RelationshipPolicy.Fingerprint(current.Value.B) != row.TargetFingerprint)
+            {
+                await Query(workspaceId).Where(r => r.Id == row.Id).ExecuteUpdateAsync(s => s.SetProperty(r => r.State, VerificationState.Stale), ct);
+                // Keep any caller's tracked view consistent without using it as the read authority.
+                var tracked = db.ChangeTracker.Entries<MarketRelationshipEntry>().FirstOrDefault(e => e.Entity.Id == row.Id);
+                if (tracked is not null) { var state = tracked.Property(r => r.State); state.CurrentValue = state.OriginalValue = VerificationState.Stale; state.IsModified = false; }
+                continue;
+            }
             if (!RelationshipPolicy.IsStrategyEligible(row.Type, row.State)) continue;
             var a = JsonSerializer.Deserialize<CanonicalMarketDescriptor>(row.SourceSnapshot)!;
             var b = JsonSerializer.Deserialize<CanonicalMarketDescriptor>(row.TargetSnapshot)!;
             result.Add(new(row.Id, row.Type, row.State, row.Mappings.Select(m => new OutcomeMapping(m.SourceOutcomeId, m.TargetOutcomeId, m.Type)).ToArray(),
                 a.Identity, b.Identity, a.Semantics.OutcomeSet, b.Semantics.OutcomeSet,
-                new(new(row.MutuallyExclusive, FactSource.ManualVerification, row.Id.ToString()), new(row.CollectivelyExhaustive, FactSource.ManualVerification, row.Id.ToString()))));
+                new(new(row.MutuallyExclusive, FactSource.ManualVerification, row.Id.ToString()), new(row.CollectivelyExhaustive, FactSource.ManualVerification, row.Id.ToString())))
+            {
+                PolicyVersion = row.PolicyVersion, SourceFingerprint = row.SourceFingerprint, TargetFingerprint = row.TargetFingerprint,
+                SourceDescriptor = a, TargetDescriptor = b,
+                Revision = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new
+                { row.State, row.Type, row.PolicyVersion, row.SourceFingerprint, row.TargetFingerprint, row.UpdatedAt, row.MutuallyExclusive, row.CollectivelyExhaustive,
+                    Mappings = row.Mappings.OrderBy(m => m.SourceOutcomeId, StringComparer.Ordinal).ThenBy(m => m.TargetOutcomeId, StringComparer.Ordinal).ThenBy(m => m.Type).Select(m => new { m.SourceOutcomeId, m.TargetOutcomeId, m.Type }) })))
+            });
         }
-        await transaction.CommitAsync(ct); return result;
+        await transaction.CommitAsync(ct); return new(result, rows.Length, hasMore);
     }
 }
 public sealed class RelationshipConflictException : Exception;

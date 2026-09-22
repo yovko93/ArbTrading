@@ -59,6 +59,7 @@
     <TextBlock Text="Blocking differences — resolve these before approving" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
     <ItemsControl ItemsSource="{Binding Blockers}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" Margin="0,3"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
     <TextBlock Text="{Binding Detail.Summary.State}" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}"/>
+    <TextBox Text="{Binding Detail.Summary.Id, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="Relationship ID for explicit opportunity evaluation" ToolTip="Copy this ID to Evaluate Selected on the Opportunities page"/>
     <ItemsControl ItemsSource="{Binding Detail.Warnings}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
     <WrapPanel Margin="0,8"><Button Content="Revalidate" Command="{Binding RevalidateCommand}"/><Button Content="Enrich public metadata" Command="{Binding EnrichCommand}" Margin="6,0"/></WrapPanel>
     <Grid>

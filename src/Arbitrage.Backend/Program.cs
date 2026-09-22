@@ -81,6 +81,9 @@ public partial class Program
         builder.Services.AddHostedService(s => s.GetRequiredService<RealtimeOrderBookManager>());
         builder.Services.AddSingleton<OrderBookRefreshGate>();
         builder.Services.AddScoped<OrderBookService>();
+        builder.Services.AddScoped<OpportunityCoordinator>();
+        builder.Services.AddSingleton<OpportunityJobs>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<OpportunityJobs>());
         builder.Services.AddHttpClient<PolymarketOrderBookSource>(c => c.Timeout = TimeSpan.FromSeconds(12))
             .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler).RemoveAllLoggers();
         builder.Services.AddHttpClient<KalshiOrderBookSource>(c => c.Timeout = TimeSpan.FromSeconds(12))
@@ -142,6 +145,7 @@ public partial class Program
         var api = app.MapGroup("/api/v1").RequireAuthorization();
         api.MapMarketCatalog();
         api.MapRelationships();
+        api.MapOpportunities();
         api.MapOrderBooks();
         api.MapRealtimeOrderBooks();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(

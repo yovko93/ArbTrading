@@ -58,9 +58,18 @@ public sealed record ApprovedRelationship(Guid Id, RelationshipType Type, Verifi
     MarketIdentity Source, MarketIdentity Target, OutcomeSetFacts SourceSet, OutcomeSetFacts TargetSet, OutcomeSetFacts SelectedOutcomeSet)
 {
     public bool IsStrategyEligible => RelationshipPolicy.IsStrategyEligible(Type, State);
+    public int PolicyVersion { get; init; } = RelationshipPolicy.Version;
+    public string SourceFingerprint { get; init; } = "";
+    public string TargetFingerprint { get; init; } = "";
+    public string Revision { get; init; } = "";
+    public CanonicalMarketDescriptor? SourceDescriptor { get; init; }
+    public CanonicalMarketDescriptor? TargetDescriptor { get; init; }
 }
+public sealed record ApprovedRelationshipPage(IReadOnlyList<ApprovedRelationship> Items, int Scanned, bool HasMore);
 // Implementations must recheck current fingerprints, policy and membership. Manual trust is opt-in and remains distinct.
 public interface IRelationshipProvider
 {
     Task<IReadOnlyList<ApprovedRelationship>> ReadApprovedAsync(Guid actorId, Guid workspaceId, bool includeManual, CancellationToken ct);
+    Task<ApprovedRelationshipPage> ReadEvaluationPageAsync(Guid actorId, Guid workspaceId, bool includeManual,
+        Guid? relationshipId, string? exchange, int skip, int take, CancellationToken ct);
 }

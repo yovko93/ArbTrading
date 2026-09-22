@@ -221,7 +221,7 @@ public sealed partial class RealtimeProcessTests
         Assert.False(harness.Realtime.IsSynchronized);
         Assert.Empty(harness.Diagnostics.BackendEvents);
         Assert.Equal(0, harness.Diagnostics.HistoryCursor);
-        Assert.Equal(denial == HttpStatusCode.Unauthorized ? 2 : 1, harness.Handler.Writes);
+        Assert.Equal(1, harness.Handler.Writes);
 
         harness.Handler.WriteFailure = null;
         await harness.Realtime.RefreshAsync();
@@ -230,7 +230,7 @@ public sealed partial class RealtimeProcessTests
         Assert.True(harness.State.CanEdit);
         Assert.NotEmpty(harness.Diagnostics.BackendEvents);
         Assert.Contains(harness.Diagnostics.Events, e => e.Description.StartsWith("Safe local event", StringComparison.Ordinal));
-        Assert.Equal(denial == HttpStatusCode.Unauthorized ? 2 : 1, harness.Handler.Writes);
+        Assert.Equal(1, harness.Handler.Writes);
     }
 
     [Fact]

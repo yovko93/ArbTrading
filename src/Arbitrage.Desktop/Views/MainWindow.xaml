@@ -13,6 +13,7 @@
     <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:TradingViewModel}"><views:TradingView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:MarketExplorerViewModel}"><views:MarketExplorerView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:UnavailablePageViewModel}"><views:UnavailablePageView /></DataTemplate>
   </Window.Resources>
   <Grid>
@@ -43,7 +44,7 @@
         <Border Grid.Row="2" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="8,14,8,0">
           <StackPanel>
             <TextBlock Text="LOCAL MODE" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold" FontSize="11" />
-            <TextBlock Text="No exchange or execution service" Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+            <TextBlock Text="Public catalog · execution unavailable" Style="{StaticResource MutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
       </Grid>

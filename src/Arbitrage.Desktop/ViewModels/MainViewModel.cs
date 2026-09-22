@@ -18,8 +18,12 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     public Func<Task>? RefreshRequested { get; set; }
     // Raised synchronously before clearing private UI state so realtime work is invalidated too.
     public event EventHandler? AccessInvalidated;
+    public event EventHandler? CatalogInvalidated;
+    public event EventHandler? CatalogRefreshRequested;
+    internal void NotifyCatalogInvalidated() => CatalogInvalidated?.Invoke(this, EventArgs.Empty);
 
     internal void BeginAuthorizedRealtimeSession() => Interlocked.Increment(ref privateStateGeneration);
+    internal long AccessGeneration => Volatile.Read(ref privateStateGeneration);
 
     [ObservableProperty] private string connectionStatus = "Not loaded";
     [ObservableProperty] private string message = "Start the local backend independently, then Refresh.";
@@ -73,7 +77,12 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        if (RefreshRequested is not null) { await RefreshRequested(); return; }
+        if (RefreshRequested is not null)
+        {
+            await RefreshRequested();
+            CatalogRefreshRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
         if (!BeginOperation()) return;
         var requestedGeneration = Volatile.Read(ref privateStateGeneration);
         diagnostics?.Record("Information", "Backend refresh requested.");
@@ -83,7 +92,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
             if (requestedGeneration != Volatile.Read(ref privateStateGeneration)) return;
             ApplyBackendSnapshot(result);
             ConnectionStatus = ConnectionState.Connected.ToString();
-            Message = "Backend state refreshed. Trading data remains unavailable in this phase.";
+            Message = "Backend state refreshed. Public market metadata is available in Market Explorer; execution is unavailable.";
             diagnostics?.Record("Information", "Backend refresh succeeded.");
             NotifyDerived();
         }
@@ -144,8 +153,9 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         if (backendChanged) HeartbeatStatus = "Awaiting heartbeat";
         ConnectionStatus = ConnectionState.Connected.ToString();
         CanEdit = true;
-        Message = "Backend state synchronized. Market data and execution remain unavailable.";
+        Message = "Backend state synchronized. Market Explorer shows cached public metadata; execution is unavailable.";
         UpdateCanSave();
+        CatalogRefreshRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void SetRealtimeStatus(string status, string description, bool transportConnected = false)

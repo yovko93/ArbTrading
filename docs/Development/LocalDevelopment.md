@@ -65,6 +65,8 @@ After the backend starts, launch `dotnet run --project src/Arbitrage.Desktop` fr
 
 A missing database receives the initial EF migration and atomic local ownership initialization. A database with pending migrations requires explicit `--migrate`; a database containing unknown/newer migrations fails. There is no EnsureCreated, reset command, memory fallback, or destructive startup recovery.
 
+Phase 02A adds the `PublicMarketCatalog` migration. Existing installations must stop the backend, back up the full backend directory, then run the same `--migrate` command below before normal startup. The migration adds catalog, tag, and run tables without replacing identity, workspace, settings, or audit records. A stopped/failed run retains previously saved pages; old Running records become Interrupted on the next backend start. No job automatically resumes.
+
 To upgrade: stop all backends using the directory, back up the entire backend directory including SQLite sidecars while stopped, then:
 
 ```powershell

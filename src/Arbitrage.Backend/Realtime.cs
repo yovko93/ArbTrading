@@ -91,10 +91,11 @@ public sealed class BackendDiagnosticStore(BackendInstance instance)
     }
 }
 
-public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics)
+public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics, BackendInstance instance)
 {
     public sealed record Dispatch(Guid WorkspaceId, StateInvalidation? Invalidation = null,
-        BackendDiagnosticEvent? Diagnostic = null, ApplicationHeartbeat? Heartbeat = null);
+        BackendDiagnosticEvent? Diagnostic = null, ApplicationHeartbeat? Heartbeat = null,
+        CatalogInvalidation? Catalog = null);
     private readonly Channel<Dispatch> queue = Channel.CreateBounded<Dispatch>(new BoundedChannelOptions(256)
     { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
     public ChannelReader<Dispatch> Reader => queue.Reader;
@@ -113,6 +114,8 @@ public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics)
     }
 
     public void Heartbeat(Guid workspaceId, ApplicationHeartbeat heartbeat) => Enqueue(new(workspaceId, Heartbeat: heartbeat));
+    public void CatalogChanged(Guid workspaceId, string exchange) =>
+        Enqueue(new(workspaceId, Catalog: new(instance.Id, workspaceId, exchange)));
     private void Enqueue(Dispatch dispatch)
     {
         if (!queue.Writer.TryWrite(dispatch) && dispatch.Diagnostic is not null)
@@ -134,6 +137,7 @@ public sealed class RealtimeDispatchService(RealtimePublisher publisher, IHubCon
                 if (item.Invalidation is not null) await clients.SendAsync("StateInvalidated", item.Invalidation, stoppingToken);
                 if (item.Diagnostic is not null) await clients.SendAsync("BackendDiagnostic", item.Diagnostic, stoppingToken);
                 if (item.Heartbeat is not null) await clients.SendAsync("ApplicationHeartbeat", item.Heartbeat, stoppingToken);
+                if (item.Catalog is not null) await clients.SendAsync("CatalogInvalidated", item.Catalog, stoppingToken);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             { logger.LogWarning("Realtime delivery failed: {ErrorType}", exception.GetType().Name); }

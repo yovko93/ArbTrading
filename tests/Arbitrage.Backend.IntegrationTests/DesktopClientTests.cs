@@ -37,7 +37,7 @@ public sealed class DesktopClientTests
         await model.InitializeAsync(default);
         Assert.Equal("Connected", model.ConnectionStatus); Assert.Equal("Healthy", model.Persistence);
         Assert.Equal("Paper", model.TradingMode); Assert.Contains("not implemented", model.Execution);
-        Assert.Contains("Polymarket: NotImplemented", model.Exchanges); Assert.True(model.CanEdit);
+        Assert.Contains("Polymarket: PublicCatalog", model.Exchanges); Assert.True(model.CanEdit);
         model.WorkspaceName = "Desktop command test";
         await model.SaveCommand.ExecuteAsync(null);
         Assert.Contains("saved and audited", model.Message);
@@ -83,6 +83,53 @@ public sealed class DesktopClientTests
         }));
         var failure = await Assert.ThrowsAsync<BackendFailure>(() => new BackendClient(http, file).LoadAsync(default));
         Assert.Equal(ConnectionState.AuthenticationFailed, failure.State); Assert.Equal(2, calls); Assert.Equal(2, file.Reads);
+    }
+
+    [Fact]
+    public async Task Read_retries_once_with_rotated_credential_and_can_succeed()
+    {
+        var file = new ConnectionFile(); var calls = 0;
+        using var http = new HttpClient(new Handler((request, _) =>
+        {
+            calls++;
+            Assert.Equal(new string(calls == 1 ? 'A' : 'B', 64), request.Headers.Authorization!.Parameter);
+            return Task.FromResult(calls == 1 ? new HttpResponseMessage(HttpStatusCode.Unauthorized) :
+                new HttpResponseMessage(HttpStatusCode.OK)
+                { Content = JsonContent.Create(new SessionResponse(Guid.NewGuid(), Guid.NewGuid(), "Local", Capabilities.Phase01A)) });
+        }));
+        await new BackendClient(http, file).GetSessionAsync(default);
+        Assert.Equal(2, calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Mutations_are_never_replayed_after_authentication_denial(bool stop)
+    {
+        var file = new ConnectionFile(); var calls = 0;
+        using var http = new HttpClient(new Handler((_, _) =>
+        { calls++; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)); }));
+        var client = new BackendClient(http, file);
+        var failure = await Assert.ThrowsAsync<BackendFailure>(() => stop ?
+            client.StopLocalRuntimeAsync(Guid.NewGuid(), default) : client.RenameAsync(Guid.NewGuid(), "name", default));
+        Assert.Equal(ConnectionState.AuthenticationFailed, failure.State);
+        Assert.Equal(1, calls);
+        Assert.Equal(1, file.Reads);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Discovery_start_and_cancel_are_never_replayed_after_401(bool cancel)
+    {
+        var file = new ConnectionFile(); var calls = 0;
+        using var http = new HttpClient(new Handler((_, _) =>
+        { calls++; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)); }));
+        var client = new BackendClient(http, file);
+        await Assert.ThrowsAsync<BackendFailure>(() => cancel
+            ? client.CancelMarketSyncAsync(Guid.NewGuid(), Guid.NewGuid(), default)
+            : client.StartMarketSyncAsync(Guid.NewGuid(), "Polymarket", default));
+        Assert.Equal(1, calls); Assert.Equal(1, file.Reads);
     }
 
     [Theory]

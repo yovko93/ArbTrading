@@ -1,5 +1,6 @@
 using Arbitrage.Domain;
 using Arbitrage.Infrastructure;
+using Arbitrage.Application;
 using Arbitrage.LocalTransport;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,72 @@ public sealed class PersistenceTests : IDisposable
     private string DatabasePath => Path.Combine(root, "test.db");
     public PersistenceTests() => Directory.CreateDirectory(root);
     private TradingDbContext Open() => new(DatabaseOptions.ForFile(DatabasePath));
+
+    [Fact]
+    public async Task Phase01_database_requires_explicit_catalog_migration_and_preserves_owned_data()
+    {
+        var userId = Guid.NewGuid(); var workspaceId = Guid.NewGuid(); var profileId = Guid.NewGuid();
+        await using (var db = Open())
+        {
+            await db.Database.MigrateAsync("20260921201541_InitialLocalFoundation");
+            db.AddRange(new ApplicationUser(userId, DateTimeOffset.UtcNow),
+                new Workspace(workspaceId, "Before catalog", DateTimeOffset.UtcNow),
+                new WorkspaceMembership(userId, workspaceId), new LocalProfile(profileId, userId, workspaceId),
+                new AuditRecord(userId, workspaceId, DateTimeOffset.UtcNow, "before-catalog"));
+            await db.SaveChangesAsync();
+        }
+        await using (var db = Open())
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new DatabaseInitializer(db, TimeProvider.System).InitializeAsync(true, false, default));
+        await using (var db = Open())
+        {
+            await new DatabaseInitializer(db, TimeProvider.System).InitializeAsync(true, true, default);
+            Assert.Equal(profileId, (await db.LocalProfiles.SingleAsync()).Id);
+            Assert.Equal("Before catalog", (await db.Workspaces.SingleAsync()).DisplayName);
+            Assert.Single(await db.AuditRecords.ToListAsync());
+            Assert.Empty(await db.CatalogMarkets.ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task Catalog_upserts_are_idempotent_paged_and_preserve_old_records_after_partial_run()
+    {
+        var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        await using (var db = Open())
+        {
+            await new DatabaseInitializer(db, TimeProvider.System).InitializeAsync(false, false, default);
+            var profile = await db.LocalProfiles.SingleAsync();
+            var store = new MarketCatalogStore(db);
+            await store.CreateRunAsync(new DiscoveryRunEntry { Id = first, Exchange = "Kalshi", Scope = "open",
+                OwnerUserId = profile.UserId, WorkspaceId = profile.DefaultWorkspaceId, StartedAt = DateTimeOffset.UtcNow }, default);
+            var market = new DiscoveredMarket("Kalshi", "Production", "SAME", null, null, null,
+                "binary", "First", null, null, ["Politics", "News"], "open", "Open", [new("Yes", null)],
+                null, null, null, null, null, null, null, "Rules", null, DateTimeOffset.UtcNow, []);
+            Assert.Equal(1, await store.UpsertPageAsync(first, "open", [market, market], 0, default));
+            Assert.Equal(0, await store.UpsertPageAsync(first, "open", [market], 0, default));
+            await store.FinishRunAsync(first, "Complete", null, null, default);
+            await store.CreateRunAsync(new DiscoveryRunEntry { Id = second, Exchange = "Polymarket", Scope = "nonfinalized",
+                OwnerUserId = profile.UserId, WorkspaceId = profile.DefaultWorkspaceId, StartedAt = DateTimeOffset.UtcNow }, default);
+            await store.UpsertPageAsync(second, "nonfinalized", [market with { Exchange = "Polymarket" }], 0, default);
+            await store.FinishRunAsync(second, "Partial", "RateLimited", null, default);
+        }
+        await using (var db = Open())
+        {
+            var store = new MarketCatalogStore(db);
+            Assert.Equal(2, await store.CountAsync(null, default));
+            Assert.Single((await store.QueryAsync(new(null, "SAME", null, null, "title", 1, 1), default)).Items);
+            Assert.Equal(2, (await store.QueryAsync(new(null, "SAME", null, null, "title", 1, 1), default)).Total);
+            Assert.Equal(2, (await store.QueryAsync(new(null, null, null, "News", "title", 1, 10), default)).Total);
+            Assert.Equal("Complete", (await store.GetRunAsync(first, default))!.State);
+            Assert.Equal("Partial", (await store.GetRunAsync(second, default))!.State);
+            var unfinished = Guid.NewGuid();
+            await store.CreateRunAsync(new DiscoveryRunEntry { Id = unfinished, Exchange = "Kalshi", Scope = "open",
+                OwnerUserId = Guid.NewGuid(), WorkspaceId = Guid.NewGuid(), StartedAt = DateTimeOffset.UtcNow }, default);
+            await store.InterruptOldRunsAsync(default);
+            Assert.Equal("Interrupted", (await store.GetRunAsync(unfinished, default))!.State);
+            Assert.Equal(2, await store.CountAsync(null, default));
+        }
+    }
 
     [Fact]
     public async Task Initialization_is_idempotent_and_ids_and_settings_survive_reopen()

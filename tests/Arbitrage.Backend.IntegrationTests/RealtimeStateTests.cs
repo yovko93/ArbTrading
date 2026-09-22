@@ -97,13 +97,26 @@ public sealed class RealtimeStateTests
     public void Slow_consumer_drops_live_queue_without_blocking_history_or_leaking_another_scope()
     {
         var backend = new BackendInstance(); var store = new BackendDiagnosticStore(backend);
-        var publisher = new RealtimePublisher(store); var workspace = Guid.NewGuid();
+        var publisher = new RealtimePublisher(store, backend); var workspace = Guid.NewGuid();
         for (var i = 0; i < 600; i++)
             publisher.Diagnostic(workspace, "Information", "Realtime", "QueueTest", "A real test event.");
         var history = store.Recent(workspace, 0, 100);
         Assert.True(history.DroppedCount > 0); Assert.Equal(600, history.NewestSequence);
         Assert.True(history.Gap); Assert.Equal(100, history.Events.Length);
         Assert.All(history.Events, entry => Assert.Equal(workspace, entry.WorkspaceId));
+    }
+
+    [Fact]
+    public void Catalog_notification_contains_only_scope_and_exchange_not_private_job_details()
+    {
+        var instance = new BackendInstance(); var workspace = Guid.NewGuid();
+        var publisher = new RealtimePublisher(new BackendDiagnosticStore(instance), instance);
+        publisher.CatalogChanged(workspace, "Kalshi");
+        Assert.True(publisher.Reader.TryRead(out var dispatch));
+        Assert.Equal(workspace, dispatch.WorkspaceId);
+        Assert.Equal(instance.Id, dispatch.Catalog!.BackendInstanceId);
+        Assert.Equal("Kalshi", dispatch.Catalog.Exchange);
+        Assert.Null(dispatch.Diagnostic);
     }
 
     [Fact]

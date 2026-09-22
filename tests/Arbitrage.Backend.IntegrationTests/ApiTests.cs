@@ -47,7 +47,7 @@ public sealed class ApiTests
         Assert.False(mode.Capabilities.PaperExecutionImplemented); Assert.False(mode.Capabilities.LiveOrderSubmissionAvailable);
         Assert.False(mode.Capabilities.ManualLiveExecutionAvailable); Assert.False(mode.Capabilities.AutomaticLiveExecutionAvailable);
         Assert.Equal(new[] { "Polymarket", "Kalshi" }, exchanges.Select(e => e.Exchange));
-        Assert.All(exchanges, e => Assert.Equal("NotImplemented", e.IntegrationState));
+        Assert.All(exchanges, e => Assert.Equal("PublicCatalog", e.IntegrationState));
         Assert.Equal(HttpStatusCode.MethodNotAllowed, (await client.PutAsJsonAsync("/api/v1/trading/mode", new { mode = "Automatic" })).StatusCode);
     }
 

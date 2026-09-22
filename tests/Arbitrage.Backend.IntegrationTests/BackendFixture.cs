@@ -5,14 +5,18 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.TestHost;
 
 namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class BackendFixture : WebApplicationFactory<Program>
 {
+    private readonly Action<IServiceCollection>? configureServices;
+    public BackendFixture(Action<IServiceCollection>? configureServices = null) => this.configureServices = configureServices;
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "ArbitrageTrading-tests", Guid.NewGuid().ToString("N"));
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        if (configureServices is not null) builder.ConfigureTestServices(configureServices);
         builder.UseEnvironment("Testing");
         // Host settings are available during builder creation, before startup reads storage options.
         builder.UseSetting("Local:DataDirectory", Path.Combine(Root, "backend"));

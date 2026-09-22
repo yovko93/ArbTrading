@@ -11,6 +11,9 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options)
     public DbSet<WorkspaceMembership> Memberships => Set<WorkspaceMembership>();
     public DbSet<LocalProfile> LocalProfiles => Set<LocalProfile>();
     public DbSet<AuditRecord> AuditRecords => Set<AuditRecord>();
+    public DbSet<MarketCatalogEntry> CatalogMarkets => Set<MarketCatalogEntry>();
+    public DbSet<DiscoveryRunEntry> DiscoveryRuns => Set<DiscoveryRunEntry>();
+    public DbSet<MarketCatalogTag> CatalogTags => Set<MarketCatalogTag>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder) =>
         builder.Properties<DateTimeOffset>().HaveConversion<UtcTicksConverter>();
@@ -38,6 +41,27 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options)
         audit.HasIndex(x => new { x.WorkspaceId, x.OccurredAt });
         audit.Property(x => x.Action).HasMaxLength(80);
         audit.Property(x => x.CorrelationId).HasMaxLength(128);
+        var market = model.Entity<MarketCatalogEntry>();
+        market.HasKey(x => new { x.Exchange, x.NativeId });
+        market.Property(x => x.Exchange).HasMaxLength(24);
+        market.Property(x => x.NativeId).HasMaxLength(256);
+        market.HasIndex(x => new { x.Exchange, x.Status, x.Title, x.NativeId });
+        market.HasIndex(x => new { x.Exchange, x.PrimaryTag, x.NativeId });
+        market.HasIndex(x => x.RetrievedAt);
+        var tag = model.Entity<MarketCatalogTag>();
+        tag.HasKey(x => new { x.Exchange, x.NativeId, x.Tag });
+        tag.Property(x => x.Exchange).HasMaxLength(24);
+        tag.Property(x => x.NativeId).HasMaxLength(256);
+        tag.Property(x => x.Tag).HasMaxLength(100);
+        tag.HasIndex(x => x.Tag);
+        tag.HasOne<MarketCatalogEntry>().WithMany().HasForeignKey(x => new { x.Exchange, x.NativeId })
+            .OnDelete(DeleteBehavior.Cascade);
+        var run = model.Entity<DiscoveryRunEntry>();
+        run.HasKey(x => x.Id);
+        run.Property(x => x.Exchange).HasMaxLength(24);
+        run.Property(x => x.State).HasMaxLength(24);
+        run.HasIndex(x => new { x.Exchange, x.StartedAt });
+        run.HasIndex(x => new { x.Exchange, x.State });
     }
 }
 

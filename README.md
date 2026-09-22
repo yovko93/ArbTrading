@@ -1,8 +1,8 @@
 # Arbitrage Trading
 
-Phase 01A established persistent local identity and workspace ownership, authenticated loopback HTTP, and audited workspace-name updates. Phase 01B added the WPF workstation shell and Dark/Light/System themes. Phase 01C adds authorized realtime invalidation, automatic reconnect and resynchronization, recent backend diagnostics, and explicit **Local Backend** Start/Stop/Refresh controls.
+Phase 01A established persistent local identity and workspace ownership, authenticated loopback HTTP, and audited workspace-name updates. Phase 01B added the WPF workstation shell and Dark/Light/System themes. Phase 01C adds authorized realtime invalidation, automatic reconnect and resynchronization, recent backend diagnostics, and explicit **Local Backend** Start/Stop/Refresh controls. Phase 02A adds read-only public market discovery for Polymarket and Kalshi and an offline-capable local Market Explorer.
 
-There is no exchange connection, exchange credential collection, order submission, AI call, arbitrage algorithm, or paper fill simulator. Paper is the only supported environment, and all execution capabilities are explicitly unavailable. No balances or profits are fabricated.
+Public metadata discovery uses separate exchange HTTPS clients and requires no exchange credentials. There is no exchange account connection, orderbook feed, order submission, AI call, arbitrage algorithm, or paper fill simulator. Paper is the only supported environment, and all execution capabilities are explicitly unavailable. No balances or profits are fabricated.
 
 ## Requirements and quick start
 
@@ -29,6 +29,8 @@ dotnet run --project src/Arbitrage.Desktop
 
 The backend listens at `http://127.0.0.1:5274` by default. Desktop automatically connects to an already running backend and retries transient interruptions. **Start** explicitly launches the configured artifact when no backend is verified. **Stop** requires a verified managed-local instance and confirmation; an externally started backend remains observable but cannot be stopped from Desktop. **Refresh** observes and resynchronizes without launching or terminating a process. Closing Desktop does not stop Backend. Use Ctrl+C for an externally started backend.
 
+Open **Market Explorer** to browse locally stored metadata. Select Polymarket, Kalshi, or All, then use **Sync Markets** to start an explicit backend-owned public discovery run. **Cancel Sync** settles the selected active run. The header **Refresh** reloads local state and catalog pages; it never starts exchange discovery. The default scope covers all categories in Polymarket's `closed=false` keyset and Kalshi's `unopened`, `open`, and `paused` listings. Historical settled-market backfill is deferred. A run that hits its configured time budget or an upstream limit is labeled Partial; cached records remain available without internet while the backend is running. Counts distinguish stored markets from markets observed in a run. See [exchange integration](docs/Development/ExchangeIntegration.md) for source contracts and [Phase 02A verification](docs/Development/Phase02AVerification.md) for actual results.
+
 See the separate [Phase 01A](docs/Development/Verification.md), [Phase 01B](docs/Development/Phase01BVerification.md), and [Phase 01C](docs/Development/Phase01CVerification.md) verification records for actual results and remaining visual checks.
 
 The only anonymous endpoint is `GET /health/live`, which returns minimal process liveness. API data requires a per-user credential delivered through protected local storage; no API returns that credential.
@@ -43,7 +45,8 @@ The only anonymous endpoint is `GET /health/live`, which returns minimal process
 | Arbitrage.Infrastructure | EF Core SQLite, migrations, atomic initialization, scoped stores, local storage lease |
 | Arbitrage.Backend | Independent ASP.NET Core host, local authentication and authorized API |
 | Arbitrage.Desktop | WPF, CommunityToolkit.Mvvm, DI and typed HTTP client |
-| Arbitrage.Connectors / Strategies / Execution | Documented deferred module boundaries |
+| Arbitrage.Connectors | Public, read-only Polymarket and Kalshi market-list adapters |
+| Arbitrage.Strategies / Execution | Documented deferred module boundaries |
 
 `tests/` contains Domain, Application, Backend.IntegrationTests, and Windows-only Desktop.Tests projects. Integration tests use temporary real SQLite databases and the production authentication handler. `src/Shared/LocalConnectionFile.cs` is a small source-linked OS adapter shared by Infrastructure and Desktop; it creates no business-layer dependency from Desktop.
 
@@ -53,7 +56,7 @@ On Windows the application root is `%LOCALAPPDATA%\ArbitrageTrading`:
 
 | Location | Contents |
 |---|---|
-| `backend/arbitrage.db` | Persistent identity, membership, workspace settings, audit, migration history |
+| `backend/arbitrage.db` | Persistent identity, membership, workspace settings, audit, public catalog, discovery runs, migration history |
 | `backend/logs/` | Backend rolling logs |
 | `desktop/logs/` | Desktop rolling logs |
 | `desktop/preferences.json` | Versioned per-user appearance preference, separate from backend settings |

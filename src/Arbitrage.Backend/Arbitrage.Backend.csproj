@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../Arbitrage.Infrastructure/Arbitrage.Infrastructure.csproj" />
     <ProjectReference Include="../Arbitrage.Contracts/Arbitrage.Contracts.csproj" />
+    <ProjectReference Include="../Arbitrage.Connectors/Arbitrage.Connectors.csproj" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>

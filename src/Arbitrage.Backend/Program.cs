@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Arbitrage.Application;
 using Arbitrage.Backend;
 using Arbitrage.Contracts;
+using Arbitrage.Connectors;
 using Arbitrage.Infrastructure;
 using Arbitrage.LocalTransport;
 using Microsoft.AspNetCore.Authentication;
@@ -63,6 +64,20 @@ public partial class Program
         builder.Services.AddScoped<TradingDbContext>();
         builder.Services.AddScoped<DatabaseInitializer>();
         builder.Services.AddScoped<LocalStore>();
+        builder.Services.AddScoped<MarketCatalogStore>();
+        builder.Services.AddSingleton(new PublicMarketPacingOptions(
+            TimeSpan.FromMilliseconds(settings.PolymarketRequestIntervalMs),
+            TimeSpan.FromMilliseconds(settings.KalshiRequestIntervalMs)));
+        builder.Services.AddHttpClient<PolymarketMarketSource>(c => c.Timeout = TimeSpan.FromSeconds(15))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
+            .RemoveAllLoggers();
+        builder.Services.AddHttpClient<KalshiMarketSource>(c => c.Timeout = TimeSpan.FromSeconds(15))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
+            .RemoveAllLoggers();
+        builder.Services.AddSingleton<IMarketDiscoverySource>(s => s.GetRequiredService<PolymarketMarketSource>());
+        builder.Services.AddSingleton<IMarketDiscoverySource>(s => s.GetRequiredService<KalshiMarketSource>());
+        builder.Services.AddSingleton<MarketDiscoveryCoordinator>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<MarketDiscoveryCoordinator>());
         builder.Services.AddScoped<ILocalProfileStore>(s => s.GetRequiredService<LocalStore>());
         builder.Services.AddScoped<IWorkspaceStore>(s => s.GetRequiredService<LocalStore>());
         builder.Services.AddHttpContextAccessor();
@@ -103,6 +118,7 @@ public partial class Program
         app.MapGet("/health/live", () => Results.Ok(new { status = "Live" })).AllowAnonymous();
         app.MapHub<ApplicationHub>("/hubs/v1/application").RequireAuthorization();
         var api = app.MapGroup("/api/v1").RequireAuthorization();
+        api.MapMarketCatalog();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(
             Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown", started.Elapsed.TotalSeconds,
             await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable", "Local", settings.TradingMode, "Paper", Capabilities.Phase01A));
@@ -112,7 +128,7 @@ public partial class Program
             var workspace = await workspaces.ReadAsync(profile.DefaultWorkspaceId, ct);
             return workspace.IsSuccess ? Results.Ok(new SessionResponse(profile.UserId, profile.DefaultWorkspaceId, "Local", Capabilities.Phase01A)) : Results.StatusCode(503);
         });
-        api.MapGet("/exchanges/status", () => new[] { new ExchangeStatusResponse("Polymarket", "NotImplemented"), new ExchangeStatusResponse("Kalshi", "NotImplemented") });
+        api.MapGet("/exchanges/status", () => new[] { new ExchangeStatusResponse("Polymarket", "PublicCatalog"), new ExchangeStatusResponse("Kalshi", "PublicCatalog") });
         api.MapGet("/trading/mode", () => new TradingModeResponse(settings.TradingMode, "Paper", Capabilities.Phase01A));
         api.MapGet("/workspaces/{workspaceId:guid}/snapshot", async (Guid workspaceId, WorkspaceService workspaces,
             ILocalProfileStore profiles, BackendInstance instance, HttpContext context, CancellationToken ct) =>
@@ -126,7 +142,7 @@ public partial class Program
             return Results.Ok(new ApplicationSnapshotResponse(1, instance.Id, profile.Id, DateTimeOffset.UtcNow,
                 new SessionResponse(profile.UserId, workspaceId, "Local", Capabilities.Phase01A), status,
                 new WorkspaceSettingsResponse(workspaceId, workspace.Value!.DisplayName),
-                [new("Polymarket", "NotImplemented"), new("Kalshi", "NotImplemented")]));
+                [new("Polymarket", "PublicCatalog"), new("Kalshi", "PublicCatalog")]));
         });
         api.MapGet("/workspaces/{workspaceId:guid}/diagnostics", async (Guid workspaceId, long? after, int? take,
             WorkspaceService workspaces, BackendDiagnosticStore diagnostics, HttpContext context, CancellationToken ct) =>

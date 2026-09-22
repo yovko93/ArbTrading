@@ -29,6 +29,28 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
         SendAsync<RecentDiagnosticsResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspaceId}/diagnostics?after={after}&take=100", null, cancellationToken);
     public Task<StopLocalRuntimeResponse> StopLocalRuntimeAsync(Guid instanceId, CancellationToken cancellationToken) =>
         SendAsync<StopLocalRuntimeResponse>(HttpMethod.Post, "api/v1/local-runtime/stop", new StopLocalRuntimeRequest(instanceId), cancellationToken);
+    public Task<CatalogStatusResponse> CatalogStatusAsync(Guid workspaceId, CancellationToken ct) =>
+        SendAsync<CatalogStatusResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspaceId}/catalog/status", null, ct);
+    public Task<MarketPageResponse> CatalogMarketsAsync(Guid workspaceId, string? exchange, string? search,
+        string? status, string? tag, string sort, int page, int pageSize, CancellationToken ct)
+    {
+        var query = new List<string> { $"page={page}", $"pageSize={pageSize}", "sort=" + Uri.EscapeDataString(sort) };
+        if (exchange is not null) query.Add("exchange=" + Uri.EscapeDataString(exchange));
+        if (!string.IsNullOrWhiteSpace(search)) query.Add("search=" + Uri.EscapeDataString(search));
+        if (status is not null) query.Add("status=" + Uri.EscapeDataString(status));
+        if (tag is not null) query.Add("tag=" + Uri.EscapeDataString(tag));
+        return SendAsync<MarketPageResponse>(HttpMethod.Get,
+            $"api/v1/workspaces/{workspaceId}/catalog/markets?{string.Join("&", query)}", null, ct);
+    }
+    public Task<MarketResponse> CatalogMarketAsync(Guid workspaceId, string exchange, string nativeId, CancellationToken ct) =>
+        SendAsync<MarketResponse>(HttpMethod.Get,
+            $"api/v1/workspaces/{workspaceId}/catalog/markets/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(nativeId)}", null, ct);
+    public Task<StartMarketSyncResponse> StartMarketSyncAsync(Guid workspaceId, string exchange, CancellationToken ct) =>
+        SendAsync<StartMarketSyncResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspaceId}/catalog/sync",
+            new StartMarketSyncRequest(exchange), ct);
+    public Task<DiscoveryRunResponse> CancelMarketSyncAsync(Guid workspaceId, Guid runId, CancellationToken ct) =>
+        SendAsync<DiscoveryRunResponse>(HttpMethod.Post,
+            $"api/v1/workspaces/{workspaceId}/catalog/sync/{runId}/cancel", null, ct);
     public async Task<BackendSnapshot> LoadAsync(CancellationToken cancellationToken)
     {
         var session = await SendAsync<SessionResponse>(HttpMethod.Get, "api/v1/session", null, cancellationToken);
@@ -45,15 +67,16 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
     {
         try
         {
-            // Re-read on every operation; one safe retry after a 401 handles credential rotation.
-            for (var attempt = 0; attempt < 2; attempt++)
+            // Each operation reads current metadata. Only safe reads may retry after rotation.
+            var retryOnUnauthorized = method == HttpMethod.Get;
+            for (var attempt = 0; attempt < (retryOnUnauthorized ? 2 : 1); attempt++)
             {
                 var connection = await connections.ReadAsync(cancellationToken);
                 using var request = new HttpRequestMessage(method, new Uri(new Uri(connection.BaseUrl + "/"), path));
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.Credential);
                 if (body is not null) request.Content = JsonContent.Create(body);
                 using var response = await http.SendAsync(request, cancellationToken);
-                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0) continue;
+                if (response.StatusCode == HttpStatusCode.Unauthorized && retryOnUnauthorized && attempt == 0) continue;
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                     throw new BackendFailure(ConnectionState.AuthenticationFailed, "Local authentication failed. Refresh after verifying the backend runtime directory.");
                 if (response.StatusCode == HttpStatusCode.Forbidden)

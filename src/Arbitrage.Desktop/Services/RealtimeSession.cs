@@ -174,6 +174,12 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                     await AuthorizedUiAsync(session, heartbeat.BackendInstanceId, currentWorkspace,
                         () => state.SetHeartbeatStatus("Recent application heartbeat"), cancellationToken);
                 }));
+                hub.On<CatalogInvalidation>("CatalogInvalidated", new Func<CatalogInvalidation, Task>(async notice =>
+                {
+                    if (notice.BackendInstanceId != currentInstance || notice.WorkspaceId != currentWorkspace) return;
+                    await AuthorizedUiAsync(session, notice.BackendInstanceId, notice.WorkspaceId,
+                        state.NotifyCatalogInvalidated, cancellationToken);
+                }));
                 hub.Closed += _ =>
                 {
                     closed = true;

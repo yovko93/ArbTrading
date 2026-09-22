@@ -1,0 +1,97 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.MarketExplorerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+      <RowDefinition Height="160"/>
+    </Grid.RowDefinitions>
+    <controls:SectionHeader Title="Market Explorer" Subtitle="Local catalog of public prediction market metadata" />
+    <TextBlock Grid.Row="1" Text="{Binding ScopeNotice}" Foreground="{DynamicResource SecondaryText}"
+               TextWrapping="Wrap" Margin="0,8,0,10"/>
+    <WrapPanel Grid.Row="2" Margin="0,0,0,10">
+      <TextBlock Text="Exchange" VerticalAlignment="Center" Margin="0,0,5,0"/>
+      <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding SelectedExchange}" Width="105" Margin="0,0,10,0"/>
+      <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,5,0"/>
+      <TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Width="180" Margin="0,0,10,0"
+               AutomationProperties.Name="Search stored market titles and identifiers"/>
+      <TextBlock Text="Status" VerticalAlignment="Center" Margin="0,0,5,0"/>
+      <ComboBox ItemsSource="{Binding Statuses}" SelectedItem="{Binding SelectedStatus}" Width="125" Margin="0,0,10,0"/>
+      <ComboBox ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}" Width="120" Margin="0,0,10,0"
+                AutomationProperties.Name="Category or tag filter"/>
+      <ComboBox ItemsSource="{Binding Sorts}" SelectedItem="{Binding SelectedSort}" Width="85" Margin="0,0,10,0"
+                AutomationProperties.Name="Catalog sort"/>
+      <Button Content="Apply" Command="{Binding ApplyFiltersCommand}" Margin="0,0,8,0"/>
+      <Button Content="Sync Markets" Command="{Binding SyncCommand}" Margin="0,0,8,0"/>
+      <Button Content="Cancel Sync" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}"/>
+    </WrapPanel>
+    <StackPanel Grid.Row="3" Margin="0,0,0,8">
+      <TextBlock Text="{Binding Notice}" Foreground="{DynamicResource SecondaryText}" TextWrapping="Wrap"/>
+      <ItemsControl ItemsSource="{Binding ExchangeStatuses}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1" Padding="7,4" Margin="0,5,8,0">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding Exchange}" FontWeight="SemiBold"/>
+                <TextBlock Text=" · stored " /><TextBlock Text="{Binding StoredMarkets}"/>
+                <TextBlock Text=" · run " /><TextBlock Text="{Binding LatestRun.State, TargetNullValue=Never}"/>
+                <TextBlock Text=" · observed " /><TextBlock Text="{Binding LatestRun.MarketsObserved, TargetNullValue=0}"/>
+                <TextBlock Text=" · pages " /><TextBlock Text="{Binding LatestRun.Pages, TargetNullValue=0}"/>
+                <TextBlock Text=" · malformed " /><TextBlock Text="{Binding LatestRun.MalformedRecords, TargetNullValue=0}"/>
+                <TextBlock Text=" · reason " /><TextBlock Text="{Binding LatestRun.ErrorCode, TargetNullValue=None}"/>
+                <TextBlock Text=" · cache updated " /><TextBlock Text="{Binding LatestRetrievedAt, StringFormat={}{0:yyyy-MM-dd HH:mm} UTC, TargetNullValue=Never}"/>
+                <TextBlock Text=" · last complete " /><TextBlock Text="{Binding LastCompletedAt, StringFormat={}{0:yyyy-MM-dd HH:mm} UTC, TargetNullValue=Never}"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    <ListView Grid.Row="4" ItemsSource="{Binding Markets}" SelectedItem="{Binding SelectedMarket, Mode=TwoWay}"
+              Background="{DynamicResource SurfaceBackground}" Foreground="{DynamicResource PrimaryText}"
+              AutomationProperties.Name="Locally stored public markets">
+      <ListView.View><GridView>
+        <GridViewColumn Header="Exchange" DisplayMemberBinding="{Binding Exchange}" Width="100"/>
+        <GridViewColumn Header="Title / question" DisplayMemberBinding="{Binding Title}" Width="320"/>
+        <GridViewColumn Header="Native ID" DisplayMemberBinding="{Binding NativeId}" Width="170"/>
+        <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" Width="110"/>
+        <GridViewColumn Header="Tag" DisplayMemberBinding="{Binding Tags[0]}" Width="105"/>
+        <GridViewColumn Header="Closes (UTC)" DisplayMemberBinding="{Binding CloseAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="130"/>
+        <GridViewColumn Header="Retrieved (UTC)" DisplayMemberBinding="{Binding RetrievedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="130"/>
+      </GridView></ListView.View>
+    </ListView>
+    <DockPanel Grid.Row="5" Margin="0,8,0,8">
+      <Button DockPanel.Dock="Right" Content="Next" Command="{Binding NextCommand}" IsEnabled="{Binding CanNext}" Margin="8,0,0,0"/>
+      <Button DockPanel.Dock="Right" Content="Previous" Command="{Binding PreviousCommand}" IsEnabled="{Binding CanPrevious}"/>
+      <TextBlock Text="{Binding PageLabel}" VerticalAlignment="Center"/>
+    </DockPanel>
+    <Border Grid.Row="6" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1" Padding="10">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <TextBlock Text="Selected market · cached metadata" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding Detail.Title, TargetNullValue=Select a market above}" FontSize="16" TextWrapping="Wrap" Margin="0,5,0,3"/>
+          <TextBlock Text="{Binding Detail.NativeId}"/>
+          <TextBlock Text="{Binding Detail.EventId, StringFormat=Event: {0}}"/>
+          <TextBlock Text="{Binding Detail.GroupId, StringFormat=Group: {0}}"/>
+          <TextBlock Text="{Binding Detail.Classification}"/>
+          <TextBlock Text="{Binding Detail.NativeStatus}"/>
+          <TextBlock Text="{Binding Detail.CloseAt, StringFormat=Closes: {0:yyyy-MM-dd HH:mm} UTC}"/>
+          <TextBlock Text="{Binding Detail.RetrievedAt, StringFormat=Retrieved: {0:yyyy-MM-dd HH:mm} UTC}"/>
+          <ItemsControl ItemsSource="{Binding Detail.Tags}"/>
+          <ItemsControl ItemsSource="{Binding Detail.Outcomes}">
+            <ItemsControl.ItemTemplate><DataTemplate>
+              <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Label}"/><TextBlock Text="  ·  "/><TextBlock Text="{Binding NativeTokenId}"/></StackPanel>
+            </DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding Detail.Warnings}"/>
+          <TextBlock Text="{Binding Detail.Description}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+          <TextBlock Text="{Binding Detail.Rules}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+          <TextBlock Text="Rules text is source supplied and unverified." Foreground="{DynamicResource SecondaryText}" Margin="0,5,0,0"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

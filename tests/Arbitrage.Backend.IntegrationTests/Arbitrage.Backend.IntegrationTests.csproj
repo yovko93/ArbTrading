@@ -9,6 +9,7 @@
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MainViewModel.cs" Link="Desktop/MainViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ThemeSelectionViewModel.cs" Link="Desktop/ThemeSelectionViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ShellViewModel.cs" Link="Desktop/ShellViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MarketExplorerViewModel.cs" Link="Desktop/MarketExplorerViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/DesktopPreferences.cs" Link="Desktop/DesktopPreferences.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/ThemeService.cs" Link="Desktop/ThemeService.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/DesktopDiagnostics.cs" Link="Desktop/DesktopDiagnostics.cs" />

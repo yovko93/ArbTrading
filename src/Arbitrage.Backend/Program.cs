@@ -65,6 +65,12 @@ public partial class Program
         builder.Services.AddScoped<DatabaseInitializer>();
         builder.Services.AddScoped<LocalStore>();
         builder.Services.AddScoped<MarketCatalogStore>();
+        builder.Services.AddScoped<RelationshipStore>();
+        builder.Services.AddHttpClient<IRelationshipMetadataSource, RelationshipMetadataSource>(c => c.Timeout = TimeSpan.FromSeconds(20))
+            .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler).RemoveAllLoggers();
+        builder.Services.AddScoped<IRelationshipProvider>(s => s.GetRequiredService<RelationshipStore>());
+        builder.Services.AddSingleton<RelationshipJobs>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<RelationshipJobs>());
         builder.Services.AddSingleton(s => new OrderBookCache(s.GetRequiredService<TimeProvider>(),
             settings.OrderBookCacheCapacity, settings.OrderBookFreshnessSeconds, settings.RealtimeFreshnessSeconds));
         builder.Services.AddSingleton<IExchangeCredentialStore>(s => new WindowsExchangeCredentialStore(
@@ -135,6 +141,7 @@ public partial class Program
         app.MapHub<ApplicationHub>("/hubs/v1/application").RequireAuthorization();
         var api = app.MapGroup("/api/v1").RequireAuthorization();
         api.MapMarketCatalog();
+        api.MapRelationships();
         api.MapOrderBooks();
         api.MapRealtimeOrderBooks();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(

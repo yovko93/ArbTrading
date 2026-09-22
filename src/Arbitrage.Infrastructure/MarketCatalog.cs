@@ -6,6 +6,8 @@ namespace Arbitrage.Infrastructure;
 
 public sealed class MarketCatalogEntry
 {
+    public string? RelationshipMetadataJson { get; set; }
+    public string? RelationshipMetadataBaseFingerprint { get; set; }
     public string Exchange { get; set; } = "";
     public string Environment { get; set; } = "Production";
     public string NativeId { get; set; } = "";

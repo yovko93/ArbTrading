@@ -47,9 +47,9 @@ public sealed class PersistenceTests : IDisposable
             await db.Database.MigrateAsync("20260921201541_InitialLocalFoundation");
             db.AddRange(new ApplicationUser(userId, DateTimeOffset.UtcNow),
                 new Workspace(workspaceId, "Before catalog", DateTimeOffset.UtcNow),
-                new WorkspaceMembership(userId, workspaceId), new LocalProfile(profileId, userId, workspaceId),
-                new AuditRecord(userId, workspaceId, DateTimeOffset.UtcNow, "before-catalog"));
+                new WorkspaceMembership(userId, workspaceId), new LocalProfile(profileId, userId, workspaceId));
             await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO AuditRecords (Id, ActorId, WorkspaceId, OccurredAt, Action, CorrelationId) VALUES ({Guid.NewGuid()}, {userId}, {workspaceId}, {DateTimeOffset.UtcNow.UtcTicks}, {"Workspace.DisplayNameUpdated"}, {"before-catalog"})");
         }
         await using (var db = Open())
             await Assert.ThrowsAsync<InvalidOperationException>(() =>

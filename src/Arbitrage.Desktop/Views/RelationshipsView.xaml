@@ -1,0 +1,109 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.RelationshipsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <UserControl.Resources>
+  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+     <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+    </Border>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- Native ComboBox chrome can ignore dark backgrounds; keep this review page's selectors readable. -->
+  <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+    <Grid>
+     <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"><TextBlock Text="▾" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0" Foreground="{DynamicResource PrimaryText}"/></Border></ControlTemplate></ToggleButton.Template>
+     </ToggleButton>
+     <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="8,0,25,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+     <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
+      <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1">
+       <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+      </Border>
+     </Popup>
+    </Grid>
+    <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger></ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </UserControl.Resources>
+ <Grid Margin="16">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="200"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="Market relationships" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}"/>
+   <TextBlock Text="Inspect reasons not to match. Titles, labels and group membership never establish settlement equivalence." TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+   <WrapPanel Margin="0,8">
+    <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding Exchange}" Width="120" AutomationProperties.Name="Exchange filter"/>
+    <ComboBox ItemsSource="{Binding States}" SelectedItem="{Binding Status}" Width="165" Margin="6,0" AutomationProperties.Name="Verification filter"/>
+    <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding Type}" Width="205" AutomationProperties.Name="Relationship type filter"/>
+    <Button Content="Apply filters" Command="{Binding ApplyFiltersCommand}" Margin="6,0"/><Button Content="Refresh" Command="{Binding RefreshCommand}"/>
+   </WrapPanel>
+   <WrapPanel>
+    <TextBox Text="{Binding SelectedNativeId, UpdateSourceTrigger=PropertyChanged}" Width="180" ToolTip="Optional native market ID; choose its exchange above" AutomationProperties.Name="Optional selected native market ID"/>
+    <CheckBox Content="Cross exchange" IsChecked="{Binding CrossExchange}" VerticalAlignment="Center" Margin="8,0"/>
+    <Button Content="Generate Candidates" Command="{Binding GenerateCommand}"/><Button Content="Cancel job" Command="{Binding CancelJobCommand}" Margin="6,0"/>
+    <TextBlock Text="{Binding Job.State}" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
+   </WrapPanel>
+  </StackPanel>
+  <StackPanel Grid.Row="1" Margin="0,8"><TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/><TextBlock Text="{Binding Job.Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/></StackPanel>
+  <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Candidate relationships">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="Exchange A" Binding="{Binding SourceExchange}" Width="90"/><DataGridTextColumn Header="Market A" Binding="{Binding SourceTitle}" Width="*" MinWidth="180"/>
+    <DataGridTextColumn Header="Exchange B" Binding="{Binding TargetExchange}" Width="90"/><DataGridTextColumn Header="Market B" Binding="{Binding TargetTitle}" Width="*" MinWidth="180"/>
+    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="135"/><DataGridTextColumn Header="Trust / stale" Binding="{Binding State}" Width="130"/>
+    <DataGridTextColumn Header="Validated UTC" Binding="{Binding LastValidatedAt}" Width="145"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <WrapPanel Grid.Row="3" Margin="0,6"><Button Content="Previous" Command="{Binding PreviousCommand}"/><TextBlock Text="{Binding PageLabel}" Margin="12,0" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/><Button Content="Next" Command="{Binding NextCommand}"/></WrapPanel>
+  <ScrollViewer x:Name="ReviewScroll" Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <StackPanel>
+    <TextBlock Text="Blocking differences — resolve these before approving" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
+    <ItemsControl ItemsSource="{Binding Blockers}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" Margin="0,3"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+    <TextBlock Text="{Binding Detail.Summary.State}" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}"/>
+    <ItemsControl ItemsSource="{Binding Detail.Warnings}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+    <WrapPanel Margin="0,8"><Button Content="Revalidate" Command="{Binding RevalidateCommand}"/><Button Content="Enrich public metadata" Command="{Binding EnrichCommand}" Margin="6,0"/></WrapPanel>
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <StackPanel Margin="0,0,12,0">
+      <TextBlock Text="{Binding Detail.Source.Title}" FontWeight="Bold" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/>
+      <TextBlock Text="{Binding Detail.Source.NativeId}" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding Detail.Source.Rules, TargetNullValue=Rules unavailable}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" Margin="0,6"/>
+      <TextBlock Text="{Binding Detail.Source.ResolutionSource, TargetNullValue=Resolution source unknown}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+      <TextBlock Text="{Binding Detail.Source.MarketClose, StringFormat=Market close (not deadline): {0}}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+      <TextBlock Text="{Binding Detail.Source.ExpectedResolution, StringFormat=Expected resolution: {0}}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+      <Expander Header="Raw metadata and parsed semantics"><TextBox Text="{Binding Detail.Source.SemanticDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"/></Expander>
+     </StackPanel>
+     <StackPanel Grid.Column="1">
+      <TextBlock Text="{Binding Detail.Target.Title}" FontWeight="Bold" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/>
+      <TextBlock Text="{Binding Detail.Target.NativeId}" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding Detail.Target.Rules, TargetNullValue=Rules unavailable}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" Margin="0,6"/>
+      <TextBlock Text="{Binding Detail.Target.ResolutionSource, TargetNullValue=Resolution source unknown}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+      <TextBlock Text="{Binding Detail.Target.MarketClose, StringFormat=Market close (not deadline): {0}}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+      <TextBlock Text="{Binding Detail.Target.ExpectedResolution, StringFormat=Expected resolution: {0}}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+      <Expander Header="Raw metadata and parsed semantics"><TextBox Text="{Binding Detail.Target.SemanticDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"/></Expander>
+     </StackPanel>
+    </Grid>
+    <Expander Header="All evidence and persisted outcome mappings" Margin="0,8">
+     <StackPanel><ItemsControl ItemsSource="{Binding Detail.Evidence}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      <ItemsControl ItemsSource="{Binding Detail.Mappings}"/>
+     </StackPanel>
+    </Expander>
+    <TextBlock Text="Explicit manual outcome mapping (native IDs; no label-based defaults)" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap"/>
+    <ItemsControl ItemsSource="{Binding MappingEditors}"><ItemsControl.ItemTemplate><DataTemplate>
+     <WrapPanel Margin="0,3"><TextBlock Text="{Binding Source.Label}" Width="70" Foreground="{DynamicResource PrimaryText}"/><TextBlock Text="{Binding Source.NativeId}" Width="160" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/>
+      <ComboBox ItemsSource="{Binding Targets}" SelectedItem="{Binding Target}" DisplayMemberPath="NativeId" Width="170" AutomationProperties.Name="Mapped target native outcome"/>
+      <ComboBox ItemsSource="{Binding DataContext.ReviewTypes, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Type}" Width="220" Margin="6,0" AutomationProperties.Name="Mapping relationship"/>
+     </WrapPanel>
+    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+    <ComboBox ItemsSource="{Binding ReviewTypes}" SelectedItem="{Binding ReviewType}" Width="260" HorizontalAlignment="Left" Margin="0,6" AutomationProperties.Name="Manual relationship type"/>
+    <TextBlock Text="Set facts apply only to the union of native outcomes explicitly mapped above." TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+    <WrapPanel Margin="0,6"><TextBlock Text="Mutually exclusive" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/><ComboBox ItemsSource="{Binding TruthValues}" SelectedItem="{Binding MutuallyExclusive}" Width="100" Margin="8,0" AutomationProperties.Name="Mutually exclusive set fact"/>
+     <TextBlock Text="Collectively exhaustive" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/><ComboBox ItemsSource="{Binding TruthValues}" SelectedItem="{Binding CollectivelyExhaustive}" Width="100" Margin="8,0" AutomationProperties.Name="Collectively exhaustive set fact"/></WrapPanel>
+    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" MaxLength="2000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="55" AutomationProperties.Name="Required review reason"/>
+    <WrapPanel Margin="0,8"><Button Content="Verify Manually…" Command="{Binding VerifyCommand}" IsEnabled="{Binding CanReview}"/><Button Content="Reject…" Command="{Binding RejectCommand}" IsEnabled="{Binding CanReview}" Margin="6,0"/></WrapPanel>
+    <TextBlock Text="{Binding Detail.ReviewReason}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+    <TextBlock Text="{Binding Detail.ReviewerId, StringFormat=Reviewer: {0}}" Style="{StaticResource MutedText}"/>
+    <Expander Header="Source fingerprint / policy diagnostics"><StackPanel><TextBlock Text="{Binding Detail.SourceFingerprint}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/><TextBlock Text="{Binding Detail.TargetFingerprint}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/><TextBlock Text="{Binding Detail.PolicyVersion, StringFormat=Policy version: {0}}" Style="{StaticResource MutedText}"/></StackPanel></Expander>
+   </StackPanel>
+  </ScrollViewer>
+ </Grid>
+</UserControl>

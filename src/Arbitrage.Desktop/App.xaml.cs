@@ -47,6 +47,8 @@ public partial class App : System.Windows.Application
             collection.AddSingleton<ILocalBackendController, LocalBackendController>();
             collection.AddSingleton<BackendProcessViewModel>();
             collection.AddSingleton<MarketExplorerViewModel>();
+            collection.AddSingleton<RelationshipsViewModel>(s => new(s.GetRequiredService<MainViewModel>(), s.GetRequiredService<BackendClient>())
+            { Confirm = message => MessageBox.Show(message, "Relationship review", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes });
             collection.AddSingleton<KalshiCredentialsViewModel>(s => new(s.GetRequiredService<MainViewModel>(), s.GetRequiredService<BackendClient>())
             {
                 SelectFile = () => { var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Select Kalshi RSA private key", Filter = "Key files|*.pem;*.key|All files|*.*", CheckFileExists = true }; return dialog.ShowDialog() == true ? dialog.FileName : null; },
@@ -54,7 +56,7 @@ public partial class App : System.Windows.Application
             });
             collection.AddSingleton<ShellViewModel>(s => new ShellViewModel(s.GetRequiredService<MainViewModel>(),
                 s.GetRequiredService<ThemeSelectionViewModel>(), s.GetRequiredService<DesktopDiagnostics>(),
-                s.GetRequiredService<BackendProcessViewModel>(), s.GetRequiredService<MarketExplorerViewModel>(), s.GetRequiredService<KalshiCredentialsViewModel>()));
+                s.GetRequiredService<BackendProcessViewModel>(), s.GetRequiredService<MarketExplorerViewModel>(), s.GetRequiredService<KalshiCredentialsViewModel>(), s.GetRequiredService<RelationshipsViewModel>()));
             collection.AddSingleton<ILocalConnectionFile>(new ProtectedLocalConnectionFile(runtimeDirectory));
             collection.AddHttpClient<BackendClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
@@ -99,6 +101,7 @@ public partial class App : System.Windows.Application
         services?.GetService<RealtimeSession>()?.Dispose();
         services?.GetService<MainViewModel>()?.Dispose();
         services?.GetService<MarketExplorerViewModel>()?.Dispose();
+        services?.GetService<RelationshipsViewModel>()?.Dispose();
         services?.GetService<KalshiCredentialsViewModel>()?.Dispose();
         services?.Dispose();
         logger?.Dispose();

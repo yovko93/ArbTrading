@@ -1,4 +1,16 @@
-# Phase 02A public exchange integration
+# Public exchange integration
+
+## Phase 03A settlement relationship boundary
+
+Reviewed 2026-09-22: [Polymarket markets/events](https://docs.polymarket.com/concepts/markets-events), [resolution](https://docs.polymarket.com/concepts/resolution), [negative risk](https://docs.polymarket.com/concepts/negative-risk), [market details](https://docs.polymarket.com/market-data/market-details); Kalshi [market details](https://docs.kalshi.com/api-reference/market/get-market), [events](https://docs.kalshi.com/api-reference/events/get-event), [series](https://docs.kalshi.com/api-reference/market/get-series), [multivariate events](https://docs.kalshi.com/api-reference/events/get-multivariate-events), [lifecycle](https://docs.kalshi.com/getting_started/market_lifecycle), and [settlement](https://docs.kalshi.com/getting_started/market_settlement). The complete URL inventory, design and actual verification are in [Phase03AVerification](Phase03AVerification.md).
+
+Catalog `SourceReference` is a public market reference, not an authoritative settlement source. Relationship descriptors retain it separately. Explicit selected-pair enrichment uses Gamma `/markets/{id}` or Kalshi `/trade-api/v2/markets/{ticker}`, `/events/{event_ticker}`, `/series/{series_ticker}`. At most two markets are enriched per action (one to three public reads per market), with response/time/concurrency bounds, no credentials or linked-document fetching. Polymarket description/rules/resolutionSource and outcome/token arrays are retained; Kalshi primary/secondary rules, settlement_sources, contract links, strikes, early-close and multivariate metadata remain inspectable. Cached enrichment is tied to the underlying catalog fingerprint, and changed outcomes invalidate approvals. Navigation, header refresh, startup, sync and candidate generation do not initiate enrichment.
+
+Native group membership, negative risk, a shared series or similar timestamps are candidate evidence only. Augmented negative-risk placeholders and Other definitions can change; a retrieved subset of an event must never become automatically exhaustive. Market close, occurrence, expected expiration, source update and retrieval are separate concepts. Unknown timezone or settlement qualifiers remain blockers.
+
+The Domain relationship validator requires evidenced subject/predicate, observation boundaries, threshold/operator/unit, event edition/stage, geography, authority, rules and outcome meanings. Title-derived hints are advisory. It separately models exclusivity and exhaustiveness; mappings use native token/side identities, including inverse YES→NO meaning. SHA-256 semantic fingerprints and policy version 1 enforce Stale on material source/policy changes. Manual review is owner-authorized, confirmed and audited, with independent manual trust. The strategy provider excludes all unapproved/stale relationships and requires explicit opt-in for manual approvals. No account, AI, price comparison, arbitrage or orderbook subscription is added by relationship matching.
+
+## Phase 02A public catalog
 
 Verified against official documentation on 2026-09-22:
 

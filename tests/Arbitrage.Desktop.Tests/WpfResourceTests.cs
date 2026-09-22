@@ -19,6 +19,41 @@ namespace Arbitrage.Desktop.Tests;
 public sealed class WpfResourceTests(WpfFixture fixture)
 {
     [Fact]
+    public Task Relationships_render_blockers_long_rules_and_manual_controls_in_both_themes() => fixture.RunAsync(() =>
+    {
+        var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());
+        using var state = new MainViewModel(backend, NullLogger<MainViewModel>.Instance);
+        using var vm = new RelationshipsViewModel(state, backend);
+        var summary = new RelationshipSummaryResponse(Guid.NewGuid(), "Kalshi", "K-FIXTURE", "Will Person A win the election?", "Polymarket", "P-FIXTURE", "Will Person A become the nominee?", "Candidate", "Stale", DateTimeOffset.UtcNow, true);
+        vm.Items.Add(summary);
+        vm.Total = 1;
+        var source = new RelationshipMarketResponse("Kalshi", "K-FIXTURE", summary.SourceTitle, string.Join(" ", Enumerable.Repeat("Final certified results apply; cancellation and recount conditions require review.", 10)), null, "Fixture authority", "event", "series", null, "Binary", null, DateTimeOffset.UtcNow, null, DateTimeOffset.UtcNow, null, [new("yes", "Yes"), new("no", "No")], "Predicate: win election; timezone: unknown");
+        vm.Detail = new(summary, source, source with { Exchange = "Polymarket", Title = summary.TargetTitle, SemanticDetails = "Predicate: become nominee; timezone: unknown" }, "ABC123", "DEF456", 1,
+            [new("ContradictorySemanticField", "Predicate", "Predicate: win election versus become nominee.", true, true)], [], ["Source changed; revalidate before approval."], null, null, null, false);
+        foreach (var outcome in source.Outcomes) vm.MappingEditors.Add(new(outcome, [new("p-yes", "Yes"), new("p-no", "No")]));
+        foreach (var name in new[] { "Light", "Dark" })
+        {
+            new WpfThemePaletteApplier(Application.Current.Resources).Apply(name == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
+            var view = new RelationshipsView { DataContext = vm }; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
+            view.Measure(new Size(1180, 1000)); view.Arrange(new Rect(0, 0, 1180, 1000)); view.UpdateLayout();
+            Assert.All(Descendants<DataGrid>(view).Single().Columns.Where(c => Equals(c.Header, "Market A") || Equals(c.Header, "Market B")), c => Assert.True(c.ActualWidth >= 180));
+            Assert.Contains(Descendants<TextBlock>(view), t => t.Text.Contains("win election versus become nominee", StringComparison.Ordinal));
+            Assert.Contains(Descendants<TextBlock>(view), t => t.Text == "Stale");
+            Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Verify Manually…") && !b.IsEnabled);
+            Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Reject…"));
+            if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } capture)
+            {
+                Directory.CreateDirectory(capture); var bitmap = new RenderTargetBitmap(1180, 1000, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
+                var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var stream = File.Create(Path.Combine(capture, "relationships-" + name + ".png")); encoder.Save(stream);
+                ((ScrollViewer)view.FindName("ReviewScroll")).ScrollToEnd(); view.UpdateLayout();
+                var review = new RenderTargetBitmap(1180, 1000, 96, 96, PixelFormats.Pbgra32); review.Render(view);
+                var reviewEncoder = new PngBitmapEncoder(); reviewEncoder.Frames.Add(BitmapFrame.Create(review));
+                using var reviewStream = File.Create(Path.Combine(capture, "relationships-review-" + name + ".png")); reviewEncoder.Save(reviewStream);
+            }
+        }
+    });
+    [Fact]
     public Task Orderbook_panel_renders_decimal_levels_and_provenance_in_both_themes() => fixture.RunAsync(() =>
     {
         var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());

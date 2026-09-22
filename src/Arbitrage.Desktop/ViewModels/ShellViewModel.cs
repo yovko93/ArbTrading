@@ -44,7 +44,7 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty] private string pageTitle = "Dashboard";
 
     public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics,
-        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null)
+        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null)
     {
         State = state; Theme = theme; LocalBackend = localBackend;
         pages = new()
@@ -55,7 +55,7 @@ public partial class ShellViewModel : ObservableObject
             [PageDestination.Trading] = new TradingViewModel(state),
             [PageDestination.Opportunities] = new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Market ingestion and strategy evaluation are not implemented."),
             [PageDestination.MarketExplorer] = (object?)marketExplorer ?? new UnavailablePageViewModel("Market Explorer", "Browse locally cached public markets.", "Market Explorer is not available in this shell instance."),
-            [PageDestination.MarketMatching] = new UnavailablePageViewModel("Market Matching", "Compare market rules and candidate equivalents.", "Matching and independent rule validation are not implemented."),
+            [PageDestination.MarketMatching] = (object?)relationships ?? new UnavailablePageViewModel("Market Matching", "Compare market rules and candidate equivalents.", "Relationships are unavailable in this shell instance."),
             [PageDestination.Strategies] = new UnavailablePageViewModel("Strategies", "Configure and review arbitrage strategies.", "Strategy evaluation and optimization are not implemented."),
             [PageDestination.Portfolio] = new UnavailablePageViewModel("Portfolio", "Review positions, balances, and execution history.", "Exchange accounts and portfolio ingestion are not implemented."),
             [PageDestination.Analytics] = new UnavailablePageViewModel("Analytics", "Analyze actual historical performance when it exists.", "Market recording and execution history are not implemented.")
@@ -68,6 +68,10 @@ public partial class ShellViewModel : ObservableObject
         if (value is null) return;
         PageTitle = value.Label;
         CurrentPage = pages[value.Destination];
+        if (pages[PageDestination.MarketMatching] is RelationshipsViewModel relationships)
+        {
+            if (value.Destination == PageDestination.MarketMatching) relationships.Activate(); else relationships.Deactivate();
+        }
         if (pages[PageDestination.MarketExplorer] is MarketExplorerViewModel explorer)
         {
             if (value.Destination == PageDestination.MarketExplorer) explorer.Activate();

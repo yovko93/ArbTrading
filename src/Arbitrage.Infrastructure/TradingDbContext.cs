@@ -14,12 +14,31 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options)
     public DbSet<MarketCatalogEntry> CatalogMarkets => Set<MarketCatalogEntry>();
     public DbSet<DiscoveryRunEntry> DiscoveryRuns => Set<DiscoveryRunEntry>();
     public DbSet<MarketCatalogTag> CatalogTags => Set<MarketCatalogTag>();
+    public DbSet<MarketRelationshipEntry> MarketRelationships => Set<MarketRelationshipEntry>();
+    public DbSet<RelationshipEvidenceEntry> RelationshipEvidence => Set<RelationshipEvidenceEntry>();
+    public DbSet<RelationshipOutcomeMappingEntry> RelationshipOutcomeMappings => Set<RelationshipOutcomeMappingEntry>();
+    public DbSet<RelationshipJobEntry> RelationshipJobs => Set<RelationshipJobEntry>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder) =>
         builder.Properties<DateTimeOffset>().HaveConversion<UtcTicksConverter>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        var relationship = model.Entity<MarketRelationshipEntry>();
+        relationship.ToTable("MarketRelationships");
+        relationship.HasKey(r => r.Id);
+        relationship.HasOne<Workspace>().WithMany().HasForeignKey(r => r.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+        relationship.HasIndex(r => new { r.WorkspaceId, r.SourceExchange, r.SourceId, r.TargetExchange, r.TargetId }).IsUnique();
+        relationship.HasIndex(r => new { r.WorkspaceId, r.TargetExchange, r.TargetId });
+        relationship.HasIndex(r => new { r.WorkspaceId, r.Type });
+        relationship.HasIndex(r => new { r.WorkspaceId, r.State });
+        relationship.HasMany(r => r.Evidence).WithOne().HasForeignKey(r => r.RelationshipId).OnDelete(DeleteBehavior.Cascade);
+        relationship.HasMany(r => r.Mappings).WithOne().HasForeignKey(r => r.RelationshipId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<RelationshipEvidenceEntry>().ToTable("RelationshipEvidence").HasKey(e => e.Id);
+        model.Entity<RelationshipOutcomeMappingEntry>().ToTable("RelationshipOutcomeMappings").HasKey(e => e.Id);
+        model.Entity<RelationshipJobEntry>().HasKey(j => j.Id);
+        model.Entity<RelationshipJobEntry>().HasIndex(j => new { j.WorkspaceId, j.StartedAt });
+        model.Entity<RelationshipJobEntry>().HasOne<Workspace>().WithMany().HasForeignKey(j => j.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ApplicationUser>().HasKey(x => x.Id);
         model.Entity<Workspace>().HasKey(x => x.Id);
         model.Entity<Workspace>().Property(x => x.DisplayName).HasMaxLength(100).IsRequired();

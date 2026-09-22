@@ -19,6 +19,18 @@ public sealed record BackendSnapshot(SessionResponse Session, SystemStatusRespon
 
 public sealed class BackendClient(HttpClient http, ILocalConnectionFile connections)
 {
+    public Task<RelationshipPageResponse> RelationshipsAsync(Guid workspace, string? exchange, string? state, string? type, int page, CancellationToken ct) =>
+        SendAsync<RelationshipPageResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/?page={page}&pageSize=30" +
+            (exchange is null ? "" : "&exchange=" + Uri.EscapeDataString(exchange)) + (state is null ? "" : "&state=" + Uri.EscapeDataString(state)) +
+            (type is null ? "" : "&type=" + Uri.EscapeDataString(type)), null, ct);
+    public Task<RelationshipDetailResponse> RelationshipAsync(Guid workspace, Guid id, CancellationToken ct) =>
+        SendAsync<RelationshipDetailResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/{id}", null, ct);
+    public Task<RelationshipDetailResponse> MutateRelationshipAsync(Guid workspace, Guid id, string action, ReviewRelationshipRequest? request, CancellationToken ct) =>
+        SendAsync<RelationshipDetailResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/relationships/{id}/{action}", request, ct);
+    public Task<RelationshipJobResponse> GenerateRelationshipsAsync(Guid workspace, GenerateRelationshipsRequest request, CancellationToken ct) =>
+        SendAsync<RelationshipJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/relationships/generate", request, ct);
+    public Task<RelationshipJobResponse> RelationshipJobAsync(Guid workspace, Guid id, bool cancel, CancellationToken ct) =>
+        SendAsync<RelationshipJobResponse>(cancel ? HttpMethod.Post : HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/jobs/{id}" + (cancel ? "/cancel" : ""), null, ct);
     public Task<OrderBookResponse> OrderBookAsync(Guid workspace, string exchange, string market, string? instrument,
         bool refresh, CancellationToken ct) => SendAsync<OrderBookResponse>(refresh ? HttpMethod.Post : HttpMethod.Get,
             $"api/v1/workspaces/{workspace}/orderbooks/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(market)}" +

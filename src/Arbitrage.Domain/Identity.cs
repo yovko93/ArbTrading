@@ -60,10 +60,13 @@ public sealed record WorkspaceSettings(Guid WorkspaceId, string DisplayName);
 public sealed class AuditRecord
 {
     private AuditRecord() { }
-    public AuditRecord(Guid actorId, Guid workspaceId, DateTimeOffset occurredAt, string correlationId)
+    public AuditRecord(Guid actorId, Guid workspaceId, DateTimeOffset occurredAt, string correlationId,
+        string action = "Workspace.DisplayNameUpdated", string? detailsJson = null)
     {
         Id = Guid.NewGuid(); ActorId = Invariants.Id(actorId); WorkspaceId = Invariants.Id(workspaceId);
         OccurredAt = occurredAt.ToUniversalTime();
+        Action = action.Length is > 0 and <= 80 ? action : throw new ArgumentException("Bounded action required.");
+        DetailsJson = detailsJson is { Length: > 4000 } ? throw new ArgumentException("Bounded audit details required.") : detailsJson;
         CorrelationId = !string.IsNullOrWhiteSpace(correlationId) && correlationId.Length <= 128
             ? correlationId : throw new ArgumentException("A bounded correlation identifier is required.");
     }
@@ -72,5 +75,6 @@ public sealed class AuditRecord
     public Guid WorkspaceId { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string Action { get; private set; } = "Workspace.DisplayNameUpdated";
+    public string? DetailsJson { get; private set; }
     public string CorrelationId { get; private set; } = "";
 }

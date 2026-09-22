@@ -8,7 +8,7 @@ public sealed record BookSnapshotResponse(Guid Id, BookInstrumentResponse Instru
 public sealed record BookFailureResponse(string Code, DateTimeOffset AtUtc, DateTimeOffset? RetryAt);
 public sealed record OrderBookResponse(BookInstrumentResponse[] Instruments, string? SelectedInstrumentId,
     string State, string Freshness, bool IsActionable, string? Reason, decimal? AgeSeconds,
-    int FreshnessSeconds, BookSnapshotResponse? Snapshot, BookFailureResponse? LastRefreshFailure);
+    int FreshnessSeconds, BookSnapshotResponse? Snapshot, BookFailureResponse? LastRefreshFailure, RealtimeBookResponse? Realtime = null);
 public sealed record DepthPreviewRequest(string InstrumentId, string Action, decimal Quantity, bool DiagnosticOnly = false);
 public sealed record GrossDepthResponse(decimal RequestedQuantity, decimal ExecutableQuantity, bool IsFullyExecutable,
     decimal GrossNotional, decimal? Vwap, decimal? BestPrice, decimal? WorstPrice, int LevelsConsumed,

@@ -76,14 +76,14 @@ public abstract class RestOrderBookSource(HttpClient http, TimeProvider? clock =
         finally { if (entered) gate.Release(); }
     }
     protected static MarketDiscoveryException Error(string code) => new(code, "Public orderbook could not be read safely.");
-    protected static JsonElement Array(JsonElement root, string name)
+    internal static JsonElement Array(JsonElement root, string name)
     {
         var value = MarketJson.Member(root, name);
         if (value is not { ValueKind: JsonValueKind.Array }) throw Error("InvalidEnvelope");
         if (value.Value.GetArrayLength() > OrderBookNormalizer.MaximumLevelsPerSide) throw Error("InvalidOrderBook");
         return value.Value;
     }
-    protected static decimal Number(JsonElement value, int maxScale = 28)
+    internal static decimal Number(JsonElement value, int maxScale = 28)
     {
         if (value.ValueKind != JsonValueKind.String) throw Error("InvalidOrderBook");
         var text = value.GetString()!;
@@ -133,14 +133,7 @@ public sealed class KalshiOrderBookSource(HttpClient http, TimeProvider? clock =
         var fp = MarketJson.Member(root, "orderbook_fp");
         if (fp is not { ValueKind: JsonValueKind.Object }) throw Error("InvalidEnvelope");
         var yes = Levels(Array(fp.Value, "yes_dollars")); var no = Levels(Array(fp.Value, "no_dollars"));
-        var own = request.Instrument.NativeInstrumentId == "yes" ? yes : no;
-        var opposite = request.Instrument.NativeInstrumentId == "yes" ? no : yes;
-        // Validate every native level before taking complements; never transform invalid source data.
-        var native = OrderBookNormalizer.Normalize(request.Instrument, own, [], retrieved, oppositeBids: opposite);
-        if (native.Validity == BookValidity.Invalid) return native;
-        var asks = request.BinarySupported ? opposite.Select(l => new OrderBookLevel(1m - l.Price, l.Quantity, LiquidityOrigin.DerivedComplement)) : [];
-        return OrderBookNormalizer.Normalize(request.Instrument, own, asks, retrieved, sourceMarket: request.Instrument.NativeMarketId,
-            oppositeBids: opposite, supported: request.BinarySupported);
+        return OrderBookNormalizer.NormalizeBinary(request.Instrument, yes, no, retrieved, request.BinarySupported);
     }
     private static OrderBookLevel[] Levels(JsonElement array) => array.EnumerateArray().Select(l =>
     {

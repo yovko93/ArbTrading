@@ -15,11 +15,14 @@ public sealed class LocalOptions
     public int DiscoveryRunMinutes { get; set; } = 15;
     public int PolymarketRequestIntervalMs { get; set; } = 300;
     public int KalshiRequestIntervalMs { get; set; } = 300;
+    public int RealtimeMaximumInstruments { get; set; } = 16;
+    public int RealtimeFreshnessSeconds { get; set; } = 10;
     public int OrderBookFreshnessSeconds { get; set; } = 5;
     public int OrderBookCacheCapacity { get; set; } = 128;
 
     public Uri Validate(IConfiguration configuration)
     {
+        if (RealtimeMaximumInstruments is < 1 or > 32 || RealtimeFreshnessSeconds is < 1 or > 60) throw new InvalidOperationException("Invalid realtime limits.");
         if (OrderBookFreshnessSeconds is < 1 or > 60 || OrderBookCacheCapacity is < 1 or > 1024)
             throw new InvalidOperationException("Orderbook freshness must be 1–60 seconds and cache capacity 1–1024.");
         if (DeploymentMode != "Local") throw new InvalidOperationException("Server deployment is unavailable in Phase 01A.");

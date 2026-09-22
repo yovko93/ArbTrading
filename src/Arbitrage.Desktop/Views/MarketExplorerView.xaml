@@ -6,7 +6,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
-      <RowDefinition Height="280"/>
+      <RowDefinition Height="400"/>
     </Grid.RowDefinitions>
     <controls:SectionHeader Title="Market Explorer" Subtitle="Local catalog of public prediction market metadata" />
     <TextBlock Grid.Row="1" Text="{Binding ScopeNotice}" Foreground="{DynamicResource SecondaryText}"
@@ -72,7 +72,7 @@
       <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
           <StackPanel DataContext="{Binding OrderBook}" Margin="0,0,0,16">
-            <TextBlock Text="Order Book · read-only REST snapshot" FontWeight="SemiBold" FontSize="16"/>
+            <TextBlock Text="Order Book · read-only market data" FontWeight="SemiBold" FontSize="16"/>
             <WrapPanel Margin="0,8,0,8">
               <ComboBox ItemsSource="{Binding Instruments}" SelectedItem="{Binding SelectedInstrument}"
                         MinWidth="150" AutomationProperties.Name="Orderbook outcome">
@@ -84,6 +84,8 @@
                 </Style></ComboBox.ItemContainerStyle>
               </ComboBox>
               <Button Content="Refresh Order Book" Command="{Binding RefreshCommand}" Margin="8,0,0,0"/>
+              <Button Content="Start Realtime" Command="{Binding StartRealtimeCommand}" Margin="8,0,0,0"/>
+              <Button Content="Stop Realtime" Command="{Binding StopRealtimeCommand}" Margin="8,0,0,0"/>
               <TextBlock Text="{Binding SnapshotState}" VerticalAlignment="Center" Margin="12,0,0,0"/>
             </WrapPanel>
             <WrapPanel>
@@ -91,6 +93,7 @@
               <TextBlock Text="{Binding SelectedInstrument.NativeMarketId}" TextWrapping="Wrap" Margin="0,0,12,0"/>
               <TextBlock Text="{Binding SelectedInstrument.NativeInstrumentId, StringFormat=Instrument: {0}}" TextWrapping="Wrap" MaxWidth="540"/>
             </WrapPanel>
+            <TextBlock Text="{Binding RealtimeDetails}" TextWrapping="Wrap" Margin="0,0,0,6"/>
             <TextBlock Text="{Binding Notice}" TextWrapping="Wrap"/>
             <WrapPanel>
               <TextBlock Text="{Binding Response.Snapshot.RetrievedAtUtc, StringFormat=Retrieved: {0:yyyy-MM-dd HH:mm:ss} UTC, TargetNullValue=Retrieved: unavailable}" Margin="0,0,12,0"/>
@@ -124,6 +127,19 @@
                 </ListView>
               </StackPanel>
             </Grid>
+            <WrapPanel Margin="0,8,0,4">
+              <ComboBox ItemsSource="{Binding DepthSides}" SelectedItem="{Binding DepthSide}" Width="130" AutomationProperties.Name="Depth side">
+                <ComboBox.ItemTemplate><DataTemplate>
+                  <TextBlock Text="{Binding}" Foreground="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                </DataTemplate></ComboBox.ItemTemplate>
+                <ComboBox.ItemContainerStyle><Style TargetType="ComboBoxItem">
+                  <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"/>
+                </Style></ComboBox.ItemContainerStyle>
+              </ComboBox>
+              <TextBox Text="{Binding DepthQuantity, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="8,0" AutomationProperties.Name="Diagnostic depth quantity"/>
+              <Button Content="Preview gross depth" Command="{Binding PreviewDepthCommand}"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding DepthNotice}" TextWrapping="Wrap"/>
             <TextBlock Text="Gross orderbook data — fees and strategy logic not included." Foreground="{DynamicResource SecondaryText}" Margin="0,6,0,0"/>
           </StackPanel>
           <TextBlock Text="Selected market · cached metadata" FontWeight="SemiBold"/>

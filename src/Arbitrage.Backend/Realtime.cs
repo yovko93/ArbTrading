@@ -95,7 +95,7 @@ public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics, Backen
 {
     public sealed record Dispatch(Guid WorkspaceId, StateInvalidation? Invalidation = null,
         BackendDiagnosticEvent? Diagnostic = null, ApplicationHeartbeat? Heartbeat = null,
-        CatalogInvalidation? Catalog = null);
+        CatalogInvalidation? Catalog = null, OrderBookInvalidation? OrderBook = null);
     private readonly Channel<Dispatch> queue = Channel.CreateBounded<Dispatch>(new BoundedChannelOptions(256)
     { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
     public ChannelReader<Dispatch> Reader => queue.Reader;
@@ -116,6 +116,10 @@ public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics, Backen
     public void Heartbeat(Guid workspaceId, ApplicationHeartbeat heartbeat) => Enqueue(new(workspaceId, Heartbeat: heartbeat));
     public void CatalogChanged(Guid workspaceId, string exchange) =>
         Enqueue(new(workspaceId, Catalog: new(instance.Id, workspaceId, exchange)));
+    public void OrderBookChanged(Guid workspace, Arbitrage.Domain.OrderBookInstrumentId id, CachedOrderBook book) =>
+        Enqueue(new(workspace, OrderBook: new(instance.Id, workspace,
+            new(id.Exchange, id.NativeMarketId, id.NativeInstrumentId, id.Outcome), book.Version,
+            book.Realtime?.Generation ?? 0, book.Source.ToString(), book.Realtime?.State.ToString() ?? "NotSubscribed")));
     private void Enqueue(Dispatch dispatch)
     {
         if (!queue.Writer.TryWrite(dispatch) && dispatch.Diagnostic is not null)
@@ -137,6 +141,7 @@ public sealed class RealtimeDispatchService(RealtimePublisher publisher, IHubCon
                 if (item.Invalidation is not null) await clients.SendAsync("StateInvalidated", item.Invalidation, stoppingToken);
                 if (item.Diagnostic is not null) await clients.SendAsync("BackendDiagnostic", item.Diagnostic, stoppingToken);
                 if (item.Heartbeat is not null) await clients.SendAsync("ApplicationHeartbeat", item.Heartbeat, stoppingToken);
+                if (item.OrderBook is not null) await clients.SendAsync("OrderBookInvalidated", item.OrderBook, stoppingToken);
                 if (item.Catalog is not null) await clients.SendAsync("CatalogInvalidated", item.Catalog, stoppingToken);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)

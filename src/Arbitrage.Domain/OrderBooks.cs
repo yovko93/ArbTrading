@@ -37,6 +37,18 @@ public sealed class OrderBookSnapshot
 
 public static class OrderBookNormalizer
 {
+    public static OrderBookSnapshot NormalizeBinary(OrderBookInstrumentId instrument,
+        IEnumerable<OrderBookLevel> yes, IEnumerable<OrderBookLevel> no, DateTimeOffset retrieved,
+        bool supported = true, DateTimeOffset? source = null)
+    {
+        var own = (instrument.NativeInstrumentId == "yes" ? yes : no).ToArray();
+        var opposite = (instrument.NativeInstrumentId == "yes" ? no : yes).ToArray();
+        var native = Normalize(instrument, own, [], retrieved, oppositeBids: opposite);
+        if (native.Validity == BookValidity.Invalid) return native;
+        var asks = supported ? opposite.Select(l => new OrderBookLevel(1m - l.Price, l.Quantity, LiquidityOrigin.DerivedComplement)) : [];
+        return Normalize(instrument, own, asks, retrieved, source, instrument.NativeMarketId,
+            oppositeBids: opposite, supported: supported);
+    }
     public const int MaximumLevelsPerSide = 20_000;
     public static OrderBookSnapshot Normalize(OrderBookInstrumentId instrument, IEnumerable<OrderBookLevel> bids,
         IEnumerable<OrderBookLevel> asks, DateTimeOffset retrieved, DateTimeOffset? source = null,

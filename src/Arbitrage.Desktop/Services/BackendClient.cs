@@ -23,6 +23,17 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
         bool refresh, CancellationToken ct) => SendAsync<OrderBookResponse>(refresh ? HttpMethod.Post : HttpMethod.Get,
             $"api/v1/workspaces/{workspace}/orderbooks/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(market)}" +
             (refresh ? "/refresh" : "") + (instrument is null ? "" : "?instrumentId=" + Uri.EscapeDataString(instrument)), null, ct);
+    public Task<OrderBookResponse> RealtimeOrderBookAsync(Guid workspace, string exchange, string market, string instrument,
+        bool start, CancellationToken ct) => SendAsync<OrderBookResponse>(HttpMethod.Post,
+            $"api/v1/workspaces/{workspace}/orderbooks/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(market)}/realtime/{(start ? "start" : "stop")}?instrumentId={Uri.EscapeDataString(instrument)}", null, ct);
+    public Task<GrossDepthResponse> DepthAsync(Guid workspace, string exchange, string market, DepthPreviewRequest request, CancellationToken ct) =>
+        SendAsync<GrossDepthResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/orderbooks/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(market)}/depth", request, ct);
+    public Task<CredentialStatusResponse> CredentialStatusAsync(CancellationToken ct) =>
+        SendAsync<CredentialStatusResponse>(HttpMethod.Get, "api/v1/local-runtime/kalshi-credentials", null, ct);
+    public Task<CredentialStatusResponse> ImportCredentialAsync(ImportCredentialRequest request, CancellationToken ct) =>
+        SendAsync<CredentialStatusResponse>(HttpMethod.Post, "api/v1/local-runtime/kalshi-credentials/import", request, ct);
+    public Task<CredentialStatusResponse> RemoveCredentialAsync(RemoveCredentialRequest request, CancellationToken ct) =>
+        SendAsync<CredentialStatusResponse>(HttpMethod.Post, "api/v1/local-runtime/kalshi-credentials/remove", request, ct);
     public string? LastEndpoint { get; private set; }
     public Task<LocalConnection> ReadConnectionAsync(CancellationToken cancellationToken) => connections.ReadAsync(cancellationToken);
     public Task<SessionResponse> GetSessionAsync(CancellationToken cancellationToken) =>

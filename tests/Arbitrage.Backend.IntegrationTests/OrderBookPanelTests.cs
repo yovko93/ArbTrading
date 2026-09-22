@@ -10,6 +10,16 @@ namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class OrderBookPanelTests
 {
+    [Theory] [InlineData("import")] [InlineData("replace")] [InlineData("remove")]
+    public async Task Credential_mutations_are_never_replayed_after_401(string operation)
+    {
+        var handler = new Handler { Unauthorized = true };
+        var client = new BackendClient(new HttpClient(handler), new Connection());
+        await Assert.ThrowsAsync<BackendFailure>(() => operation == "remove"
+            ? client.RemoveCredentialAsync(new(true, Guid.NewGuid()), default)
+            : client.ImportCredentialAsync(new("fixture-key-id", "unused.pem", operation == "replace", Guid.Empty), default));
+        Assert.Equal(1, handler.Posts);
+    }
     private sealed class Connection : ILocalConnectionFile
     {
         public Task<LocalConnection> ReadAsync(CancellationToken ct) => Task.FromResult(new LocalConnection("http://127.0.0.1:5274", new string('a', 64)));
@@ -17,16 +27,17 @@ public sealed class OrderBookPanelTests
     }
     private sealed class Handler : HttpMessageHandler
     {
-        public int Posts, Reads; public bool Deny, Block; public string BlockMarket = "old";
+        public int Posts, Reads; public bool Deny, Block, BlockPost, Unauthorized; public string BlockMarket = "old";
         public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             if (request.Method == HttpMethod.Post) Posts++; else Reads++;
+            if (Unauthorized) return new(HttpStatusCode.Unauthorized);
             if (request.Method == HttpMethod.Put || Deny) return new(HttpStatusCode.Forbidden);
             var id = request.RequestUri!.AbsolutePath.Contains("/old", StringComparison.Ordinal) ? "old" : "new";
-            if (Block && id == BlockMarket)
+            if (Block && id == BlockMarket || BlockPost && request.Method == HttpMethod.Post)
             {
                 using var registration = ct.Register(() => Cancelled.TrySetResult()); Entered.TrySetResult();
                 await Release.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -102,4 +113,42 @@ public sealed class OrderBookPanelTests
             Assert.Empty(panel.Instruments); Assert.False(panel.Loading); Assert.Equal(1, handler.Posts);
         }
     }
-}
+    [Theory] [InlineData(true)] [InlineData(false)]
+    public async Task Realtime_mutations_are_one_attempt_on_401(bool start)
+    {
+        var handler = new Handler(); var (state, panel) = Setup(handler); using (state) using (panel)
+        {
+            panel.Activate(); panel.SelectMarket(Market("new")); await Until(() => panel.SelectedInstrument is not null && !panel.Loading);
+            handler.Unauthorized = true;
+            await (start ? panel.StartRealtimeCommand : panel.StopRealtimeCommand).ExecuteAsync(null);
+            Assert.Equal(1, handler.Posts); Assert.Equal("AuthenticationFailed", state.ConnectionStatus); Assert.Null(panel.Response);
+        }
+    }
+    [Fact]
+    public async Task Late_start_cannot_restore_prior_market_or_authorization_and_navigation_does_not_stop_backend()
+    {
+        var handler = new Handler(); var (state, panel) = Setup(handler); using (state) using (panel)
+        {
+            panel.Activate(); panel.SelectMarket(Market("new")); await Until(() => panel.SelectedInstrument is not null && !panel.Loading);
+            handler.BlockPost = true;
+            var start = panel.StartRealtimeCommand.ExecuteAsync(null); await handler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            panel.SelectMarket(Market("old")); panel.Deactivate();
+            handler.Release.TrySetResult(); await start;
+            Assert.Equal(1, handler.Posts); Assert.DoesNotContain("start requested", panel.Notice);
+            state.SetRealtimeStatus("AuthorizationDenied", "Denied"); Assert.Null(panel.Response);
+        }
+    }
+    [Fact]
+    public async Task Realtime_notice_bursts_are_coalesced_and_BestEffort_is_visible()
+    {
+        var handler = new Handler(); var (state, panel) = Setup(handler); using (state) using (panel)
+        {
+            panel.Activate(); panel.SelectMarket(Market("new")); await Until(() => panel.Response is not null && !panel.Loading);
+            var response = panel.Response!;
+            panel.Response = response with { Realtime = new("Realtime", "Streaming", "BestEffort", true, 1, 1, null, "1", null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, null, null) };
+            Assert.Contains("BestEffort", panel.RealtimeDetails); var reads = handler.Reads;
+            for (var n = 0; n < 500; n++) state.NotifyOrderBookInvalidated(new(Guid.Parse(state.BackendInstance), Guid.Parse(state.WorkspaceIdentifier), panel.SelectedInstrument!, n, 1, "Realtime", "Streaming"));
+            await Task.Delay(1200); Assert.InRange(handler.Reads - reads, 1, 2); Assert.Equal(0, handler.Posts);
+            panel.Deactivate(); reads = handler.Reads; await Task.Delay(1100); Assert.Equal(reads, handler.Reads);
+        }
+    }}

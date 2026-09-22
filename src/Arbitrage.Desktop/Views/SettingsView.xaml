@@ -31,6 +31,26 @@
           <TextBlock Text="Backend authorization and audit remain authoritative." Style="{StaticResource MutedText}" Margin="0,8,0,0" />
         </StackPanel>
       </Border>
+      <Border Style="{StaticResource CardBorder}" Visibility="{Binding State.IsWorkspaceAuthorized, Converter={StaticResource BooleanToVisibility}}">
+        <StackPanel DataContext="{Binding Credentials}">
+          <TextBlock Text="Kalshi Realtime Market Data" Style="{StaticResource SectionTitleText}"/>
+          <TextBlock Text="API Key ID" Style="{StaticResource FieldLabel}" Margin="0,10,0,4"/>
+          <TextBox Text="{Binding KeyId, UpdateSourceTrigger=PropertyChanged}" MaxLength="128" AutomationProperties.Name="Kalshi API key ID"/>
+          <WrapPanel Margin="0,10,0,4">
+            <Button Content="Select Private Key File" Command="{Binding SelectPrivateKeyFileCommand}" Margin="0,0,8,0"/>
+            <Button Content="Import / Replace" Command="{Binding ImportCommand}" Margin="0,0,8,0"/>
+            <Button Content="Remove" Command="{Binding RemoveCommand}" Margin="0,0,8,0"/>
+            <Button Content="Refresh status" Command="{Binding RefreshStatusCommand}"/>
+          </WrapPanel>
+          <TextBlock Text="{Binding SelectedFile}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite"/>
+          <TextBlock Text="{Binding Status.StoreCapability, StringFormat=Storage: {0}}"/>
+          <TextBlock Text="{Binding Status.MaskedKeyId, StringFormat=Key: {0}}"/>
+          <TextBlock Text="{Binding Status.PublicKeyFingerprint, StringFormat=Public fingerprint: {0}}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding Status.LastAuthenticationResult, StringFormat=Last authentication: {0}}"/>
+          <TextBlock Text="Private keys stay in protected backend storage for this Windows user. Import leaves your original key file unchanged." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        </StackPanel>
+      </Border>
       <TextBlock Text="Workspace editing is hidden until local authentication and authorization succeed. Unsaved input is retained for this session."
                  Foreground="{DynamicResource Warning}" Margin="0,0,0,12"
                  Visibility="{Binding State.IsWorkspaceAccessDenied, Converter={StaticResource BooleanToVisibility}}" />

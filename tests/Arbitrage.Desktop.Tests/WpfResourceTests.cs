@@ -48,6 +48,36 @@ public sealed class WpfResourceTests(WpfFixture fixture)
                 Assert.Contains(text, t => t.Contains("derived from opposite-side bids", StringComparison.Ordinal));
                 Assert.Contains(text, t => t.Contains("0.2001", StringComparison.Ordinal));
                 Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Refresh Order Book"));
+                Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Start Realtime"));
+                Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Stop Realtime"));
+                var original = explorer.OrderBook.Response!;
+                foreach (var status in new[] { "Continuous", "BestEffort", "Resynchronizing", "Stale", "AuthenticationRequired" })
+                {
+                    var streaming = status is "Continuous" or "BestEffort";
+                    var when = status == "Stale" ? DateTimeOffset.UtcNow.AddMinutes(-1) : DateTimeOffset.UtcNow;
+                    var shown = status == "BestEffort" ? instrument with { Exchange = "Polymarket", NativeInstrumentId = "123", Outcome = "Candidate A" } : instrument;
+                    explorer.OrderBook.Instruments.Clear(); explorer.OrderBook.Instruments.Add(shown); explorer.OrderBook.SelectedInstrument = shown;
+                    explorer.OrderBook.Response = original with { IsActionable = streaming, Reason = streaming ? null : status,
+                        Snapshot = original.Snapshot! with { RetrievedAtUtc = when, Instrument = shown,
+                            Asks = status == "BestEffort" ? [new(.63m, 12.50m, "NativeAsk")] : original.Snapshot.Asks },
+                        Realtime = new("Realtime", streaming ? "Streaming" : status, streaming ? status : "Resynchronizing", streaming,
+                            1, 123, status == "BestEffort" ? null : 2, "fixture", status == "BestEffort" ? null : 101,
+                            streaming || status == "Stale" ? when : null, when, when, null, streaming ? null : status, null) };
+                    explorer.OrderBook.DepthNotice = streaming ? "Read-only gross depth preview available." : "Not actionable: " + status;
+                    view.UpdateLayout();
+                    Assert.Contains(Descendants<TextBlock>(view), t => t.Text.Contains(status, StringComparison.Ordinal));
+                    if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } capture)
+                    {
+                        Directory.CreateDirectory(capture);
+                        var render = new RenderTargetBitmap(1180, 850, 96, 96, PixelFormats.Pbgra32); render.Render(view);
+                        var save = new PngBitmapEncoder(); save.Frames.Add(BitmapFrame.Create(render));
+                        using var output = File.Create(Path.Combine(capture, "realtime-" + status + "-" + name + ".png")); save.Save(output);
+                    }
+                }
+                explorer.OrderBook.Instruments.Clear(); explorer.OrderBook.Instruments.Add(instrument); explorer.OrderBook.SelectedInstrument = instrument;
+                explorer.OrderBook.Response = original;
+                explorer.OrderBook.DepthNotice = "Choose a quantity for a read-only gross depth estimate.";
+                view.UpdateLayout();
                 var directory = Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY");
                 if (directory is not null)
                 {

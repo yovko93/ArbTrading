@@ -66,7 +66,13 @@ public partial class Program
         builder.Services.AddScoped<LocalStore>();
         builder.Services.AddScoped<MarketCatalogStore>();
         builder.Services.AddSingleton(s => new OrderBookCache(s.GetRequiredService<TimeProvider>(),
-            settings.OrderBookCacheCapacity, settings.OrderBookFreshnessSeconds));
+            settings.OrderBookCacheCapacity, settings.OrderBookFreshnessSeconds, settings.RealtimeFreshnessSeconds));
+        builder.Services.AddSingleton<IExchangeCredentialStore>(s => new WindowsExchangeCredentialStore(
+            Path.Combine(settings.DataDirectory, "credentials"), s.GetRequiredService<TimeProvider>()));
+        builder.Services.AddSingleton<IMarketWebSocketFactory, MarketWebSocketFactory>();
+        builder.Services.AddSingleton<RealtimeOrderBookSource>();
+        builder.Services.AddSingleton<RealtimeOrderBookManager>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<RealtimeOrderBookManager>());
         builder.Services.AddSingleton<OrderBookRefreshGate>();
         builder.Services.AddScoped<OrderBookService>();
         builder.Services.AddHttpClient<PolymarketOrderBookSource>(c => c.Timeout = TimeSpan.FromSeconds(12))
@@ -130,6 +136,7 @@ public partial class Program
         var api = app.MapGroup("/api/v1").RequireAuthorization();
         api.MapMarketCatalog();
         api.MapOrderBooks();
+        api.MapRealtimeOrderBooks();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(
             Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown", started.Elapsed.TotalSeconds,
             await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable", "Local", settings.TradingMode, "Paper", Capabilities.Phase01A));

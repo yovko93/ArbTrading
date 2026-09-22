@@ -445,3 +445,8 @@ backend.lock
 managed-local.json
 managed-local.lock
 desktop-start.lock
+
+# Exchange signing material and OS-protected credential blobs
+*.pem
+*.key
+*.dpapi

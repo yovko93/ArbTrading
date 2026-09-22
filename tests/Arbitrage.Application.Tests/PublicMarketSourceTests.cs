@@ -23,18 +23,67 @@ public sealed class PublicMarketSourceTests
     private static string Market(int id) =>
         $$"""{"id":"{{id}}","question":"Question {{id}}","active":true,"closed":false,"outcomes":"[\"No\",\"Yes\"]","clobTokenIds":"[\"999999999999999999999999999999\",\"2\"]"}""";
 
+    [Theory]
+    [InlineData(5, 5)]
+    [InlineData(100, 100)]
+    [InlineData(200, 100)]
+    [InlineData(500, 100)]
+    public async Task Polymarket_outbound_limit_is_endpoint_bounded(int requested, int effective)
+    {
+        var handler = new Handler(_ => Json("{\"markets\":[]}"));
+        using var http = new HttpClient(handler);
+        await new PolymarketMarketSource(http).ReadPageAsync("nonfinalized", null, requested,
+            DateTimeOffset.UtcNow.AddSeconds(5), default);
+        Assert.Contains("limit=" + effective, Assert.Single(handler.Requests).Query);
+    }
+
+    [Theory]
+    [InlineData("{\"markets\":[{\"id\":\"1\"}]}", 1)]
+    [InlineData("{\"markets\":[]}", 0)]
+    public async Task Polymarket_omitted_terminal_cursor_is_valid(string body, int count)
+    {
+        using var http = new HttpClient(new Handler(_ => Json(body)));
+        var page = await new PolymarketMarketSource(http).ReadPageAsync("nonfinalized", null, 5,
+            DateTimeOffset.UtcNow.AddSeconds(5), default);
+        Assert.Equal(count, page.Markets.Length);
+        Assert.Null(page.NextCursor);
+    }
+
+    [Fact]
+    public async Task Invalid_page_size_is_rejected_before_outbound_and_Kalshi_keeps_requested_200()
+    {
+        var handler = new Handler(_ => Json("{\"markets\":[],\"cursor\":\"\"}"));
+        using var http = new HttpClient(handler);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            new PolymarketMarketSource(http).ReadPageAsync("nonfinalized", null, 0,
+                DateTimeOffset.UtcNow.AddSeconds(5), default));
+        Assert.Empty(handler.Requests);
+        await new KalshiMarketSource(http).ReadPageAsync("open", null, 200,
+            DateTimeOffset.UtcNow.AddSeconds(5), default);
+        Assert.Contains("limit=200", Assert.Single(handler.Requests).Query);
+    }
+
+    [Fact]
+    public void Public_market_transport_disables_redirects_and_proxy()
+    {
+        using var handler = PublicMarketTransport.CreateHandler();
+        Assert.False(handler.AllowAutoRedirect);
+        Assert.False(handler.UseProxy);
+    }
+
     [Fact]
     public async Task Polymarket_keyset_continues_beyond_one_thousand_and_preserves_raw_outcome_order()
     {
         var handler = new Handler(request =>
         {
             var query = request.RequestUri!.Query;
-            Assert.Contains("closed=false", query); Assert.Contains("limit=400", query);
-            var page = query.Contains("after_cursor=opaque-2") ? 2 : query.Contains("after_cursor=opaque-1") ? 1 : 0;
-            var count = page == 2 ? 405 : 400;
-            var items = string.Join(",", Enumerable.Range(page * 400, count).Select(Market));
-            return Json("{\"markets\":[" + items + "],\"next_cursor\":" +
-                (page == 2 ? "null" : $"\"opaque-{page + 1}\"") + "}");
+            Assert.Contains("closed=false", query); Assert.Contains("limit=100", query);
+            var page = query.Contains("after_cursor=opaque-")
+                ? int.Parse(query.Split("after_cursor=opaque-")[1]) : 0;
+            var count = page == 12 ? 5 : 100;
+            var items = string.Join(",", Enumerable.Range(page * 100, count).Select(Market));
+            return Json("{\"markets\":[" + items + "]" +
+                (page == 12 ? "" : $",\"next_cursor\":\"opaque-{page + 1}\"") + "}");
         });
         using var http = new HttpClient(handler);
         var source = new PolymarketMarketSource(http);
@@ -45,6 +94,7 @@ public sealed class PublicMarketSourceTests
             received.AddRange(page.Markets); cursor = page.NextCursor;
         } while (cursor is not null);
         Assert.Equal(1205, received.Select(m => m.NativeId).Distinct().Count());
+        Assert.Equal(13, handler.Requests.Count);
         Assert.All(handler.Requests, uri => Assert.Equal("gamma-api.polymarket.com", uri.Host));
         Assert.Equal("No", received[0].Outcomes[0].Label);
         Assert.Equal("999999999999999999999999999999", received[0].Outcomes[0].NativeTokenId);
@@ -113,9 +163,9 @@ public sealed class PublicMarketSourceTests
     }
 
     [Theory]
-    [InlineData("Polymarket", "{\"markets\":[],\"next_cursor\":null}", false)]
-    [InlineData("Polymarket", "{\"markets\":[],\"has_more\":false}", false)]
-    [InlineData("Polymarket", "{\"markets\":[]}", true)]
+    [InlineData("Polymarket", "{\"markets\":[],\"next_cursor\":null}", true)]
+    [InlineData("Polymarket", "{\"markets\":[],\"next_cursor\":\"\"}", true)]
+    [InlineData("Polymarket", "{\"markets\":[]}", false)]
     [InlineData("Kalshi", "{\"markets\":[],\"cursor\":\"\"}", false)]
     [InlineData("Kalshi", "{\"markets\":[],\"cursor\":null}", true)]
     [InlineData("Kalshi", "{\"markets\":[]}", true)]
@@ -150,7 +200,7 @@ public sealed class PublicMarketSourceTests
     {
         var call = 0;
         using var http = new HttpClient(new Handler(_ => Json(++call == 1
-            ? "{\"markets\":[{}, {\"id\":\"1\",\"outcomes\":\"[\\\"Yes\\\",\\\"No\\\"]\",\"clobTokenIds\":\"[\\\"only-one\\\"]\"}],\"next_cursor\":null}"
+            ? "{\"markets\":[{}, {\"id\":\"1\",\"outcomes\":\"[\\\"Yes\\\",\\\"No\\\"]\",\"clobTokenIds\":\"[\\\"only-one\\\"]\"}]}"
             : "{\"unrelated\":[]}")));
         var source = new PolymarketMarketSource(http);
         var page = await source.ReadPageAsync("nonfinalized", null, 20, DateTimeOffset.UtcNow.AddMinutes(1), default);

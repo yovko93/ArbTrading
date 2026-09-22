@@ -69,10 +69,10 @@ public partial class Program
             TimeSpan.FromMilliseconds(settings.PolymarketRequestIntervalMs),
             TimeSpan.FromMilliseconds(settings.KalshiRequestIntervalMs)));
         builder.Services.AddHttpClient<PolymarketMarketSource>(c => c.Timeout = TimeSpan.FromSeconds(15))
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
+            .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler)
             .RemoveAllLoggers();
         builder.Services.AddHttpClient<KalshiMarketSource>(c => c.Timeout = TimeSpan.FromSeconds(15))
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
+            .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler)
             .RemoveAllLoggers();
         builder.Services.AddSingleton<IMarketDiscoverySource>(s => s.GetRequiredService<PolymarketMarketSource>());
         builder.Services.AddSingleton<IMarketDiscoverySource>(s => s.GetRequiredService<KalshiMarketSource>());

@@ -8,33 +8,27 @@ namespace Arbitrage.Connectors;
 
 public sealed record PublicMarketPacingOptions(TimeSpan PolymarketInterval, TimeSpan KalshiInterval);
 
+public static class PublicMarketTransport
+{
+    public static HttpClientHandler CreateHandler() => new() { AllowAutoRedirect = false, UseProxy = false };
+}
+
 internal static class MarketJson
 {
     public static string? Cursor(JsonElement root, string name, bool required)
     {
         if (root.ValueKind != JsonValueKind.Object)
             throw new MarketDiscoveryException("InvalidEnvelope", "Public market page is not an object.");
-        bool? hasMore = null;
-        if (!required && root.TryGetProperty("has_more", out var moreField))
-            hasMore = moreField.ValueKind switch
-            {
-                JsonValueKind.True => true, JsonValueKind.False => false,
-                _ => throw new MarketDiscoveryException("InvalidEnvelope", "Public market page has an invalid has_more field.")
-            };
         if (!root.TryGetProperty(name, out var value))
         {
-            if (hasMore == false)
-                return null;
+            if (!required) return null; // Polymarket documents omission on the final page.
             throw new MarketDiscoveryException("InvalidEnvelope", $"Public market page has no {name} continuation field.");
         }
-        if (value.ValueKind == JsonValueKind.Null && !required && hasMore != true) return null;
         if (value.ValueKind != JsonValueKind.String)
             throw new MarketDiscoveryException("InvalidEnvelope", $"Public market page has an invalid {name} continuation field.");
         var cursor = value.GetString();
-        if (cursor is { Length: > 4096 } || cursor?.Any(char.IsControl) == true)
+        if (cursor is { Length: > 4096 } || cursor?.Any(char.IsControl) == true || !required && cursor == "")
             throw new MarketDiscoveryException("InvalidEnvelope", $"Public market page has an invalid {name} continuation field.");
-        if (hasMore == true && cursor == "" || hasMore == false && cursor != "")
-            throw new MarketDiscoveryException("InvalidEnvelope", "Public market page has inconsistent continuation fields.");
         return cursor == "" ? null : cursor;
     }
     public static string? Text(JsonElement item, string name)
@@ -179,7 +173,7 @@ public sealed class PolymarketMarketSource(HttpClient http, PublicMarketPacingOp
     public override IReadOnlyList<string> Scopes { get; } = ["nonfinalized"];
     protected override string Root => "https://gamma-api.polymarket.com";
     protected override string BuildPath(string scope, string? cursor, int pageSize) =>
-        $"/markets/keyset?closed=false&limit={pageSize}" +
+        $"/markets/keyset?closed=false&limit={Math.Min(pageSize, 100)}" +
         (cursor is null ? "" : "&after_cursor=" + Uri.EscapeDataString(cursor));
     protected override MarketDiscoveryPage Parse(JsonElement root, DateTimeOffset retrieved)
     {

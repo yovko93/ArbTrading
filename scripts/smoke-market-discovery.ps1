@@ -1,6 +1,6 @@
 param([switch]$Live)
 $ErrorActionPreference = 'Stop'
-if (-not $Live) { throw 'Pass -Live for an opt-in, one-page production C# adapter sample per exchange.' }
+if (-not $Live) { throw 'Pass -Live for an opt-in, at-most-two-page production C# adapter sample per exchange.' }
 $previous = [Environment]::GetEnvironmentVariable('ARBITRAGE_LIVE_MARKET_SAMPLE')
 try {
     [Environment]::SetEnvironmentVariable('ARBITRAGE_LIVE_MARKET_SAMPLE', '1')

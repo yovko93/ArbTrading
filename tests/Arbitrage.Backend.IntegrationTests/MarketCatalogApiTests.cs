@@ -13,22 +13,55 @@ namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class MarketCatalogApiTests
 {
-    private sealed class PagesHandler(string exchange, bool cycle) : HttpMessageHandler
+    private sealed class PagesHandler(string exchange, bool cycle, bool terminalOmitted = false) : HttpMessageHandler
     {
         private int requests;
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
+            if (exchange == "Polymarket") Assert.Contains("limit=100", request.RequestUri!.Query);
             var first = Interlocked.Increment(ref requests) == 1;
             var id = exchange == "Kalshi" ? "ticker" : "id";
             var cursor = exchange == "Kalshi" ? "cursor" : "next_cursor";
             var body = first
                 ? "{\"markets\":[{\"" + id + "\":\"stored\",\"status\":\"active\"}],\"" + cursor + "\":\"next\"}"
-                : cycle
+                : terminalOmitted
+                    ? "{\"markets\":[{\"id\":\"terminal\"}]}"
+                    : cycle
                     ? "{\"markets\":[{\"" + id + "\":\"stored\"}],\"" + cursor + "\":\"next\"}"
                     : "{\"markets\":[],\"" + cursor + "\":true}";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 { Content = new StringContent(body, Encoding.UTF8, "application/json") });
         }
+    }
+
+    [Fact]
+    public async Task Polymarket_documented_omitted_terminal_cursor_completes_and_persists_both_pages()
+    {
+        using var http = new HttpClient(new PagesHandler("Polymarket", false, terminalOmitted: true));
+        await using var app = new BackendFixture(services =>
+        {
+            services.RemoveAll<IMarketDiscoverySource>();
+            services.AddSingleton<IMarketDiscoverySource>(new PolymarketMarketSource(http));
+        });
+        using var client = await app.AuthenticatedClientAsync();
+        var session = (await client.GetFromJsonAsync<SessionResponse>("/api/v1/session"))!;
+        var basePath = $"/api/v1/workspaces/{session.DefaultWorkspaceId}/catalog";
+        await client.PostAsJsonAsync(basePath + "/sync", new StartMarketSyncRequest("Polymarket"));
+        CatalogStatusResponse? status = null;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        while (!timeout.IsCancellationRequested)
+        {
+            status = await client.GetFromJsonAsync<CatalogStatusResponse>(basePath + "/status", timeout.Token);
+            if (status!.Exchanges.Single(s => s.Exchange == "Polymarket").LatestRun?.State == "Complete") break;
+            await Task.Delay(20, timeout.Token);
+        }
+        var result = status!.Exchanges.Single(s => s.Exchange == "Polymarket");
+        Assert.Equal("Complete", result.LatestRun!.State);
+        Assert.Equal(2, result.StoredMarkets);
+        Assert.NotNull(result.LastCompletedAt);
+        var page = (await client.GetFromJsonAsync<MarketPageResponse>(basePath + "/markets?page=1&pageSize=10"))!;
+        Assert.Contains(page.Items, m => m.NativeId == "stored");
+        Assert.Contains(page.Items, m => m.NativeId == "terminal");
     }
 
     [Theory]

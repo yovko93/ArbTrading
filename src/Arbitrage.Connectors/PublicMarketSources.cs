@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Authentication;
 using System.Text.Json;
 using Arbitrage.Application;
 
@@ -9,6 +10,33 @@ public sealed record PublicMarketPacingOptions(TimeSpan PolymarketInterval, Time
 
 internal static class MarketJson
 {
+    public static string? Cursor(JsonElement root, string name, bool required)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new MarketDiscoveryException("InvalidEnvelope", "Public market page is not an object.");
+        bool? hasMore = null;
+        if (!required && root.TryGetProperty("has_more", out var moreField))
+            hasMore = moreField.ValueKind switch
+            {
+                JsonValueKind.True => true, JsonValueKind.False => false,
+                _ => throw new MarketDiscoveryException("InvalidEnvelope", "Public market page has an invalid has_more field.")
+            };
+        if (!root.TryGetProperty(name, out var value))
+        {
+            if (hasMore == false)
+                return null;
+            throw new MarketDiscoveryException("InvalidEnvelope", $"Public market page has no {name} continuation field.");
+        }
+        if (value.ValueKind == JsonValueKind.Null && !required && hasMore != true) return null;
+        if (value.ValueKind != JsonValueKind.String)
+            throw new MarketDiscoveryException("InvalidEnvelope", $"Public market page has an invalid {name} continuation field.");
+        var cursor = value.GetString();
+        if (cursor is { Length: > 4096 } || cursor?.Any(char.IsControl) == true)
+            throw new MarketDiscoveryException("InvalidEnvelope", $"Public market page has an invalid {name} continuation field.");
+        if (hasMore == true && cursor == "" || hasMore == false && cursor != "")
+            throw new MarketDiscoveryException("InvalidEnvelope", "Public market page has inconsistent continuation fields.");
+        return cursor == "" ? null : cursor;
+    }
     public static string? Text(JsonElement item, string name)
     {
         if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty(name, out var value)) return null;
@@ -57,7 +85,7 @@ internal static class MarketJson
 }
 
 // Dedicated clients are registered by the backend. URLs are fixed to documented public HTTPS hosts.
-public abstract class PublicMarketSource(HttpClient http, TimeSpan minimumInterval) : IMarketDiscoverySource
+public abstract class PublicMarketSource(HttpClient http, TimeSpan minimumInterval, int maxAttempts = 3) : IMarketDiscoverySource
 {
     private readonly SemaphoreSlim pageGate = new(1, 1);
     private DateTimeOffset nextRequest;
@@ -76,7 +104,7 @@ public abstract class PublicMarketSource(HttpClient http, TimeSpan minimumInterv
         try
         {
             var path = BuildPath(scope, cursor, pageSize);
-            for (var attempt = 0; attempt < 3; attempt++)
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
             {
                 var now = DateTimeOffset.UtcNow;
                 var wait = nextRequest - now;
@@ -99,7 +127,7 @@ public abstract class PublicMarketSource(HttpClient http, TimeSpan minimumInterv
                     {
                         var retry = response.Headers.RetryAfter?.Date ??
                             DateTimeOffset.UtcNow + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(attempt + 1));
-                        if (retry >= deadline || attempt == 2)
+                        if (retry >= deadline || attempt == maxAttempts - 1)
                             throw new MarketDiscoveryException(response.StatusCode == HttpStatusCode.TooManyRequests ? "RateLimited" : "UpstreamUnavailable",
                                 $"{Exchange} public market request could not continue.", retry);
                         nextRequest = retry > nextRequest ? retry : nextRequest;
@@ -126,12 +154,15 @@ public abstract class PublicMarketSource(HttpClient http, TimeSpan minimumInterv
                 catch (JsonException) { throw new MarketDiscoveryException("InvalidJson", $"{Exchange} returned invalid JSON."); }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && DateTimeOffset.UtcNow >= deadline)
                 { throw new MarketDiscoveryException("BudgetExceeded", "The run time budget was reached."); }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && attempt == 2)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && attempt == maxAttempts - 1)
                 { throw new MarketDiscoveryException("RequestTimeout", $"{Exchange} public market request timed out."); }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 { nextRequest = DateTimeOffset.UtcNow.AddSeconds(attempt + 1); }
-                catch (HttpRequestException) when (attempt == 2)
-                { throw new MarketDiscoveryException("TransportFailure", $"{Exchange} public market transport failed."); }
+                catch (HttpRequestException exception) when (exception.HttpRequestError == HttpRequestError.SecureConnectionError ||
+                    exception.InnerException is AuthenticationException)
+                { throw new MarketDiscoveryException("SecureConnectionFailure", $"{Exchange} secure connection failed.", innerException: exception); }
+                catch (HttpRequestException exception) when (attempt == maxAttempts - 1)
+                { throw new MarketDiscoveryException("TransportFailure", $"{Exchange} public market transport failed.", innerException: exception); }
                 catch (HttpRequestException)
                 { nextRequest = DateTimeOffset.UtcNow.AddSeconds(attempt + 1); }
             }
@@ -141,8 +172,8 @@ public abstract class PublicMarketSource(HttpClient http, TimeSpan minimumInterv
     }
 }
 
-public sealed class PolymarketMarketSource(HttpClient http, PublicMarketPacingOptions? pacing = null)
-    : PublicMarketSource(http, pacing?.PolymarketInterval ?? TimeSpan.FromMilliseconds(300))
+public sealed class PolymarketMarketSource(HttpClient http, PublicMarketPacingOptions? pacing = null, int maxAttempts = 3)
+    : PublicMarketSource(http, pacing?.PolymarketInterval ?? TimeSpan.FromMilliseconds(300), maxAttempts)
 {
     public override string Exchange => "Polymarket";
     public override IReadOnlyList<string> Scopes { get; } = ["nonfinalized"];
@@ -175,7 +206,8 @@ public sealed class PolymarketMarketSource(HttpClient http, PublicMarketPacingOp
             if (eventInfo is null) warnings.Add("Event reference unavailable in market listing");
             var closed = MarketJson.Flag(raw, "closed");
             var active = MarketJson.Flag(raw, "active");
-            var status = closed == true ? "Finalized" : active == true ? "OpenOrPaused" : "UpcomingOrPaused";
+            var status = closed == true ? "Closed" : closed == false && active == true ? "OpenOrPaused" :
+                closed == false ? "UpcomingOrPaused" : "Unknown";
             var title = MarketJson.Text(raw, "question");
             if (string.IsNullOrWhiteSpace(title)) warnings.Add("Title missing");
             if (labels.Length == 0) warnings.Add("Outcome labels missing");
@@ -191,16 +223,16 @@ public sealed class PolymarketMarketSource(HttpClient http, PublicMarketPacingOp
                 MarketJson.Text(raw, "rules"), slug is null ? null : "https://polymarket.com/market/" + Uri.EscapeDataString(slug),
                 retrieved, [.. warnings]));
         }
-        var next = MarketJson.Text(root, "next_cursor");
-        return new([.. markets], string.IsNullOrEmpty(next) ? null : next, malformed, []);
+        var next = MarketJson.Cursor(root, "next_cursor", required: false);
+        return new([.. markets], next, malformed, []);
     }
 }
 
-public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOptions? pacing = null)
-    : PublicMarketSource(http, pacing?.KalshiInterval ?? TimeSpan.FromMilliseconds(300))
+public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOptions? pacing = null, int maxAttempts = 3)
+    : PublicMarketSource(http, pacing?.KalshiInterval ?? TimeSpan.FromMilliseconds(300), maxAttempts)
 {
     public override string Exchange => "Kalshi";
-    public override IReadOnlyList<string> Scopes { get; } = ["unopened", "open", "paused"];
+    public override IReadOnlyList<string> Scopes { get; } = ["unopened", "open", "paused", "closed"];
     protected override string Root => "https://external-api.kalshi.com";
     protected override string BuildPath(string scope, string? cursor, int pageSize) =>
         $"/trade-api/v2/markets?status={scope}&limit={pageSize}" +
@@ -221,11 +253,8 @@ public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOption
             // Kalshi's list response does not include series category or tags; no per-market enrichment.
             warnings.Add("Category unavailable in market listing");
             var status = MarketJson.Text(raw, "status");
-            var normalized = status switch
-            {
-                "unopened" => "Upcoming", "open" => "Open", "paused" => "Paused",
-                "closed" or "settled" => "Finalized", _ => "Unknown"
-            };
+            var normalized = MarketDiscoverySemantics.KalshiStatus(status);
+            if (normalized == "Unknown") warnings.Add("Unknown native market status");
             var rules = string.Join("\n", new[] { MarketJson.Text(raw, "rules_primary"), MarketJson.Text(raw, "rules_secondary") }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
             markets.Add(new(Exchange, "Production", ticker, MarketJson.Text(raw, "event_ticker"),
@@ -241,7 +270,7 @@ public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOption
                 "https://external-api.kalshi.com/trade-api/v2/markets/" + Uri.EscapeDataString(ticker),
                 retrieved, [.. warnings]));
         }
-        var next = MarketJson.Text(root, "cursor");
-        return new([.. markets], string.IsNullOrEmpty(next) ? null : next, malformed, []);
+        var next = MarketJson.Cursor(root, "cursor", required: true);
+        return new([.. markets], next, malformed, []);
     }
 }

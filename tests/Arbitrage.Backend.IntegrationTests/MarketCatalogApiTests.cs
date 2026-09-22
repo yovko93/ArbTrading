@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using Arbitrage.Application;
+using Arbitrage.Connectors;
 using Arbitrage.Contracts;
 using Arbitrage.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +13,56 @@ namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class MarketCatalogApiTests
 {
+    private sealed class PagesHandler(string exchange, bool cycle) : HttpMessageHandler
+    {
+        private int requests;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var first = Interlocked.Increment(ref requests) == 1;
+            var id = exchange == "Kalshi" ? "ticker" : "id";
+            var cursor = exchange == "Kalshi" ? "cursor" : "next_cursor";
+            var body = first
+                ? "{\"markets\":[{\"" + id + "\":\"stored\",\"status\":\"active\"}],\"" + cursor + "\":\"next\"}"
+                : cycle
+                    ? "{\"markets\":[{\"" + id + "\":\"stored\"}],\"" + cursor + "\":\"next\"}"
+                    : "{\"markets\":[],\"" + cursor + "\":true}";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                { Content = new StringContent(body, Encoding.UTF8, "application/json") });
+        }
+    }
+
+    [Theory]
+    [InlineData("Kalshi", false)]
+    [InlineData("Polymarket", false)]
+    [InlineData("Kalshi", true)]
+    [InlineData("Polymarket", true)]
+    public async Task Production_parser_bad_or_repeated_second_cursor_keeps_first_page_and_no_completion(string exchange, bool cycle)
+    {
+        using var http = new HttpClient(new PagesHandler(exchange, cycle));
+        IMarketDiscoverySource source = exchange == "Kalshi" ? new KalshiMarketSource(http) : new PolymarketMarketSource(http);
+        await using var app = new BackendFixture(services =>
+        {
+            services.RemoveAll<IMarketDiscoverySource>();
+            services.AddSingleton(source);
+        });
+        using var client = await app.AuthenticatedClientAsync();
+        var session = (await client.GetFromJsonAsync<SessionResponse>("/api/v1/session"))!;
+        var basePath = $"/api/v1/workspaces/{session.DefaultWorkspaceId}/catalog";
+        await client.PostAsJsonAsync(basePath + "/sync", new StartMarketSyncRequest(exchange));
+        CatalogStatusResponse? status = null;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        while (!timeout.IsCancellationRequested)
+        {
+            status = await client.GetFromJsonAsync<CatalogStatusResponse>(basePath + "/status", timeout.Token);
+            if (status!.Exchanges.Single(s => s.Exchange == exchange).LatestRun?.State == "Failed") break;
+            await Task.Delay(20, timeout.Token);
+        }
+        var result = status!.Exchanges.Single(s => s.Exchange == exchange);
+        Assert.Equal("Failed", result.LatestRun!.State);
+        Assert.Equal(cycle ? "CursorStalled" : "InvalidEnvelope", result.LatestRun.ErrorCode);
+        Assert.Equal(1, result.StoredMarkets);
+        Assert.Null(result.LastCompletedAt);
+    }
     private sealed class ControlledSource : IMarketDiscoverySource
     {
         public string Exchange => "Polymarket";

@@ -68,6 +68,27 @@ public sealed record MarketCatalogResult(MarketCatalogEntry[] Items, int Total);
 
 public sealed class MarketCatalogStore(TradingDbContext db)
 {
+    // Idempotent metadata repair. No exchange observation or retrieval timestamp is changed.
+    public async Task CorrectCachedStatusesAsync(CancellationToken ct)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE CatalogMarkets SET Status = CASE NativeStatus
+                WHEN 'initialized' THEN 'Upcoming' WHEN 'active' THEN 'Open'
+                WHEN 'inactive' THEN 'Paused' WHEN 'closed' THEN 'Closed'
+                WHEN 'determined' THEN 'Determined' WHEN 'disputed' THEN 'Disputed'
+                WHEN 'amended' THEN 'Amended' WHEN 'finalized' THEN 'Finalized'
+                ELSE 'Unknown' END
+            WHERE Exchange = 'Kalshi' AND NativeStatus IS NOT NULL
+            """, ct);
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE CatalogMarkets SET Status = CASE
+                WHEN NativeStatus LIKE '%closed=True%' THEN 'Closed'
+                WHEN NativeStatus LIKE '%closed=False%' AND NativeStatus LIKE '%active=True%' THEN 'OpenOrPaused'
+                WHEN NativeStatus LIKE '%closed=False%' THEN 'UpcomingOrPaused'
+                ELSE 'Unknown' END
+            WHERE Exchange = 'Polymarket' AND NativeStatus IS NOT NULL
+            """, ct);
+    }
     public Task CreateRunAsync(DiscoveryRunEntry run, CancellationToken ct)
     {
         db.DiscoveryRuns.Add(run);
@@ -148,8 +169,8 @@ public sealed class MarketCatalogStore(TradingDbContext db)
         db.DiscoveryRuns.AsNoTracking().Where(r => r.Exchange == exchange &&
             r.OwnerUserId == owner && r.WorkspaceId == workspace)
             .OrderByDescending(r => r.StartedAt).FirstOrDefaultAsync(ct);
-    public Task<DiscoveryRunEntry?> LastCompleteAsync(string exchange, CancellationToken ct) =>
-        db.DiscoveryRuns.AsNoTracking().Where(r => r.Exchange == exchange && r.State == "Complete")
+    public Task<DiscoveryRunEntry?> LastCompleteAsync(string exchange, string scope, CancellationToken ct) =>
+        db.DiscoveryRuns.AsNoTracking().Where(r => r.Exchange == exchange && r.State == "Complete" && r.Scope == scope)
             .OrderByDescending(r => r.EndedAt).FirstOrDefaultAsync(ct);
     public Task<int> CountAsync(string? exchange, CancellationToken ct) =>
         db.CatalogMarkets.CountAsync(m => exchange == null || m.Exchange == exchange, ct);

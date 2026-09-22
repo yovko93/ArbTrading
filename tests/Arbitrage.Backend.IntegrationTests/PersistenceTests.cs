@@ -15,6 +15,30 @@ public sealed class PersistenceTests : IDisposable
     private TradingDbContext Open() => new(DatabaseOptions.ForFile(DatabasePath));
 
     [Fact]
+    public async Task Cached_status_repair_preserves_observation_time_and_old_scope_is_not_complete()
+    {
+        var observed = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero);
+        await using var db = Open();
+        await new DatabaseInitializer(db, TimeProvider.System).InitializeAsync(false, false, default);
+        db.CatalogMarkets.Add(new MarketCatalogEntry { Exchange = "Kalshi", NativeId = "K1",
+            NativeStatus = "closed", Status = "Finalized", RetrievedAt = observed,
+            FirstRetrievedAt = observed, LastSeenRunId = Guid.NewGuid() });
+        db.DiscoveryRuns.Add(new DiscoveryRunEntry { Id = Guid.NewGuid(), Exchange = "Kalshi",
+            Scope = "All categories; unopened+open+paused", State = "Complete",
+            OwnerUserId = Guid.NewGuid(), WorkspaceId = Guid.NewGuid(), StartedAt = observed, EndedAt = observed });
+        await db.SaveChangesAsync();
+        var store = new MarketCatalogStore(db);
+        Assert.Null(await store.LastCompleteAsync("Kalshi", MarketDiscoverySemantics.KalshiScope, default));
+        await store.CorrectCachedStatusesAsync(default);
+        await store.CorrectCachedStatusesAsync(default);
+        db.ChangeTracker.Clear();
+        var cached = await db.CatalogMarkets.SingleAsync();
+        Assert.Equal("Closed", cached.Status);
+        Assert.Equal("closed", cached.NativeStatus);
+        Assert.Equal(observed, cached.RetrievedAt);
+    }
+
+    [Fact]
     public async Task Phase01_database_requires_explicit_catalog_migration_and_preserves_owned_data()
     {
         var userId = Guid.NewGuid(); var workspaceId = Guid.NewGuid(); var profileId = Guid.NewGuid();

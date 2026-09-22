@@ -54,6 +54,7 @@ public sealed class PublicMarketSourceTests
     [InlineData("unopened")]
     [InlineData("open")]
     [InlineData("paused")]
+    [InlineData("closed")]
     public async Task Kalshi_scopes_keep_filter_and_opaque_cursor_on_short_pages(string scope)
     {
         var handler = new Handler(request =>
@@ -61,8 +62,8 @@ public sealed class PublicMarketSourceTests
             Assert.Equal("external-api.kalshi.com", request.RequestUri!.Host);
             Assert.Contains("status=" + scope, request.RequestUri.Query);
             return Json(request.RequestUri.Query.Contains("cursor=next%2Bpage")
-                ? "{\"markets\":[{\"ticker\":\"K-2\",\"status\":\"paused\"}],\"cursor\":\"\"}"
-                : "{\"markets\":[{\"ticker\":\"K-1\",\"status\":\"open\",\"mve_collection_ticker\":\"MVE\"}],\"cursor\":\"next+page\"}");
+                ? "{\"markets\":[{\"ticker\":\"K-2\",\"status\":\"inactive\"}],\"cursor\":\"\"}"
+                : "{\"markets\":[{\"ticker\":\"K-1\",\"status\":\"active\",\"mve_collection_ticker\":\"MVE\"}],\"cursor\":\"next+page\"}");
         });
         using var http = new HttpClient(handler);
         var source = new KalshiMarketSource(http);
@@ -71,8 +72,77 @@ public sealed class PublicMarketSourceTests
         Assert.Single(first.Markets); Assert.Equal("Multivariate", first.Markets[0].Classification);
         Assert.Equal("next+page", first.NextCursor); Assert.Null(second.NextCursor);
         Assert.Equal("Paused", second.Markets[0].Status);
+        Assert.Equal("Open", first.Markets[0].Status);
         Assert.Null(second.Markets[0].Outcomes[0].NativeTokenId);
         Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData("initialized", "Upcoming")]
+    [InlineData("active", "Open")]
+    [InlineData("inactive", "Paused")]
+    [InlineData("closed", "Closed")]
+    [InlineData("determined", "Determined")]
+    [InlineData("disputed", "Disputed")]
+    [InlineData("amended", "Amended")]
+    [InlineData("finalized", "Finalized")]
+    [InlineData("future-status", "Unknown")]
+    public async Task Kalshi_response_status_uses_native_lifecycle(string native, string expected)
+    {
+        using var http = new HttpClient(new Handler(_ => Json("{\"markets\":[{\"ticker\":\"K\",\"status\":\"" + native + "\"}],\"cursor\":\"\"}")));
+        var item = Assert.Single((await new KalshiMarketSource(http).ReadPageAsync("open", null, 5,
+            DateTimeOffset.UtcNow.AddSeconds(5), default)).Markets);
+        Assert.Equal(native, item.NativeStatus);
+        Assert.Equal(expected, item.Status);
+        if (expected == "Unknown") Assert.Contains(item.Warnings, w => w.Contains("status", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("Polymarket", "true")]
+    [InlineData("Kalshi", "42")]
+    [InlineData("Polymarket", "{}")]
+    [InlineData("Kalshi", "[]")]
+    public async Task Invalid_pagination_type_fails_instead_of_ending(string exchange, string value)
+    {
+        var field = exchange == "Polymarket" ? "next_cursor" : "cursor";
+        using var http = new HttpClient(new Handler(_ => Json("{\"markets\":[],\"" + field + "\":" + value + "}")));
+        IMarketDiscoverySource source = exchange == "Polymarket" ? new PolymarketMarketSource(http) : new KalshiMarketSource(http);
+        var error = await Assert.ThrowsAsync<MarketDiscoveryException>(() => source.ReadPageAsync(
+            source.Scopes[0], null, 5, DateTimeOffset.UtcNow.AddSeconds(5), default));
+        Assert.Equal("InvalidEnvelope", error.Code);
+    }
+
+    [Theory]
+    [InlineData("Polymarket", "{\"markets\":[],\"next_cursor\":null}", false)]
+    [InlineData("Polymarket", "{\"markets\":[],\"has_more\":false}", false)]
+    [InlineData("Polymarket", "{\"markets\":[]}", true)]
+    [InlineData("Kalshi", "{\"markets\":[],\"cursor\":\"\"}", false)]
+    [InlineData("Kalshi", "{\"markets\":[],\"cursor\":null}", true)]
+    [InlineData("Kalshi", "{\"markets\":[]}", true)]
+    public async Task Terminal_cursor_contract_is_endpoint_specific(string exchange, string body, bool invalid)
+    {
+        using var http = new HttpClient(new Handler(_ => Json(body)));
+        IMarketDiscoverySource source = exchange == "Polymarket" ? new PolymarketMarketSource(http) : new KalshiMarketSource(http);
+        if (invalid)
+            Assert.Equal("InvalidEnvelope", (await Assert.ThrowsAsync<MarketDiscoveryException>(() =>
+                source.ReadPageAsync(source.Scopes[0], null, 5, DateTimeOffset.UtcNow.AddSeconds(5), default))).Code);
+        else Assert.Null((await source.ReadPageAsync(source.Scopes[0], null, 5, DateTimeOffset.UtcNow.AddSeconds(5), default)).NextCursor);
+    }
+
+    [Fact]
+    public async Task Secure_connection_failure_is_not_retried_as_transient_transport()
+    {
+        var requests = 0;
+        using var http = new HttpClient(new Handler(_ =>
+        {
+            requests++;
+            throw new HttpRequestException(System.Net.Http.HttpRequestError.SecureConnectionError, "TLS failed");
+        }));
+        var error = await Assert.ThrowsAsync<MarketDiscoveryException>(() =>
+            new PolymarketMarketSource(http).ReadPageAsync("nonfinalized", null, 5,
+                DateTimeOffset.UtcNow.AddSeconds(5), default));
+        Assert.Equal("SecureConnectionFailure", error.Code);
+        Assert.Equal(1, requests);
     }
 
     [Fact]

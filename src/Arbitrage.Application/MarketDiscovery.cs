@@ -18,6 +18,28 @@ public sealed record DiscoveredMarket(
 public sealed record MarketDiscoveryPage(DiscoveredMarket[] Markets, string? NextCursor,
     int MalformedRecords, string[] Warnings);
 
+public static class MarketDiscoverySemantics
+{
+    public const string PolymarketScope = "All categories; closed=false";
+    public const string KalshiScope = "All categories; unopened+open+paused+closed; v2";
+
+    public static string KalshiStatus(string? native) => native switch
+    {
+        "initialized" => "Upcoming", "active" => "Open", "inactive" => "Paused",
+        "closed" => "Closed", "determined" => "Determined", "disputed" => "Disputed",
+        "amended" => "Amended", "finalized" => "Finalized", _ => "Unknown"
+    };
+
+    public static string PolymarketStatus(string? native) => native switch
+    {
+        null => "Unknown",
+        _ when native.Contains("closed=True", StringComparison.Ordinal) => "Closed",
+        _ when native.Contains("closed=False", StringComparison.Ordinal) && native.Contains("active=True", StringComparison.Ordinal) => "OpenOrPaused",
+        _ when native.Contains("closed=False", StringComparison.Ordinal) => "UpcomingOrPaused",
+        _ => "Unknown"
+    };
+}
+
 public interface IMarketDiscoverySource
 {
     string Exchange { get; }
@@ -26,8 +48,9 @@ public interface IMarketDiscoverySource
         DateTimeOffset deadline, CancellationToken cancellationToken);
 }
 
-public sealed class MarketDiscoveryException(string code, string message, DateTimeOffset? retryAt = null)
-    : Exception(message)
+public sealed class MarketDiscoveryException(string code, string message, DateTimeOffset? retryAt = null,
+    Exception? innerException = null)
+    : Exception(message, innerException)
 {
     public string Code { get; } = code;
     public DateTimeOffset? RetryAt { get; } = retryAt;

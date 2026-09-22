@@ -8,7 +8,7 @@ namespace Arbitrage.Backend;
 
 public static class MarketCatalogEndpoints
 {
-    private const string Scope = "All categories; publicly enumerable non-finalized Polymarket and Kalshi unopened/open/paused markets. Cached metadata; no historical settled backfill.";
+    private const string Scope = "All categories; Polymarket closed=false and Kalshi unopened/open/paused/closed non-finalized buckets. Cached metadata; no historical finalized backfill or atomic upstream snapshot.";
 
     public static void MapMarketCatalog(this RouteGroupBuilder api)
     {
@@ -22,9 +22,10 @@ public static class MarketCatalogEndpoints
             {
                 var latest = actor.UserId is { } owner
                     ? await store.LatestOwnedRunAsync(exchange, owner, workspaceId, ct) : null;
-                var complete = await store.LastCompleteAsync(exchange, ct);
+                var complete = await store.LastCompleteAsync(exchange,
+                    exchange == "Polymarket" ? MarketDiscoverySemantics.PolymarketScope : MarketDiscoverySemantics.KalshiScope, ct);
                 statuses.Add(new(exchange, exchange == "Polymarket" ? "closed=false; all categories" :
-                    "unopened + open + paused; all categories", await store.CountAsync(exchange, ct),
+                    "unopened + open + paused + closed; all categories", await store.CountAsync(exchange, ct),
                     complete?.EndedAt, await store.LatestRetrievedAsync(exchange, ct),
                     latest is null ? null : Run(latest), "Implemented",
                     latest?.State switch { "Complete" => "Succeeded", "Partial" => "Partial",
@@ -41,7 +42,7 @@ public static class MarketCatalogEndpoints
             if (!await Allowed(workspaces, workspaceId, ct)) return Results.StatusCode(403);
             if (exchange is not null and not ("Polymarket" or "Kalshi") ||
                 search is { Length: > 100 } || tag is { Length: > 100 } ||
-                status is not null and not ("Open" or "Upcoming" or "Paused" or "OpenOrPaused" or "UpcomingOrPaused" or "Unknown" or "Finalized") ||
+                status is not null and not ("Open" or "Upcoming" or "Paused" or "Closed" or "Determined" or "Disputed" or "Amended" or "OpenOrPaused" or "UpcomingOrPaused" or "Unknown" or "Finalized") ||
                 sort is not null and not ("title" or "closing" or "retrieved") ||
                 page is < 1 or > 1_000_000 || pageSize is < 1 or > 100)
                 return Results.BadRequest();

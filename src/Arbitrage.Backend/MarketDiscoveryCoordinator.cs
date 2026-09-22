@@ -26,7 +26,9 @@ public sealed class MarketDiscoveryCoordinator(IServiceScopeFactory scopes,
     public async Task StartAsync(CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<MarketCatalogStore>().InterruptOldRunsAsync(ct);
+        var store = scope.ServiceProvider.GetRequiredService<MarketCatalogStore>();
+        await store.InterruptOldRunsAsync(ct);
+        await store.CorrectCachedStatusesAsync(ct);
     }
 
     public async Task StopAsync(CancellationToken ct)
@@ -56,7 +58,7 @@ public sealed class MarketDiscoveryCoordinator(IServiceScopeFactory scopes,
                     admitted.Add(old.Run); continue;
                 }
                 var run = new DiscoveryRunEntry { Id = Guid.NewGuid(), Exchange = source.Exchange,
-                    Scope = source.Exchange == "Polymarket" ? "All categories; closed=false" : "All categories; unopened+open+paused",
+                    Scope = source.Exchange == "Polymarket" ? MarketDiscoverySemantics.PolymarketScope : MarketDiscoverySemantics.KalshiScope,
                     OwnerUserId = owner, WorkspaceId = workspace, StartedAt = DateTimeOffset.UtcNow };
                 await using var scope = scopes.CreateAsyncScope();
                 await scope.ServiceProvider.GetRequiredService<MarketCatalogStore>().CreateRunAsync(run, ct);

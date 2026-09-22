@@ -65,6 +65,16 @@ public partial class Program
         builder.Services.AddScoped<DatabaseInitializer>();
         builder.Services.AddScoped<LocalStore>();
         builder.Services.AddScoped<MarketCatalogStore>();
+        builder.Services.AddSingleton(s => new OrderBookCache(s.GetRequiredService<TimeProvider>(),
+            settings.OrderBookCacheCapacity, settings.OrderBookFreshnessSeconds));
+        builder.Services.AddSingleton<OrderBookRefreshGate>();
+        builder.Services.AddScoped<OrderBookService>();
+        builder.Services.AddHttpClient<PolymarketOrderBookSource>(c => c.Timeout = TimeSpan.FromSeconds(12))
+            .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler).RemoveAllLoggers();
+        builder.Services.AddHttpClient<KalshiOrderBookSource>(c => c.Timeout = TimeSpan.FromSeconds(12))
+            .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler).RemoveAllLoggers();
+        builder.Services.AddSingleton<IOrderBookSource>(s => s.GetRequiredService<PolymarketOrderBookSource>());
+        builder.Services.AddSingleton<IOrderBookSource>(s => s.GetRequiredService<KalshiOrderBookSource>());
         builder.Services.AddSingleton(new PublicMarketPacingOptions(
             TimeSpan.FromMilliseconds(settings.PolymarketRequestIntervalMs),
             TimeSpan.FromMilliseconds(settings.KalshiRequestIntervalMs)));
@@ -119,6 +129,7 @@ public partial class Program
         app.MapHub<ApplicationHub>("/hubs/v1/application").RequireAuthorization();
         var api = app.MapGroup("/api/v1").RequireAuthorization();
         api.MapMarketCatalog();
+        api.MapOrderBooks();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(
             Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown", started.Elapsed.TotalSeconds,
             await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable", "Local", settings.TradingMode, "Paper", Capabilities.Phase01A));

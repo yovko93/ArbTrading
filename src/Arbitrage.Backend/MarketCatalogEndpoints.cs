@@ -31,7 +31,7 @@ public static class MarketCatalogEndpoints
                     latest?.State switch { "Complete" => "Succeeded", "Partial" => "Partial",
                         "Failed" => "Failed", "Cancelled" => "Cancelled", "Interrupted" => "Interrupted",
                         "Running" => "Running", _ => complete is null ? "Unverified" : "Succeeded" },
-                    "NotImplemented", "Unavailable"));
+                    "ManualRestSnapshots", "Unavailable"));
             }
             return Results.Ok(new CatalogStatusResponse([.. statuses], Scope, DateTimeOffset.UtcNow));
         });

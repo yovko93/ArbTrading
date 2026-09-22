@@ -11,6 +11,7 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel state;
     private readonly BackendClient backend;
+    public OrderBookPanelViewModel OrderBook { get; }
     private long queryGeneration;
     private long detailGeneration;
     private bool active;
@@ -45,6 +46,7 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
     public MarketExplorerViewModel(MainViewModel state, BackendClient backend)
     {
         this.state = state; this.backend = backend;
+        OrderBook = new(state, backend);
         state.AccessInvalidated += AccessInvalidated;
         state.CatalogInvalidated += CatalogInvalidated;
         state.CatalogRefreshRequested += CatalogInvalidated;
@@ -55,11 +57,13 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
     {
         if (disposed) return;
         active = true;
+        OrderBook.Activate();
         Observe(RequestRefreshAsync(supersede: true));
     }
     public void Deactivate()
     {
         active = false; refreshPending = false;
+        OrderBook.Deactivate();
         Interlocked.Increment(ref queryGeneration);
         refreshCancellation?.Cancel(); detailCancellation?.Cancel();
         Loading = false;
@@ -218,6 +222,7 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
     }
     partial void OnSelectedMarketChanged(MarketResponse? value)
     {
+        OrderBook.SelectMarket(value);
         var generation = Interlocked.Increment(ref detailGeneration);
         detailCancellation?.Cancel(); detailCancellation?.Dispose();
         Detail = value;
@@ -253,6 +258,7 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         disposed = true; Deactivate(); detailCancellation?.Dispose();
+        OrderBook.Dispose();
         state.AccessInvalidated -= AccessInvalidated; state.CatalogInvalidated -= CatalogInvalidated;
         state.CatalogRefreshRequested -= CatalogInvalidated; state.PropertyChanged -= StateChanged;
     }

@@ -2,7 +2,9 @@
 
 Phase 01A established persistent local identity and workspace ownership, authenticated loopback HTTP, and audited workspace-name updates. Phase 01B added the WPF workstation shell and Dark/Light/System themes. Phase 01C adds authorized realtime invalidation, automatic reconnect and resynchronization, recent backend diagnostics, and explicit **Local Backend** Start/Stop/Refresh controls. Phase 02A adds read-only public market discovery for Polymarket and Kalshi and an offline-capable local Market Explorer.
 
-Public metadata discovery uses separate exchange HTTPS clients and requires no exchange credentials. There is no exchange account connection, orderbook feed, order submission, AI call, arbitrage algorithm, or paper fill simulator. Paper is the only supported environment, and all execution capabilities are explicitly unavailable. No balances or profits are fabricated.
+Phase 02B.1 adds explicitly refreshed, read-only REST orderbook snapshots, canonical decimal L2 normalization, a bounded in-memory cache, and gross executable-depth previews. In Market Explorer, select a market/outcome and choose **Refresh Order Book**. Navigation and header Refresh only read local data. Kalshi asks are explicitly derived from opposite-side bids for supported binary metadata; Polymarket uses native outcome-token bids and asks. Snapshots become stale after five seconds by default and disappear from the cache after backend restart.
+
+Public metadata and orderbook reads use separate exchange HTTPS clients and require no exchange credentials. There is no exchange account connection, WebSocket orderbook feed, order submission, AI call, arbitrage algorithm, or paper fill simulator. Paper is the only supported environment, and all execution capabilities are explicitly unavailable. No balances or profits are fabricated. Polymarket support is contract-tested; current network restrictions prevent live verification. See [Phase 02B.1 verification](docs/Development/Phase02B.1Verification.md) and [exchange integration](docs/Development/ExchangeIntegration.md).
 
 ## Requirements and quick start
 

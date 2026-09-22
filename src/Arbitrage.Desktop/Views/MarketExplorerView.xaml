@@ -6,7 +6,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
-      <RowDefinition Height="160"/>
+      <RowDefinition Height="280"/>
     </Grid.RowDefinitions>
     <controls:SectionHeader Title="Market Explorer" Subtitle="Local catalog of public prediction market metadata" />
     <TextBlock Grid.Row="1" Text="{Binding ScopeNotice}" Foreground="{DynamicResource SecondaryText}"
@@ -71,6 +71,61 @@
     <Border Grid.Row="6" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1" Padding="10">
       <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
+          <StackPanel DataContext="{Binding OrderBook}" Margin="0,0,0,16">
+            <TextBlock Text="Order Book · read-only REST snapshot" FontWeight="SemiBold" FontSize="16"/>
+            <WrapPanel Margin="0,8,0,8">
+              <ComboBox ItemsSource="{Binding Instruments}" SelectedItem="{Binding SelectedInstrument}"
+                        MinWidth="150" AutomationProperties.Name="Orderbook outcome">
+                <ComboBox.ItemTemplate><DataTemplate>
+                  <TextBlock Text="{Binding Outcome}" Foreground="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                </DataTemplate></ComboBox.ItemTemplate>
+                <ComboBox.ItemContainerStyle><Style TargetType="ComboBoxItem">
+                  <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"/>
+                </Style></ComboBox.ItemContainerStyle>
+              </ComboBox>
+              <Button Content="Refresh Order Book" Command="{Binding RefreshCommand}" Margin="8,0,0,0"/>
+              <TextBlock Text="{Binding SnapshotState}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+            </WrapPanel>
+            <WrapPanel>
+              <TextBlock Text="{Binding SelectedInstrument.Exchange}" Margin="0,0,12,0"/>
+              <TextBlock Text="{Binding SelectedInstrument.NativeMarketId}" TextWrapping="Wrap" Margin="0,0,12,0"/>
+              <TextBlock Text="{Binding SelectedInstrument.NativeInstrumentId, StringFormat=Instrument: {0}}" TextWrapping="Wrap" MaxWidth="540"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding Notice}" TextWrapping="Wrap"/>
+            <WrapPanel>
+              <TextBlock Text="{Binding Response.Snapshot.RetrievedAtUtc, StringFormat=Retrieved: {0:yyyy-MM-dd HH:mm:ss} UTC, TargetNullValue=Retrieved: unavailable}" Margin="0,0,12,0"/>
+              <TextBlock Text="{Binding Response.Snapshot.SourceTimestamp, StringFormat=Source: {0:yyyy-MM-dd HH:mm:ss} UTC, TargetNullValue=Source: unavailable}" Margin="0,0,12,0"/>
+              <TextBlock Text="{Binding Age}"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding Provenance}" Foreground="{DynamicResource SecondaryText}"/>
+            <WrapPanel Margin="0,6,0,6">
+              <TextBlock Text="{Binding BestBid, StringFormat=Best bid: {0:G29}, TargetNullValue=Best bid: unavailable}" Margin="0,0,16,0"/>
+              <TextBlock Text="{Binding BestAsk, StringFormat=Best ask: {0:G29}, TargetNullValue=Best ask: unavailable}" Margin="0,0,16,0"/>
+              <TextBlock Text="{Binding Spread, StringFormat=Spread: {0:G29}, TargetNullValue=Spread: unavailable}"/>
+            </WrapPanel>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+              <StackPanel Margin="0,0,8,0"><TextBlock Text="Bids · best 10 levels" FontWeight="SemiBold"/>
+                <ListView ItemsSource="{Binding Bids}" MaxHeight="220" Background="{DynamicResource SurfaceBackground}" Foreground="{DynamicResource PrimaryText}">
+                  <ListView.View><GridView>
+                    <GridViewColumn Header="Price" DisplayMemberBinding="{Binding Price, StringFormat={}{0:G29}}" Width="90"/>
+                    <GridViewColumn Header="Quantity" DisplayMemberBinding="{Binding Quantity, StringFormat={}{0:G29}}" Width="110"/>
+                    <GridViewColumn Header="Origin" DisplayMemberBinding="{Binding Origin}" Width="140"/>
+                  </GridView></ListView.View>
+                </ListView>
+              </StackPanel>
+              <StackPanel Grid.Column="1"><TextBlock Text="Asks · best 10 levels" FontWeight="SemiBold"/>
+                <ListView ItemsSource="{Binding Asks}" MaxHeight="220" Background="{DynamicResource SurfaceBackground}" Foreground="{DynamicResource PrimaryText}">
+                  <ListView.View><GridView>
+                    <GridViewColumn Header="Price" DisplayMemberBinding="{Binding Price, StringFormat={}{0:G29}}" Width="90"/>
+                    <GridViewColumn Header="Quantity" DisplayMemberBinding="{Binding Quantity, StringFormat={}{0:G29}}" Width="110"/>
+                    <GridViewColumn Header="Origin" DisplayMemberBinding="{Binding Origin}" Width="140"/>
+                  </GridView></ListView.View>
+                </ListView>
+              </StackPanel>
+            </Grid>
+            <TextBlock Text="Gross orderbook data — fees and strategy logic not included." Foreground="{DynamicResource SecondaryText}" Margin="0,6,0,0"/>
+          </StackPanel>
           <TextBlock Text="Selected market · cached metadata" FontWeight="SemiBold"/>
           <TextBlock Text="{Binding Detail.Title, TargetNullValue=Select a market above}" FontSize="16" TextWrapping="Wrap" Margin="0,5,0,3"/>
           <TextBlock Text="{Binding Detail.NativeId}"/>

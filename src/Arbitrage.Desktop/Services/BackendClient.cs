@@ -19,6 +19,10 @@ public sealed record BackendSnapshot(SessionResponse Session, SystemStatusRespon
 
 public sealed class BackendClient(HttpClient http, ILocalConnectionFile connections)
 {
+    public Task<OrderBookResponse> OrderBookAsync(Guid workspace, string exchange, string market, string? instrument,
+        bool refresh, CancellationToken ct) => SendAsync<OrderBookResponse>(refresh ? HttpMethod.Post : HttpMethod.Get,
+            $"api/v1/workspaces/{workspace}/orderbooks/{Uri.EscapeDataString(exchange)}/{Uri.EscapeDataString(market)}" +
+            (refresh ? "/refresh" : "") + (instrument is null ? "" : "?instrumentId=" + Uri.EscapeDataString(instrument)), null, ct);
     public string? LastEndpoint { get; private set; }
     public Task<LocalConnection> ReadConnectionAsync(CancellationToken cancellationToken) => connections.ReadAsync(cancellationToken);
     public Task<SessionResponse> GetSessionAsync(CancellationToken cancellationToken) =>

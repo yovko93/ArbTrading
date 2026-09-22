@@ -222,7 +222,8 @@ public sealed class PolymarketMarketSource(HttpClient http, PublicMarketPacingOp
     }
 }
 
-public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOptions? pacing = null, int maxAttempts = 3)
+public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOptions? pacing = null, int maxAttempts = 3,
+    bool excludeMultivariate = false)
     : PublicMarketSource(http, pacing?.KalshiInterval ?? TimeSpan.FromMilliseconds(300), maxAttempts)
 {
     public override string Exchange => "Kalshi";
@@ -230,6 +231,7 @@ public sealed class KalshiMarketSource(HttpClient http, PublicMarketPacingOption
     protected override string Root => "https://external-api.kalshi.com";
     protected override string BuildPath(string scope, string? cursor, int pageSize) =>
         $"/trade-api/v2/markets?status={scope}&limit={pageSize}" +
+        (excludeMultivariate ? "&mve_filter=exclude" : "") +
         (cursor is null ? "" : "&cursor=" + Uri.EscapeDataString(cursor));
     protected override MarketDiscoveryPage Parse(JsonElement root, DateTimeOffset retrieved)
     {

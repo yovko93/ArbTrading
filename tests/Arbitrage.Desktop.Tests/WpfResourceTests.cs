@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Arbitrage.Contracts;
 using Arbitrage.Desktop.Services;
 using Arbitrage.Desktop.ViewModels;
 using Arbitrage.Desktop.Views;
@@ -16,6 +18,57 @@ namespace Arbitrage.Desktop.Tests;
 [Collection("WPF")]
 public sealed class WpfResourceTests(WpfFixture fixture)
 {
+    [Fact]
+    public Task Orderbook_panel_renders_decimal_levels_and_provenance_in_both_themes() => fixture.RunAsync(() =>
+    {
+        var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());
+        using var state = new MainViewModel(backend, NullLogger<MainViewModel>.Instance);
+        var workspace = Guid.NewGuid();
+        state.ApplyRealtimeSnapshot(new(1, Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow,
+            new(Guid.NewGuid(), workspace, "Local", Capabilities.Phase01A), new("test", 1, "Healthy", "Local", "Paper", "Paper", Capabilities.Phase01A),
+            new(workspace, "Personal"), []), "http://127.0.0.1:5274");
+        using var explorer = new MarketExplorerViewModel(state, backend);
+        var instrument = new BookInstrumentResponse("Kalshi", "FIXTURE-BINARY", "yes", "Yes");
+        explorer.OrderBook.Instruments.Add(instrument); explorer.OrderBook.SelectedInstrument = instrument;
+        explorer.OrderBook.Response = new([instrument], "yes", "Fresh", "Fresh", true, null, 0, 5,
+            new(Guid.NewGuid(), instrument, [new(.2001m, 1.25m, "NativeBid")], [new(.63m, 12.50m, "DerivedComplement")], [],
+                DateTimeOffset.UtcNow, null, "FIXTURE-BINARY", null, "Valid", "FullReturnedDepth", []), null);
+        explorer.OrderBook.Notice = "Read-only fixture snapshot. No exchange request was made.";
+        var view = new MarketExplorerView { DataContext = explorer };
+        view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
+        var window = new Window { Content = view, Width = 1180, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            foreach (var name in new[] { "Light", "Dark" })
+            {
+                new WpfThemePaletteApplier(Application.Current.Resources).Apply(name == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
+                window.Measure(new Size(1180, 850)); window.Arrange(new Rect(0, 0, 1180, 850)); window.UpdateLayout();
+                view.Measure(new Size(1180, 850)); view.Arrange(new Rect(0, 0, 1180, 850)); view.UpdateLayout();
+                var text = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
+                Assert.Contains(text, t => t.Contains("derived from opposite-side bids", StringComparison.Ordinal));
+                Assert.Contains(text, t => t.Contains("0.2001", StringComparison.Ordinal));
+                Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Refresh Order Book"));
+                var directory = Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY");
+                if (directory is not null)
+                {
+                    Directory.CreateDirectory(directory);
+                    var bitmap = new RenderTargetBitmap(1180, 850, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
+                    var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(directory, "orderbook-" + name + ".png")); encoder.Save(stream);
+                }
+            }
+        }
+        finally { window.Close(); }
+    });
+    private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var n = 0; n < VisualTreeHelper.GetChildrenCount(root); n++)
+        {
+            var child = VisualTreeHelper.GetChild(root, n);
+            if (child is T value) yield return value;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
+    }
     private sealed class Connection : ILocalConnectionFile
     {
         public Task<LocalConnection> ReadAsync(CancellationToken cancellationToken) => throw new FileNotFoundException();

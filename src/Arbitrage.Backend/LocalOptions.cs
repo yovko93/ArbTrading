@@ -15,9 +15,13 @@ public sealed class LocalOptions
     public int DiscoveryRunMinutes { get; set; } = 15;
     public int PolymarketRequestIntervalMs { get; set; } = 300;
     public int KalshiRequestIntervalMs { get; set; } = 300;
+    public int OrderBookFreshnessSeconds { get; set; } = 5;
+    public int OrderBookCacheCapacity { get; set; } = 128;
 
     public Uri Validate(IConfiguration configuration)
     {
+        if (OrderBookFreshnessSeconds is < 1 or > 60 || OrderBookCacheCapacity is < 1 or > 1024)
+            throw new InvalidOperationException("Orderbook freshness must be 1–60 seconds and cache capacity 1–1024.");
         if (DeploymentMode != "Local") throw new InvalidOperationException("Server deployment is unavailable in Phase 01A.");
         if (TradingMode != "Paper") throw new InvalidOperationException("Requested execution mode is unavailable in Phase 01A; only the Paper environment is supported.");
         if (HeartbeatSeconds is < 10 or > 300) throw new InvalidOperationException("Heartbeat interval must be 10–300 seconds.");

@@ -6,6 +6,7 @@ using System.Text.Json;
 using Arbitrage.Application;
 using Arbitrage.Connectors;
 using Arbitrage.Infrastructure;
+using Arbitrage.Domain;
 using Microsoft.EntityFrameworkCore;
 using Xunit.Abstractions;
 
@@ -14,6 +15,49 @@ namespace Arbitrage.Backend.IntegrationTests;
 // Opt-in only. Uses production adapter, transport policy, parser, and isolated SQLite.
 public sealed class LiveMarketAdapterSample(ITestOutputHelper output)
 {
+    [Fact]
+    public async Task Sample_orderbook()
+    {
+        if (Environment.GetEnvironmentVariable("ARBITRAGE_LIVE_ORDERBOOK_SAMPLE") != "1") return;
+        output.WriteLine(JsonSerializer.Serialize(new { Exchange = "Polymarket", Classification = "NotAttemptedBecauseCatalogInstrumentUnavailable",
+            Reason = "Gamma acquisition is network-restricted; no current catalog token safely available in this isolated sample." }));
+        using var discoveryProbe = new ProbeHandler(PublicMarketTransport.CreateHandler());
+        using var discoveryHttp = new HttpClient(discoveryProbe) { Timeout = TimeSpan.FromSeconds(12) };
+        using var bookProbe = new ProbeHandler(PublicMarketTransport.CreateHandler());
+        using var bookHttp = new HttpClient(bookProbe) { Timeout = TimeSpan.FromSeconds(12) };
+        string? market = null; OrderBookSnapshot? book = null; string classification = "Unverified";
+        var parsed = false; var normalized = false;
+        try
+        {
+            // Only this diagnostic sample narrows discovery; normal catalog sync still includes MVE.
+            var source = new KalshiMarketSource(discoveryHttp, maxAttempts: 1, excludeMultivariate: true);
+            var page = await source.ReadPageAsync("open", null, 5, DateTimeOffset.UtcNow.AddSeconds(15), default);
+            var candidate = page.Markets.FirstOrDefault(m => m.Classification == "binary");
+            if (candidate is null) throw new MarketDiscoveryException("NoSupportedBinaryMarketInSample", "No suitable binary market in bounded sample.");
+            market = candidate.NativeId;
+            book = await new KalshiOrderBookSource(bookHttp, maxAttempts: 1).ReadAsync(new(new("Kalshi", market, "yes", "Yes"), true), default);
+            parsed = true; normalized = book.Validity == BookValidity.Valid;
+            Assert.True(normalized, "Sampled orderbook failed normalization.");
+            if (book.Asks.Length > 0 || book.Bids.Length > 0)
+            {
+                var eligibility = BookEligibility.Evaluate(book, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+                var depth = ExecutableDepth.Calculate(book, eligibility, book.Asks.Length > 0 ? DepthAction.Buy : DepthAction.Sell, 1m, true);
+                Assert.False(depth.IsActionable); Assert.True(depth.ExecutableQuantity > 0);
+            }
+            classification = book.Bids.Length + book.Asks.Length == 0 ? "SampledEmptyOrderBookVerified" : "SampledOrderBookVerified";
+        }
+        catch (Exception e) { classification = e is MarketDiscoveryException failure ? failure.Code : e.GetType().Name; throw; }
+        finally
+        {
+            output.WriteLine(JsonSerializer.Serialize(new { Exchange = "Kalshi", Market = market, InstrumentId = market is null ? null : "yes",
+                DiscoveryFilter = "open; mve_filter=exclude; limit=5", DiscoveryRequests = discoveryProbe.Requests, OrderBookRequests = bookProbe.Requests, HttpResponseReceived = bookProbe.ResponseReceived,
+                HttpStatus = bookProbe.LastHttpStatus, ParsingSucceeded = parsed, NormalizationSucceeded = normalized,
+                BidLevelCount = book?.Bids.Length, AskLevelCount = book?.Asks.Length,
+                DerivedLevelCount = book?.Asks.Count(l => l.Origin == LiquidityOrigin.DerivedComplement),
+                BestBid = book?.Bids.FirstOrDefault()?.Price, BestAsk = book?.Asks.FirstOrDefault()?.Price,
+                RetrievedUtc = book?.RetrievedAtUtc, Classification = classification }));
+        }
+    }
     private sealed class ProbeHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
     {
         public int Requests { get; private set; }

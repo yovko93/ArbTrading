@@ -36,12 +36,13 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public string ExecutionText => SelectedExecution is not { } e ? "Select a historical execution." :
         $"{e.State} · {e.Id}\nActor {e.ActorId} · generation {e.GenerationId}\n{e.CreatedAt:O} · request {e.RequestId}\n" +
         $"Quantity {e.Quantity} · cost including fees {e.Cost}\nExpected payout at resolution {e.ExpectedPayoutAtResolution} · expected profit at resolution {e.ExpectedProfitAtResolution}\n" +
-        (e.Settlement is { } s ? $"Realized payout to date {s.RealizedPayoutToDate}; realized P&L to date {s.RealizedPnlToDate}; remaining open cost {s.RemainingOpenCostBasis}\nFinal realized profit {s.FinalRealizedProfit?.ToString() ?? "pending"}; return on cost {s.RealizedReturnOnCost}; expected/actual payout difference {s.ExpectedVsRealizedDifference}; settled {e.SettledAt:O}\n" : "Unresolved snapshot paper fill.\n") + string.Join("\n", e.Fills.Select(f =>
+        (e.Settlement is { } s ? $"Realized payout to date {s.RealizedPayoutToDate}; realized P&L to date {s.RealizedPnlToDate}; remaining open cost {s.RemainingOpenCostBasis}\nExpected remaining payout at resolution {s.ExpectedRemainingPayout}; expected remaining profit {s.ExpectedRemainingPayout - s.RemainingOpenCostBasis}\nFinal realized profit {s.FinalRealizedProfit?.ToString() ?? "pending"}; return on cost {s.RealizedReturnOnCost}; expected/actual payout difference {s.ExpectedVsRealizedDifference}; settled {e.SettledAt:O}\n" : "Unresolved snapshot paper fill.\n") + string.Join("\n", e.Fills.Select(f =>
             $"{f.Exchange} {f.MarketId}/{f.InstrumentId} {f.Outcome}: BUY {f.Quantity} @ {f.Price}; fee {f.Fee} {f.Currency}; {f.LiquidityOrigin}; book {f.BookVersion}"));
     public PaperTradingViewModel(MainViewModel state, BackendClient backend)
     {
         this.state = state; this.backend = backend;
         state.AccessInvalidated += AccessChanged; state.PropertyChanged += StateChanged;
+        state.PaperValuationInvalidated += ValuationInvalidated; state.CatalogInvalidated += ValuationInvalidated; state.OrderBookInvalidated += ValuationBookInvalidated;
     }
     public static string EligibilityReason(OpportunityResponse? r) => r is null ? "Select a current opportunity." :
         r.RelationshipTrust != "Deterministic" ? "Paper execution requires deterministic verification." :
@@ -51,7 +52,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public static bool Eligible(OpportunityResponse? r) => EligibilityReason(r) == "Ready for a server-validated paper preview.";
     public void SelectOpportunity(OpportunityResponse value) { OpportunityKey = value.OpportunityKey; ClearPreview(); Notice = EligibilityReason(value); }
     public void Activate() { if (active || disposed) return; active = true; _ = PollAsync(++pollVersion); }
-    public void Deactivate() { active = false; pollVersion++; ClearPreview(); ClearResolutionPreview(); }
+    public void Deactivate() { active = false; pollVersion++; ClearPreview(); ClearResolutionPreview(); ClearValuation(); }
     private (Guid Workspace, long Access, string Instance)? Context() => !disposed && state.ConnectionStatus == "Connected" && state.HasSnapshot &&
         Guid.TryParse(state.WorkspaceIdentifier, out var id) ? (id, state.AccessGeneration, state.BackendInstance) : null;
     private async Task PollAsync(long version)
@@ -70,6 +71,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     {
         lifetime.Cancel(); lifetime.Dispose(); lifetime = new(); ClearPreview(); Account = null; Positions.Clear(); Executions.Clear(); SelectedExecution = null;
         ClearSettlement();
+        ClearValuation();
         Notice = "Workspace access changed; private paper data cleared.";
     }
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
@@ -83,12 +85,13 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     [RelayCommand] private async Task RefreshAsync()
     {
         if (Busy || Context() is not { } context) return;
+        var viewVersion = pollVersion;
         try
         {
             var a = await backend.PaperAccountAsync(context.Workspace, lifetime.Token);
             var p = await backend.PaperPositionsAsync(context.Workspace, lifetime.Token);
             var h = await backend.PaperHistoryAsync(context.Workspace, HistoryPage, lifetime.Token);
-            if (Context() != context) return;
+            if (Context() != context || viewVersion != pollVersion) return;
             if (Account?.Generation?.Id != a.Generation?.Id && Account is not null) ClearPreview();
             Account = a; Positions.Clear(); foreach (var row in p) Positions.Add(row);
             Executions.Clear(); foreach (var row in h) Executions.Add(row);
@@ -157,5 +160,6 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         $"Relationship trust: {p.Proof?.RelationshipTrust}; revision {p.Proof?.RelationshipRevision}\nFee profile: {p.Proof?.Fees?.Profile}; revision {p.Proof?.Fees?.ProfileRevision}\n" +
         string.Join("\n", p.Proof?.Legs.Select(l => $"{l.Exchange} book {l.SnapshotVersion}: {l.SourceMode}/{l.Continuity}; retrieved {l.RetrievedAt:O}; age at preview {(p.CreatedAt - l.RetrievedAt)?.TotalSeconds:0.###}s") ?? []) +
         "\n" + string.Join("\n", p.Warnings);
-    public void Dispose() { if (disposed) return; disposed = true; active = false; lifetime.Cancel(); lifetime.Dispose(); state.AccessInvalidated -= AccessChanged; state.PropertyChanged -= StateChanged; }
+    public void Dispose() { if (disposed) return; disposed = true; active = false; lifetime.Cancel(); lifetime.Dispose(); state.AccessInvalidated -= AccessChanged; state.PropertyChanged -= StateChanged;
+        state.PaperValuationInvalidated -= ValuationInvalidated; state.CatalogInvalidated -= ValuationInvalidated; state.OrderBookInvalidated -= ValuationBookInvalidated; }
 }

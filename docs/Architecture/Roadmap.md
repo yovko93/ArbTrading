@@ -1,6 +1,6 @@
 # Product scope and deferred phases
 
-Phase 04B now closes the paper lifecycle with explicit Manual Scenario Resolution, immutable settlement, cash payouts, partial/full execution settlement and realized performance by venue/currency. It supports standard binary 1/0 scenarios only. Automatic real-result ingestion, void/complex settlement, mark-to-market, real redemption/transfers/orders and Phase 04C remain deferred. See [paper architecture](PaperExecution.md).
+Phase 04B closes the paper lifecycle with explicit Manual Scenario Resolution, immutable settlement, cash payouts, partial/full execution settlement and realized performance by venue/currency. It supports standard binary 1/0 scenarios only. Phase 04C adds read-only executable liquidation marks, gross and fee-adjusted unrealized P&L, coverage, capital utilization and concentration from local cached books and fee schedules. Automatic real-result ingestion, void/complex settlement, paper SELL/close execution, historical MTM ticks, real redemption/transfers/orders and Phase 04D remain deferred. See [paper architecture](PaperExecution.md).
 
 The eventual product covers all available Polymarket and Kalshi market categories, with single-market, multi-outcome, cross-exchange, logical, and combinatorial strategies and a future optimization-based solver. Intended initial capital is USD 5,000–25,000; this is planning context, not an assumed balance, allocation, or funding action.
 

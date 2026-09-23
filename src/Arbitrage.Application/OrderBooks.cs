@@ -38,7 +38,7 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
     }
     public CachedOrderBook[] ReadTogether(params OrderBookInstrumentId[] instruments)
     {
-        if (instruments.Length > 2) throw new ArgumentException("Only two-leg evaluation reads are supported.");
+        if (instruments.Length > 1000) throw new ArgumentException("At most 1,000 instruments per coherent read.");
         lock (gate) return instruments.Select(Read).ToArray();
     }
     public bool VersionsMatch(IReadOnlyList<OrderBookInstrumentId> instruments, IReadOnlyList<long> versions)

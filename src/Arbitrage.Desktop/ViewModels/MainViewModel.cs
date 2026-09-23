@@ -18,6 +18,8 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     public Func<Task>? RefreshRequested { get; set; }
     // Raised synchronously before clearing private UI state so realtime work is invalidated too.
     public event EventHandler? AccessInvalidated;
+    public event EventHandler? PaperValuationInvalidated;
+    internal void NotifyPaperValuationInvalidated() => PaperValuationInvalidated?.Invoke(this, EventArgs.Empty);
     public event EventHandler<OrderBookInvalidation>? OrderBookInvalidated;
     public event EventHandler<MonitoringInvalidation>? MonitoringInvalidated;
     internal void NotifyMonitoringInvalidated(MonitoringInvalidation notice) => MonitoringInvalidated?.Invoke(this, notice);

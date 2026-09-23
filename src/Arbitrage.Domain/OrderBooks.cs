@@ -107,7 +107,10 @@ public sealed record BookEligibility(BookFreshness Freshness, bool IsActionable,
 public sealed record GrossDepthEstimate(decimal RequestedQuantity, decimal ExecutableQuantity, bool IsFullyExecutable,
     decimal GrossNotional, decimal? Vwap, decimal? BestPrice, decimal? WorstPrice, int LevelsConsumed,
     decimal UnfilledQuantity, Guid? SnapshotId, DateTimeOffset? SnapshotRetrievedAt, BookFreshness SnapshotFreshness,
-    bool IsActionable, string? Reason);
+    bool IsActionable, string? Reason)
+{
+    public ImmutableArray<OrderBookLevel> ConsumedLevels { get; init; } = [];
+}
 
 public static class ExecutableDepth
 {
@@ -117,17 +120,19 @@ public static class ExecutableDepth
         if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity));
         if (!Enum.IsDefined(action)) throw new ArgumentOutOfRangeException(nameof(action));
         decimal executed = 0, gross = 0; decimal? best = null, worst = null; var count = 0;
+        var consumed = ImmutableArray.CreateBuilder<OrderBookLevel>();
         // Invalid/unsupported data is never calculable, including diagnostic mode.
         if (book?.Validity == BookValidity.Valid && (eligibility.IsActionable || diagnosticOnly))
             foreach (var level in action == DepthAction.Buy ? book.Asks : book.Bids)
             {
                 var taken = Math.Min(quantity - executed, level.Quantity);
+                consumed.Add(level with { Quantity = taken });
                 executed += taken; gross += taken * level.Price; best ??= level.Price; worst = level.Price; count++;
                 if (executed == quantity) break;
             }
         var actionable = eligibility.IsActionable && !diagnosticOnly && executed > 0;
         return new(quantity, executed, executed == quantity, gross, executed == 0 ? null : gross / executed,
             best, worst, count, quantity - executed, book?.Id, book?.RetrievedAtUtc, eligibility.Freshness,
-            actionable, diagnosticOnly ? "DiagnosticOnly" : eligibility.Reason ?? (executed == 0 ? "NoLiquidity" : executed < quantity ? "PartialDepth" : null));
+            actionable, diagnosticOnly ? "DiagnosticOnly" : eligibility.Reason ?? (executed == 0 ? "NoLiquidity" : executed < quantity ? "PartialDepth" : null)) { ConsumedLevels = consumed.ToImmutable() };
     }
 }

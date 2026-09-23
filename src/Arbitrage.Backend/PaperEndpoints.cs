@@ -27,6 +27,7 @@ public static class PaperEndpoints
             catch (PaperGenerationConflict) { return Results.Conflict(new { Code = "GenerationChanged" }); }
         });
         group.MapSettlement();
+        group.MapValuation();
         group.MapGet("/account", Account);
         group.MapPost("/account/initialize", Initialize);
         group.MapPost("/account/reset", Initialize);

@@ -14,7 +14,7 @@ Persistent tables represent generations, venue balances, executions, legs, fills
 
 Execution plans retain relationship ID/trust/revision/policy/fingerprints; canonical book versions/source/continuity/timestamps/skew; paired segments; and fee breakdowns/fingerprints/profile revision/effective rules. Separate leg/fill records retain native instruments/outcomes, exact quantities/prices/notionals, liquidity origin and native source identity.
 
-Positions are keyed by generation + venue + native market + native instrument + outcome. Cost basis includes notional and modeled fees. Weighted average entry excludes fees: cumulative notional divided by quantity. Expected payout and expected profit **at resolution** are projections. Only confirmed Manual Scenario Resolution creates settlement cash and realized P&L. There is no mark-to-market.
+Positions are keyed by generation + venue + native market + native instrument + outcome. Cost basis includes notional and modeled fees. Weighted average entry excludes fees: cumulative notional divided by quantity. Expected payout and expected profit **at resolution** are projections. Only confirmed Manual Scenario Resolution creates settlement cash and realized P&L. Phase 04C adds separate, read-only current liquidation estimates as described below.
 
 An explicit reconciliation diagnostic compares journal cash with balances/funding, executions/proofs with persisted legs/fills, and fill-derived quantities/costs/fees with positions. Failure marks Corrupt and blocks further execution. No silent repair occurs, including after a later good diagnostic. Healthy and NeedsReconciliation are also modeled states. Reconciliation is potentially expensive and is not performed on every request. Direct database edits are unsupported.
 
@@ -71,7 +71,7 @@ Reconciliation also verifies payout vectors and native identities, request finge
 
 Performance groups by generation, exchange and exact currency. It exposes starting cash, current cash, open/settled cost, payout, realized P&L and position/execution counts. Closed generations report ClosedWithOpenPositions or FullySettled; active generations remain Active. No combined USD/USDC number is produced.
 
-Curve points derive from the immutable cash journal and settled positions. Realized P&L is allocated at each position's settlement, including partial execution settlement; completing a basket does not realize the same cost twice. Realized performance is starting capital plus cumulative realized P&L. Cash and open cost are separate accounting diagnostics, never a claim about open-position market value. Funding/execution cash events also appear, with zero realized delta. Ties use SQLite journal insertion order after UTC timestamp. Pages return at most 1,000 points with carried-forward cumulative values; a page can be selected in Desktop. No redundant curve rows, external chart package or price-based valuation exists.
+Curve points derive from the immutable cash journal and settled positions. Realized P&L is allocated at each position's settlement, including partial execution settlement; completing a basket does not realize the same cost twice. Realized performance is starting capital plus cumulative realized P&L. Cash and open cost are separate accounting diagnostics, never a claim about open-position market value. Funding/execution cash events also appear, with zero realized delta. Ties use SQLite journal insertion order after UTC timestamp. Pages return at most 1,000 points with carried-forward cumulative values; a page can be selected in Desktop. No redundant curve rows or external chart package exists. Phase 04C current marks are separate from this historical realized curve.
 
 All routes below inherit the authenticated paper membership filter; POST additionally requires Owner.
 
@@ -87,3 +87,41 @@ All routes below inherit the authenticated paper membership filter; POST additio
 | GET `resolutions/diagnostics` | Bounded workspace counters |
 
 Desktop lets the owner select active or retained historical generations, preview a winner and explicitly confirm after an immutability warning. Generation, market, outcome, navigation and access changes invalidate resolution previews; delayed responses cannot restore them. Lost replies retain the request ID, and mutations never retry automatically. The history includes detailed payout mappings and ledger references. Position filters distinguish exposure from settled history. A lightweight WPF line and exact-value table show the selected venue/currency series.
+
+## Phase 04C current executable liquidation valuation
+
+`PaperValuation` is an ephemeral read model, never ledger accounting. A short deferred SQLite read transaction captures a generation's positions, balances, catalog identities and cached fee schedules/profile together; it is disposed before depth calculation. Up to 1,000 total retained positions (open and settled) per generation are supported. Larger generations reject explicitly instead of presenting a truncated equity summary. No migration, mark table, persisted tick, price history or financial mutation is added.
+
+The existing `ExecutableDepth` SELL action walks the held native instrument's bids and returns exact consumed levels. Kalshi YES/NO liquidation uses that outcome's native bids, never complement asks. Polymarket uses the catalog-mapped token and exact persisted outcome, never title or array index. Missing or changed native mappings are InstrumentUnsupported. Historical position identities are not rewritten.
+
+A coherent bounded cache capture reads the required immutable books under one brief gate. A final capture detects version replacement and returns BookChangedDuringValuation for affected positions without retries. SQLite, HTTP, UI and fee calculations never run under the cache lock. BookEligibility controls freshness and continuity: fresh REST, Kalshi Continuous and Polymarket BestEffort remain distinct. Invalid, stale, missing, disconnected/gapped/resynchronizing inputs produce unavailable current marks. Source time, retrieval time, age, version, continuity, native liquidity provenance and per-level fee quotes remain inspectable.
+
+The whole position quantity must be executable for a full gross mark. PartialDepth exposes executable/unfilled quantity and a partial gross subtotal/VWAP only; all full value and P&L fields remain null. Empty bids likewise yield incomplete depth. There is no midpoint, last-price, best-bid, zero or entry-price fallback for missing quantity. Settled inventory is NotApplicable with null mark fields and retains settlement payout/realized P&L.
+
+Gross unrealized P&L is gross liquidation value minus original fee-inclusive cost basis. Historical entry fees are never subtracted again or recalculated. Current hypothetical exit fees use Phase 03C FeeScheduleResolver and FeeMath per consumed bid level, as a taker SELL diagnostic, including current effective rules and diagnostic account precision profile. One hypothetical order per position and one modeled fill per native level are assumptions; real fragmentation, impact and program rebates are excluded. Schedule/account/verification/currency uncertainty leaves adjusted values null while gross remains available. The existing Kalshi public-contract discrepancy remains fail-closed. No conflicting source is selected to force an exact exit fee. A fee currency different from recorded inventory currency is unresolved, with no implicit relabeling or FX.
+
+Summaries and risk diagnostics remain separate by generation/exchange/currency:
+
+- Accounting book value = current cash + open cost basis; independent of books.
+- Gross marked equity = cash + full gross marks only when every open position has a full current mark.
+- Fee-adjusted marked equity additionally requires every open position's exit fees to resolve.
+- Total P&L = cumulative settlement realized P&L + current unrealized P&L, and is null unless the corresponding coverage is complete.
+- KnownGrossMarkedOpenValue is a labeled subtotal of fully marked positions, never a replacement for full equity.
+- Coverage reports full/partial/unavailable counts and the full-count ratio. No open inventory means complete coverage and cash-only equity.
+- Capital utilization by cost = open cost / starting cash when positive. Concentration = largest position cost / open cost when positive; unique-market counts are descriptive, not risk probabilities.
+
+USD and USDC are never summed. Closed generations can use current books, labeled current marks applied to historical inventory. Partial settlement includes only the remaining open leg in exposure; settled cash/payout is not added twice. Captured execution hold-to-resolution projections stay separate from current liquidation estimates. The existing realized performance curve is unchanged and is not a historical MTM curve.
+
+All routes inherit authenticated workspace membership and accept no actor identity:
+
+| GET route under paper | Result |
+| --- | --- |
+| `valuation?generationId=&page=&pageSize=` | Active or historical portfolio marks and full bucket summaries |
+| `risk?generationId=&page=&pageSize=` | Same bounded current read model with coverage, utilization and concentration |
+| `positions/{positionId}/valuation?generationId=` | Single position; omitted generation resolves its authorized retained generation |
+
+Page sizes are 1–1,000, default 100. Summary coverage always includes the whole supported generation, not just the page. Unknown/cross-workspace generation or position is 404 after membership authorization; uninitialized active reads are empty without creating funds. Oversized generations are 400, aggregate decimal overflow is 409, and individual mark overflow is typed ArithmeticOverflow.
+
+Desktop adds Current Executable Mark, per-bucket summaries, paged marks and selected provenance details. Refresh Valuation performs only a local GET. The active paper-page loop refetches at its existing two-second interval; navigation stops that loop and invalidates delayed work. Book/catalog/financial/fee invalidations clear displayed marks; the next active-page read recomputes locally. Notifications carry no depth or portfolio values. Backend/workspace/generation/page/navigation/access guards prevent delayed responses from restoring old private data. No always-running valuation scanner exists. Realized history and original execution projections remain separately labeled.
+
+There is no market discovery, REST book acquisition, WebSocket start, fee refresh, relationship enrichment, account requirement, SELL/close action, cash reservation or automatic decision in valuation. After backend restart an empty cache yields BookUnavailable; only a separate explicit market-data operation can populate it.

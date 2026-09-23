@@ -70,6 +70,7 @@ public sealed class FeeJobs(IServiceScopeFactory scopes, TimeProvider clock) : B
                     db.AuditRecords.Add(new(run.Actor, run.Workspace, clock.GetUtcNow(), run.Status.Id.ToString(), "PublicFeeMetadataRefreshed",
                         System.Text.Json.JsonSerializer.Serialize(new { market.Exchange, market.MarketId, schedule.Fingerprint })));
                     await store.SaveAsync(schedule, ct);
+                    scope.ServiceProvider.GetRequiredService<RealtimePublisher>().PaperValuationChanged(run.Workspace);
                     lock (gate) run.Status = run.Status with { CompletedMarkets = run.Status.CompletedMarkets + 1 };
                 }
                 catch (Exception e) when (e is HttpRequestException or System.Text.Json.JsonException or ArgumentException || e is OperationCanceledException && !ct.IsCancellationRequested)
@@ -78,6 +79,7 @@ public sealed class FeeJobs(IServiceScopeFactory scopes, TimeProvider clock) : B
                     // Replace a failed refresh's old bundle with an unavailable marker; never preserve an apparently verified stale success.
                     await store.SaveAsync(new(market.Exchange, market.MarketId, null, null, "Unknown", clock.GetUtcNow(), null,
                         "Public fee refresh failed", [], [], "Public metadata unavailable or invalid; explicitly retry."), ct);
+                    scope.ServiceProvider.GetRequiredService<RealtimePublisher>().PaperValuationChanged(run.Workspace);
                     state = "Partial"; notice = "Some public fee metadata was unavailable or invalid. No credentials were used.";
                 }
             }

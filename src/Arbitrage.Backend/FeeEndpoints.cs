@@ -14,12 +14,12 @@ public static class FeeEndpoints
         { try { return await next(context); } catch (UnauthorizedAccessException) { return Results.StatusCode(403); } catch (ArgumentException) { return Results.BadRequest(); } });
         group.MapGet("/profile", async (Guid workspaceId, IRequestActor actor, RelationshipStore members, IFeeStore store, CancellationToken ct) =>
         { await Member(actor, workspaceId, members, false, ct); return Results.Ok(new FeeProfileResponse((await store.ProfileAsync(workspaceId, ct)).ToString())); });
-        group.MapPut("/profile", async (Guid workspaceId, FeeProfileResponse request, IRequestActor actor, RelationshipStore members, IFeeStore store, TradingDbContext db, TimeProvider clock, CancellationToken ct) =>
+        group.MapPut("/profile", async (Guid workspaceId, FeeProfileResponse request, IRequestActor actor, RelationshipStore members, IFeeStore store, TradingDbContext db, TimeProvider clock, RealtimePublisher realtime, CancellationToken ct) =>
         {
             await Member(actor, workspaceId, members, true, ct);
             if (!Enum.TryParse<KalshiFeeAccountProfile>(request.Profile, out var profile) || !Enum.IsDefined(profile) || profile.ToString() != request.Profile) return Results.BadRequest();
             db.AuditRecords.Add(new(actor.UserId!.Value, workspaceId, clock.GetUtcNow(), Guid.NewGuid().ToString(), "FeeDiagnosticProfileChanged", System.Text.Json.JsonSerializer.Serialize(request)));
-            await store.SetProfileAsync(workspaceId, profile, ct); return Results.Ok(request);
+            await store.SetProfileAsync(workspaceId, profile, ct); realtime.PaperValuationChanged(workspaceId); return Results.Ok(request);
         });
         group.MapGet("/schedules/{exchange}/{marketId}", async (Guid workspaceId, string exchange, string marketId, IRequestActor actor,
             RelationshipStore members, IFeeStore store, TimeProvider clock, CancellationToken ct) =>

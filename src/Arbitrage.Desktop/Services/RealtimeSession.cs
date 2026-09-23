@@ -152,13 +152,16 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                 }).Build();
                 activeHub = hub;
                 var closed = false;
-                hub.On<StateInvalidation>("StateInvalidated", notification =>
+                hub.On<StateInvalidation>("StateInvalidated", new Func<StateInvalidation, Task>(async notification =>
                 {
                     if (session != Volatile.Read(ref generation) ||
                         (currentInstance != Guid.Empty && notification.BackendInstanceId != currentInstance) ||
                         (currentWorkspace != Guid.Empty && notification.WorkspaceId != currentWorkspace)) return;
                     Interlocked.Increment(ref notifications); Signal();
-                });
+                    if (notification.Kind.StartsWith("Paper", StringComparison.Ordinal))
+                        await AuthorizedUiAsync(session, notification.BackendInstanceId, notification.WorkspaceId,
+                            state.NotifyPaperValuationInvalidated, cancellationToken);
+                }));
                 hub.On<BackendDiagnosticEvent>("BackendDiagnostic", new Func<BackendDiagnosticEvent, Task>(async entry =>
                 {
                     if (session != Volatile.Read(ref generation) ||

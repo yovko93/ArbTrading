@@ -1,0 +1,31 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.PaperValuationView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <UserControl.Resources>
+  <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}"><Setter Property="RowHeight" Value="30"/><Setter Property="ColumnHeaderHeight" Value="34"/><Setter Property="MinColumnWidth" Value="100"/><Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/></Style>
+  <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="Padding" Value="8,4"/></Style>
+ </UserControl.Resources>
+ <StackPanel>
+  <TextBlock Text="Current Executable Mark · PAPER INVENTORY" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="Executable liquidation estimate from local bid depth. Refresh Valuation does not acquire books or fees. Realized history remains settlement accounting." TextWrapping="Wrap" Margin="0,8"/>
+  <WrapPanel><Button Content="Refresh Valuation" Command="{Binding RefreshValuationCommand}"/><Button Content="Previous marks" Command="{Binding PreviousValuationCommand}" Margin="8,0"/><TextBlock Text="{Binding ValuationPage}" Margin="8,0"/><Button Content="Next marks" Command="{Binding NextValuationCommand}"/></WrapPanel>
+  <TextBlock Text="{Binding ValuationNotice}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
+  <DataGrid ItemsSource="{Binding Valuation.Buckets}" SelectedItem="{Binding ValuationBucket}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" AutomationProperties.Name="Separate venue and currency valuation buckets">
+   <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="140"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="100"/><DataGridTextColumn Header="Cash" Binding="{Binding CurrentCash}" Width="130"/><DataGridTextColumn Header="Accounting book value" Binding="{Binding AccountingBookValue}" Width="180"/><DataGridTextColumn Header="Gross marked equity" Binding="{Binding GrossMarkedEquity, TargetNullValue=Unavailable}" Width="170"/><DataGridTextColumn Header="Fee-adjusted equity" Binding="{Binding FeeAdjustedMarkedEquity, TargetNullValue=Unavailable}" Width="170"/><DataGridTextColumn Header="Coverage" Binding="{Binding ValuationCoverage, StringFormat=P0}" Width="100"/></DataGrid.Columns>
+  </DataGrid>
+  <Border Style="{StaticResource CardBorder}" Margin="0,8"><TextBlock Text="{Binding ValuationSummary}" TextWrapping="Wrap"/></Border>
+  <DataGrid ItemsSource="{Binding Marks}" SelectedItem="{Binding SelectedMark}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="260" AutomationProperties.Name="Executable position marks">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="Venue" Binding="{Binding Position.Exchange}"/><DataGridTextColumn Header="Market" Binding="{Binding Position.MarketId}"/><DataGridTextColumn Header="Outcome" Binding="{Binding Position.Outcome}"/><DataGridTextColumn Header="Quantity" Binding="{Binding Position.Quantity}"/>
+    <DataGridTextColumn Header="Average entry" Binding="{Binding Position.AverageEntry}"/><DataGridTextColumn Header="Cost basis" Binding="{Binding Position.CostBasis}"/>
+    <DataGridTextColumn Header="Mark status" Binding="{Binding MarkStatus}"/><DataGridTextColumn Header="Quality" Binding="{Binding Quality}"/>
+    <DataGridTextColumn Header="Liquidation VWAP" Binding="{Binding AverageLiquidationPrice, TargetNullValue=Unavailable}"/><DataGridTextColumn Header="Gross value" Binding="{Binding GrossLiquidationValue, TargetNullValue=Unavailable}"/>
+    <DataGridTextColumn Header="Gross unrealized P&amp;L" Binding="{Binding GrossUnrealizedPnlBeforeExitFees, TargetNullValue=Unavailable}"/><DataGridTextColumn Header="Exit fee status" Binding="{Binding ExitFeeStatus}"/>
+    <DataGridTextColumn Header="Fee-adjusted unrealized P&amp;L" Binding="{Binding FeeAdjustedUnrealizedPnl, TargetNullValue=Unavailable}"/><DataGridTextColumn Header="Book age (s)" Binding="{Binding BookAgeSeconds, TargetNullValue=Unavailable}"/>
+    <DataGridTextColumn Header="Settlement payout" Binding="{Binding Position.SettlementPayout, TargetNullValue=Unavailable}"/><DataGridTextColumn Header="Realized P&amp;L" Binding="{Binding Position.RealizedPnl, TargetNullValue=Unavailable}"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <TextBlock Text="{Binding MarkDetail}" TextWrapping="Wrap" Margin="0,8"/>
+  <TextBlock Text="Hold-to-resolution projection · historical execution facts" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="{Binding ExecutionText}" TextWrapping="Wrap" Margin="0,8"/>
+ </StackPanel>
+</UserControl>

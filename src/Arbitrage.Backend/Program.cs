@@ -90,6 +90,7 @@ public partial class Program
         builder.Services.AddScoped<PaperStore>();
         builder.Services.AddSingleton<SettlementMemory>();
         builder.Services.AddScoped<SettlementCoordinator>();
+        builder.Services.AddScoped<PaperValuationCoordinator>();
         builder.Services.AddScoped<PaperCoordinator>();
         builder.Services.AddSingleton<PaperPreviewCache>();
         builder.Services.AddSingleton<PaperDiagnostics>();

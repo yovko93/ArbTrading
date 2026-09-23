@@ -13,7 +13,7 @@ public sealed record CachedOrderBook(OrderBookSnapshot? Snapshot, OrderBookFailu
     BookSourceMode Source = BookSourceMode.RestSnapshot, RealtimeBookMetadata? Realtime = null, long Version = 0);
 
 // One bounded cache, with a diagnostic REST lane while realtime owns the current view.
-public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int freshnessSeconds = 5, int realtimeFreshnessSeconds = 10)
+public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int freshnessSeconds = 5, int realtimeFreshnessSeconds = 10, LocalInputChanges? changes = null)
 {
     private sealed record Entry(OrderBookSnapshot? Rest = null, OrderBookFailure? Failure = null,
         OrderBookSnapshot? Live = null, RealtimeBookMetadata? Metadata = null, long Version = 0, long LiveGeneration = 0);
@@ -63,6 +63,7 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
             // Explicit REST refresh after Stop selects REST again; an active realtime lane is never overwritten.
             var stopped = old.Metadata?.State == RealtimeSubscriptionState.Stopped;
             entries[book.Instrument] = old with { Rest = book, Failure = null, Metadata = stopped ? null : old.Metadata, Version = ++sequence };
+            Notify(book.Instrument);
         }
     }
     public void Fail(OrderBookInstrumentId id, string code, DateTimeOffset? retryAt = null)
@@ -71,6 +72,7 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
         {
             var old = entries.GetValueOrDefault(id) ?? new(); MakeRoom(id);
             entries[id] = old with { Failure = new(code, clock.GetUtcNow(), retryAt), Version = ++sequence };
+            Notify(id);
         }
     }
     public bool PublishRealtime(OrderBookInstrumentId id, RealtimeBookMetadata metadata, OrderBookSnapshot? book = null)
@@ -82,6 +84,7 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
             if (book is not null && (book.Instrument != id || book.Validity != BookValidity.Valid)) return false;
             MakeRoom(id);
             entries[id] = old with { Live = book ?? old.Live, Metadata = metadata, LiveGeneration = book is null ? old.LiveGeneration : metadata.Generation, Version = ++sequence };
+            Notify(id);
             return true;
         }
     }
@@ -93,5 +96,7 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
             .MinBy(p => p.Value.Version);
         if (candidate.Key is null) throw new InvalidOperationException("RealtimeCapacity");
         entries.Remove(candidate.Key);
+        Notify(candidate.Key);
     }
+    private void Notify(OrderBookInstrumentId id) => changes?.Publish(new(LocalChangeKind.Instrument, id.Exchange, id.NativeMarketId, id.NativeInstrumentId));
 }

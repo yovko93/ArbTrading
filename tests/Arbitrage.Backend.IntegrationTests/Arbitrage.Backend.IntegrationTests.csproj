@@ -12,6 +12,7 @@
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ShellViewModel.cs" Link="Desktop/ShellViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MarketExplorerViewModel.cs" Link="Desktop/MarketExplorerViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/OpportunitiesViewModel.cs" Link="Desktop/OpportunitiesViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MonitoringViewModel.cs" Link="Desktop/MonitoringViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/FeeProfileViewModel.cs" Link="Desktop/FeeProfileViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/RelationshipsViewModel.cs" Link="Desktop/RelationshipsViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/KalshiCredentialsViewModel.cs" Link="Desktop/KalshiCredentialsViewModel.cs" />

@@ -1,11 +1,29 @@
 using Arbitrage.Domain;
+using Arbitrage.Application;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Arbitrage.Infrastructure;
 
-public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options) : DbContext(options)
+public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options, LocalInputChanges? changes = null) : DbContext(options)
 {
+    public DbSet<MonitoringProfileEntry> MonitoringProfiles => Set<MonitoringProfileEntry>();
+    public DbSet<MonitoringAlertEntry> MonitoringAlerts => Set<MonitoringAlertEntry>();
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var notices = ChangeTracker.Entries().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).Select(e => e.Entity switch
+        {
+            MarketCatalogEntry m => new LocalInputChange(LocalChangeKind.Market, m.Exchange, m.NativeId),
+            FeeScheduleEntry f => new LocalInputChange(LocalChangeKind.Market, f.Exchange, f.MarketId),
+            FeeProfileEntry f => new LocalInputChange(LocalChangeKind.Profile, WorkspaceId: f.WorkspaceId),
+            MarketRelationshipEntry r => new LocalInputChange(LocalChangeKind.Relationship, WorkspaceId: r.WorkspaceId, RelationshipId: r.Id),
+            RelationshipOutcomeMappingEntry => new LocalInputChange(LocalChangeKind.Relationship),
+            _ => null
+        }).Where(n => n is not null).Distinct().ToArray();
+        var result = await base.SaveChangesAsync(cancellationToken);
+        foreach (var notice in notices) changes?.Publish(notice!);
+        return result;
+    }
     public DbSet<FeeScheduleEntry> FeeSchedules => Set<FeeScheduleEntry>();
     public DbSet<FeeProfileEntry> FeeProfiles => Set<FeeProfileEntry>();
     public DbSet<ApplicationUser> Users => Set<ApplicationUser>();
@@ -26,6 +44,11 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.Entity<MonitoringProfileEntry>().HasKey(x => x.WorkspaceId);
+        model.Entity<MonitoringProfileEntry>().HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<MonitoringAlertEntry>().HasKey(x => x.Id);
+        model.Entity<MonitoringAlertEntry>().HasIndex(x => new { x.WorkspaceId, x.TriggeredAt, x.Id });
+        model.Entity<MonitoringAlertEntry>().HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<FeeScheduleEntry>().HasKey(x => new { x.Exchange, x.MarketId });
         model.Entity<FeeScheduleEntry>().HasOne<MarketCatalogEntry>().WithMany().HasForeignKey(x => new { x.Exchange, x.MarketId }).OnDelete(DeleteBehavior.Cascade);
         model.Entity<FeeProfileEntry>().HasKey(x => x.WorkspaceId);

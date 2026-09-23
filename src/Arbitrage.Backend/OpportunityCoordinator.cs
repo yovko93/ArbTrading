@@ -37,7 +37,7 @@ public sealed class OpportunityCoordinator(IRelationshipProvider relationships, 
         var books = cache.ReadTogether(ids);
         if (books.Where((b, i) => b.Version != result.Legs[i].SnapshotVersion).Any())
             return result.Invalidate(publishing ? OpportunityStatus.BooksChangedDuringEvaluation : OpportunityStatus.StaleInput, "Cached inputs changed; explicitly evaluate again.");
-        if (result.Status == OpportunityStatus.Detected && books.Any(b => !b.Eligibility.IsActionable))
+        if (result.Status is OpportunityStatus.Detected or OpportunityStatus.NoGrossEdge && books.Any(b => !b.Eligibility.IsActionable))
         {
             var status = books.Any(b => b.Eligibility.Freshness == BookFreshness.Stale) ? OpportunityStatus.BookStale :
                 books.Any(b => b.Source == BookSourceMode.Realtime) ? OpportunityStatus.BookContinuityInsufficient : OpportunityStatus.BookUnavailable;
@@ -54,6 +54,12 @@ public sealed class OpportunityCoordinator(IRelationshipProvider relationships, 
             }
             if (invalid) result = result with { Fees = evaluated.Invalidate() };
         }
+        // Fee/profile reads above can yield while a local book changes. Check once more at publication.
+        var finalBooks = cache.ReadTogether(ids);
+        if (finalBooks.Where((b, i) => b.Version != result.Legs[i].SnapshotVersion).Any())
+            return result.Invalidate(publishing ? OpportunityStatus.BooksChangedDuringEvaluation : OpportunityStatus.StaleInput, "Cached inputs changed during local validation.");
+        if (result.Status is OpportunityStatus.Detected or OpportunityStatus.NoGrossEdge && finalBooks.Any(b => !b.Eligibility.IsActionable))
+            return result.Invalidate(OpportunityStatus.BookStale, "Cached input eligibility expired during local validation.");
         return result;
     }
     private async Task<bool> ResolveAsync(OrderBookInstrumentId id, CancellationToken ct)

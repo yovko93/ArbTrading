@@ -1,0 +1,71 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.MonitoringView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="{DynamicResource ApplicationBackground}" Foreground="{DynamicResource PrimaryText}">
+ <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <StackPanel Margin="16">
+   <TextBlock Text="Continuous opportunity monitoring" FontSize="22" FontWeight="SemiBold"/>
+   <TextBlock Text="READ-ONLY · Local cached inputs · No automatic subscriptions or fetches · Net profit unknown · Execution unavailable" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
+   <TextBlock Text="Backend-owned: closing this page or desktop does not stop monitoring. Restarting the backend leaves it Stopped." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+   <WrapPanel Margin="0,8"><Button Content="Start Monitoring" Command="{Binding StartCommand}"/><Button Content="Stop Monitoring" Command="{Binding StopCommand}" Margin="8,0"/><Button Content="Refresh display" Command="{Binding RefreshCommand}"/></WrapPanel>
+   <TextBlock Text="{Binding CoverageText}" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,6"/>
+   <Expander Header="Monitoring profile — save changes explicitly" Margin="0,4">
+    <StackPanel>
+     <TextBlock Text="Ranking thresholds and alert thresholds are independent. Default alerts require known fee-adjusted estimates. Kalshi public source conflicts remain gross-only. Manual trust is opt-in." TextWrapping="Wrap"/>
+     <WrapPanel Margin="0,6">
+      <CheckBox Content="Include manual relationships" IsChecked="{Binding Profile.IncludeManualRelationships}" Margin="0,0,12,0"/>
+      <CheckBox Content="Fee-adjusted alerts" IsChecked="{Binding Profile.EnableFeeAdjustedAlerts}" Margin="0,0,12,0"/>
+      <CheckBox Content="GROSS / FEES UNRESOLVED alerts" IsChecked="{Binding Profile.EnableGrossOnlyAlerts}" Margin="0,0,12,0"/>
+      <CheckBox Content="Local CSV output" IsChecked="{Binding Profile.CsvEnabled}"/>
+     </WrapPanel>
+     <WrapPanel x:Name="ProfileFields"/>
+     <Button Content="Save monitoring profile" Command="{Binding SaveProfileCommand}" HorizontalAlignment="Left" Margin="0,6"/>
+    </StackPanel>
+   </Expander>
+   <WrapPanel Margin="0,8">
+    <TextBlock Text="Lane" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding Lanes}" SelectedItem="{Binding Lane}" Width="140" Margin="8,0" AutomationProperties.Name="Monitoring lane"/>
+    <TextBlock Text="Sort" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding Sorts}" SelectedItem="{Binding Sort}" Width="175" Margin="8,0" AutomationProperties.Name="Monitoring sort"/>
+   </WrapPanel>
+   <WrapPanel Margin="0,0,0,8">
+    <StackPanel><TextBlock Text="Strategy"/><ComboBox ItemsSource="{Binding Strategies}" SelectedItem="{Binding Strategy}" Width="215" AutomationProperties.Name="Monitoring strategy"/></StackPanel>
+    <StackPanel Margin="6,0"><TextBlock Text="Exchange"/><ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding Exchange}" Width="115" AutomationProperties.Name="Monitoring exchange"/></StackPanel>
+    <StackPanel><TextBlock Text="Relationship trust"/><ComboBox ItemsSource="{Binding Trusts}" SelectedItem="{Binding Trust}" Width="125" AutomationProperties.Name="Monitoring relationship trust"/></StackPanel>
+    <StackPanel Margin="6,0"><TextBlock Text="Input quality"/><ComboBox ItemsSource="{Binding Qualities}" SelectedItem="{Binding Quality}" Width="170" AutomationProperties.Name="Monitoring input quality"/></StackPanel>
+    <StackPanel><TextBlock Text="Fee status (blank = all)"/><TextBox Text="{Binding FeeStatus}" Width="185" AutomationProperties.Name="Fee status filter" ToolTip="Exact fee status, or blank for all. Applied on leaving the field."/></StackPanel>
+   </WrapPanel>
+   <TextBlock Text="Fee-adjusted and gross-only rows are separate lanes. Near-edge rows are not current arbitrage. Unknown fees are never zero." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+   <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" Height="230" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Current monitoring rankings">
+    <DataGrid.Columns>
+     <DataGridTextColumn Header="Rank" Binding="{Binding Rank}" Width="50"/>
+     <DataGridTextColumn Header="Lane" Binding="{Binding Lane}" Width="100"/>
+     <DataGridTextColumn Header="Title" Binding="{Binding Opportunity.SourceTitle}" Width="220"/>
+     <DataGridTextColumn Header="Trust" Binding="{Binding Opportunity.RelationshipTrust}" Width="90"/>
+     <DataGridTextColumn Header="Quantity" Binding="{Binding AvailableQuantity}" Width="85"/>
+     <DataGridTextColumn Header="Gross profit" Binding="{Binding Opportunity.GrossProfit, TargetNullValue=Unknown}" Width="100"/>
+     <DataGridTextColumn Header="Gross edge" Binding="{Binding Opportunity.GrossEdgePerShare, TargetNullValue=Unknown}" Width="100"/>
+     <DataGridTextColumn Header="Fee-adjusted profit" Binding="{Binding Opportunity.Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown}" Width="140"/>
+     <DataGridTextColumn Header="Fee-adjusted edge" Binding="{Binding Opportunity.Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown}" Width="140"/>
+     <DataGridTextColumn Header="Fee status" Binding="{Binding Opportunity.Fees.StateLabel, TargetNullValue=Unknown, FallbackValue=Unknown}" Width="220"/>
+     <DataGridTextColumn Header="Best edge" Binding="{Binding BestEdge, TargetNullValue=Unknown}" Width="95"/>
+     <DataGridTextColumn Header="Required edge" Binding="{Binding RequiredEdge, TargetNullValue=Unknown}" Width="100"/>
+     <DataGridTextColumn Header="Distance" Binding="{Binding Distance, TargetNullValue=Unknown}" Width="90"/>
+     <DataGridTextColumn Header="Input quality" Binding="{Binding Opportunity.InputQuality}" Width="135"/>
+     <DataGridTextColumn Header="Skew ms" Binding="{Binding Opportunity.ObservedSkewMilliseconds, TargetNullValue=Unknown}" Width="85"/>
+     <DataGridTextColumn Header="Updated UTC" Binding="{Binding Opportunity.EvaluatedAt}" Width="160"/>
+     <DataGridTextColumn Header="Alert state" Binding="{Binding AlertState}" Width="100"/>
+    </DataGrid.Columns>
+   </DataGrid>
+   <WrapPanel Margin="0,6"><Button Content="Previous" Command="{Binding PreviousCommand}"/><TextBlock Text="{Binding PageLabel}" Margin="12,0" VerticalAlignment="Center"/><Button Content="Next" Command="{Binding NextCommand}"/></WrapPanel>
+   <TextBlock Text="Historical alerts — values at trigger time, not current opportunities" FontWeight="SemiBold" Margin="0,8"/>
+   <DataGrid ItemsSource="{Binding Alerts}" SelectedItem="{Binding SelectedAlert}" Height="140" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Historical monitoring alerts">
+    <DataGrid.Columns>
+     <DataGridTextColumn Header="Triggered UTC" Binding="{Binding TriggeredAt}" Width="180"/>
+     <DataGridTextColumn Header="Lane" Binding="{Binding Lane}" Width="100"/>
+     <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="350"/>
+     <DataGridTextColumn Header="Title at trigger" Binding="{Binding Opportunity.Opportunity.SourceTitle}" Width="250"/>
+    </DataGrid.Columns>
+   </DataGrid>
+   <WrapPanel Margin="0,6"><Button Content="Previous alerts" Command="{Binding PreviousAlertsCommand}"/><TextBlock Text="{Binding AlertPageLabel}" Margin="12,0" VerticalAlignment="Center"/><Button Content="Next alerts" Command="{Binding NextAlertsCommand}"/><Button Content="Inspect current opportunity" Command="{Binding InspectAlertCommand}" Margin="8,0"/></WrapPanel>
+   <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Margin="0,10"/>
+  </StackPanel>
+ </ScrollViewer>
+</UserControl>

@@ -31,6 +31,16 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
         SendAsync<RelationshipJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/relationships/generate", request, ct);
     public Task<RelationshipJobResponse> RelationshipJobAsync(Guid workspace, Guid id, bool cancel, CancellationToken ct) =>
         SendAsync<RelationshipJobResponse>(cancel ? HttpMethod.Post : HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/jobs/{id}" + (cancel ? "/cancel" : ""), null, ct);
+    public Task<MonitoringStatusResponse> MonitoringStatusAsync(Guid workspace, string? action, CancellationToken ct) =>
+        SendAsync<MonitoringStatusResponse>(action is null ? HttpMethod.Get : HttpMethod.Post, $"api/v1/workspaces/{workspace}/monitoring/{action ?? "status"}", null, ct);
+    public Task<MonitoringProfileResponse> MonitoringProfileAsync(Guid workspace, MonitoringProfileResponse? profile, CancellationToken ct) =>
+        SendAsync<MonitoringProfileResponse>(profile is null ? HttpMethod.Get : HttpMethod.Put, $"api/v1/workspaces/{workspace}/monitoring/profile", profile, ct);
+    public Task<MonitoringRankingPage> MonitoringRankingsAsync(Guid workspace, int page, string lane, string sort, CancellationToken ct, string filters = "") =>
+        SendAsync<MonitoringRankingPage>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/monitoring/rankings?page={page}&pageSize=20&sort={Uri.EscapeDataString(sort)}{(lane == "All" ? "" : "&lane=" + Uri.EscapeDataString(lane))}{filters}", null, ct);
+    public Task<MonitoringAlertPage> MonitoringAlertsAsync(Guid workspace, int page, CancellationToken ct) =>
+        SendAsync<MonitoringAlertPage>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/monitoring/alerts?page={page}&pageSize=20", null, ct);
+    public Task<MonitoringRankingResponse> MonitoringCurrentAsync(Guid workspace, string key, CancellationToken ct) =>
+        SendAsync<MonitoringRankingResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/monitoring/current/{Uri.EscapeDataString(key)}", null, ct);
     public Task<OpportunityJobResponse> EvaluateOpportunitiesAsync(Guid workspace, EvaluateOpportunitiesRequest request, CancellationToken ct) =>
         SendAsync<OpportunityJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/opportunities/evaluate", request, ct);
     public Task<FeeProfileResponse> FeeProfileAsync(Guid workspace, string? profile, CancellationToken ct) =>

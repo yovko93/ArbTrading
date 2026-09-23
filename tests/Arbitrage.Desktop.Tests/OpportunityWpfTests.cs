@@ -16,6 +16,58 @@ namespace Arbitrage.Desktop.Tests;
 [Collection("WPF")]
 public sealed class OpportunityWpfTests(WpfFixture fixture)
 {
+    [Fact] public Task Monitoring_states_lanes_alerts_and_profile_render_in_both_themes() => fixture.RunAsync(() =>
+    {
+        var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());
+        using var state = new MainViewModel(backend, NullLogger<MainViewModel>.Instance);
+        using var vm = new OpportunitiesViewModel(state, backend);
+        foreach (var theme in new[] { "Light", "Dark" })
+        foreach (var status in new[] { "Stopped", "Running", "Degraded" })
+        {
+            var m = vm.Monitoring;
+            m.Status = new(status, DateTimeOffset.UtcNow, null, DateTimeOffset.UtcNow, new(500, 250, 250, true, 250, 200, 180, 60, 20, 120, 30, 80), 12, false, null, 1, 1000, 999, 0, 1, 250, 250, 0, 1, 1, 0, 0, "Disabled", null, 0, 0);
+            m.Items.Clear(); m.Alerts.Clear();
+            foreach (var lane in new[] { "FeeAdjusted", "GrossOnly", "NearEdge", "Blocked" })
+            {
+                var r = Result(lane == "Blocked" ? "BookStale" : lane == "NearEdge" ? "NoGrossEdge" : "Detected");
+                if (lane == "FeeAdjusted") r = r with { Fees = new("FeeAdjustedDetected", "Estimated", "DirectMember", [], .25m, 23.6m, 1.4m, .056m, null, 0) };
+                m.Items.Add(new(m.Items.Count + 1, lane, 1, r, lane == "NearEdge" ? .0049m : .056m, .005m, lane == "NearEdge" ? .0001m : null, 25, "Cooldown"));
+            }
+            m.Total = 4; m.Selected = m.Items[2];
+            m.Alerts.Add(new(Guid.NewGuid(), DateTimeOffset.UtcNow.AddMinutes(-1), "GrossOnly", "GROSS / FEES UNRESOLVED threshold crossing", m.Items[1])); m.AlertTotal = 1;
+            if (status == "Stopped")
+            {
+                m.Items.Clear(); m.Selected = null; m.Total = 0;
+                m.Status = m.Status with { StartedAt = null, StoppedAt = DateTimeOffset.UtcNow, LastEvaluationAt = null, DirtyQueueDepth = 0, Coverage = new(0, 0, 0, false, 0, 0, 0, 0, 0, 0, 0, 0) };
+            }
+            if (status == "Running")
+            {
+                var row = m.Items[0]; m.Items.Clear(); m.Items.Add(row); m.Selected = row; m.Total = 1;
+                m.Status = m.Status with { DirtyQueueDepth = 0, Coverage = new(1, 1, 0, false, 1, 1, 1, 1, 1, 0, 0, 0) };
+            }
+            new WpfThemePaletteApplier(Application.Current.Resources).Apply(theme == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
+            var view = new OpportunitiesView { DataContext = vm }; ((TabControl)view.Content).SelectedIndex = 0;
+            view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
+            view.Measure(new Size(1400, 1100)); view.Arrange(new Rect(0, 0, 1400, 1100)); view.UpdateLayout();
+            var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
+            Assert.Contains(texts, t => t.Contains(status, StringComparison.Ordinal));
+            if (status == "Degraded") { Assert.Contains(texts, t => t == "Unknown"); Assert.Contains(texts, t => t.Contains("NearEdge", StringComparison.Ordinal)); }
+            Assert.Contains(texts, t => t.Contains("Historical alerts", StringComparison.Ordinal));
+            if (status != "Stopped") Assert.Contains(texts, t => t.Contains("Manual", StringComparison.Ordinal));
+            Assert.DoesNotContain(Descendants<Button>(view), b => b.Content is "Trade" or "Execute" or "Paper Trade");
+            // Record init setters remain writable to WPF's binding engine; exercise an actual edit.
+            var monitoring = Descendants<MonitoringView>(view).Single();
+            var expander = Descendants<Expander>(monitoring).Single(); expander.IsExpanded = true; view.UpdateLayout();
+            var field = Descendants<TextBox>(monitoring).First(); field.Text = "123"; field.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+            Assert.Equal(123, m.Profile.RelationshipLimit); expander.IsExpanded = false; view.UpdateLayout();
+            if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } capture)
+            {
+                Directory.CreateDirectory(capture); var bitmap = new RenderTargetBitmap(1400, 1100, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
+                var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var stream = File.Create(Path.Combine(capture, $"monitoring-{theme}-{status}.png")); encoder.Save(stream);
+            }
+        }
+    });
     [Fact] public Task Fee_unknown_negative_and_stale_render_without_zero_in_both_themes() => fixture.RunAsync(() =>
     {
         var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());

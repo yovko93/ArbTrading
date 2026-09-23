@@ -53,6 +53,8 @@ public static class GrossOpportunityEvaluator
         if (plan.ActionA == DepthAction.Sell || plan.ActionB == DepthAction.Sell) return result.Invalidate(OpportunityStatus.RequiresInventory, "Selling without inventory is unsupported; a price spread is not a locked position.");
         if (!plan.ComplementProven || plan.UnsupportedReason is not null) return result.Invalidate(OpportunityStatus.UnsupportedStrategy, plan.UnsupportedReason ?? "No proved complementary payout.");
         if (levelsA.Length == 0 || levelsB.Length == 0) return result.Invalidate(OpportunityStatus.InsufficientLiquidity, "Both purchase sides require depth.");
+        result = result with { BestObservedGrossEdge = 1m - levelsA[0].Price - levelsB[0].Price,
+            BestObservedQuantity = Math.Min(Math.Min(levelsA[0].Quantity, levelsB[0].Quantity), settings.MaximumEvaluationQuantity) };
         try
         {
             checked

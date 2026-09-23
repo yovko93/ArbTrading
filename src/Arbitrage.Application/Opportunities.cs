@@ -30,6 +30,8 @@ public sealed record ArbitrageOpportunitySnapshot(string OpportunityKey, Opportu
     int RelationshipPolicyVersion, string SourceFingerprint, string TargetFingerprint, string RelationshipRevision)
 {
     public string? SourceTitle { get; init; }
+    public decimal? BestObservedGrossEdge { get; init; }
+    public decimal BestObservedQuantity { get; init; }
     public string? TargetTitle { get; init; }
     public ImmutableArray<OutcomeMapping> OutcomeMappings { get; init; } = [];
     public bool GrossArbitrageExists => Status == OpportunityStatus.Detected && GrossProfit > 0;
@@ -39,5 +41,5 @@ public sealed record ArbitrageOpportunitySnapshot(string OpportunityKey, Opportu
     public decimal? NetProfit => null;
     public decimal? NetEdge => null;
     public ArbitrageOpportunitySnapshot Invalidate(OpportunityStatus status, string reason) => this with
-    { Status = status, Blockers = [reason], InputQuality = OpportunityInputQuality.NonActionable, BooksActionable = false, FullyExecutableForRequestedQuantity = false, Fees = Fees?.Invalidate() };
+    { Status = status, Blockers = [reason], InputQuality = OpportunityInputQuality.NonActionable, BooksActionable = false, FullyExecutableForRequestedQuantity = false, Fees = Fees?.Invalidate(), BestObservedGrossEdge = null, BestObservedQuantity = 0 };
 }

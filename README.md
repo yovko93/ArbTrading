@@ -18,7 +18,7 @@ Phase 03B adds **Opportunities** using approved Phase 03A mappings and already c
 
 The two-leg engine walks paired L2 asks with exact decimal values, stops at the positive minimum gross edge, checks native liquidity conflicts and rejects stale/skewed/changed inputs. Gross costs, guaranteed payouts and gross profit remain **PRE-FEE**. Same-outcome BUY/SELL spreads require unsupported inventory; a closed complementary BUY basket requires approved payout proof. Net profit/edge remain unknown and execution eligibility is always false.
 
-Results are bounded and ephemeral. The page revalidates current results while open; new calculations always require an explicit action. **Show diagnostics** exposes blockers without putting them in the primary candidate list. See [Phase 03B verification](docs/Development/Phase03BVerification.md) and [opportunity architecture, formulas, limits and API](docs/Architecture/ReadOnlyOpportunities.md).
+Results are bounded and ephemeral. The explicit evaluation tab revalidates results while open; new evaluation jobs require an explicit action. **Show diagnostics** exposes blockers without putting them in the primary candidate list. See [Phase 03B verification](docs/Development/Phase03BVerification.md) and [opportunity architecture, formulas, limits and API](docs/Architecture/ReadOnlyOpportunities.md).
 ## Fee-aware opportunities
 
 Phase 03C adds **Evaluate cached fees**, enabled by default in Desktop (the API retains its gross-only default). Unknown fees are null, never zero. **Show diagnostics** retains gross opportunities with missing, stale or disputed fee metadata. Select a diagnostic result and choose **Refresh Fee Data for selected result**, then explicitly evaluate again. Refresh is bounded, public, account-free and cancellable; evaluation, navigation and header Refresh make no fee-network requests.
@@ -27,7 +27,17 @@ Phase 03C adds **Evaluate cached fees**, enabled by default in Desktop (the API 
 
 Official sources verified on 2026-09-23 contain a Kalshi rounding discrepancy: the regulatory PDF describes centicent alignment and whole-cent examples, while the API describes six-decimal trade fees and account-specific alignment. Public Kalshi schedules therefore expose model components but leave totals unresolved. Unsupported fee types also fail closed. Polymarket uses explicit market fee parameters; five-decimal ceiling is a conservative modeled-fill assumption where the official rounding mode is unspecified, and program rebates are excluded. USDC fees are never silently converted to USD for cross-exchange totals. See [Phase 03C sources, numeric fixtures and verification](docs/Development/Phase03CVerification.md).
 
-No balances, positions, capital allocation, simulated completed fills, order submission or automatic monitoring are added. Existing databases require the explicit migration procedure; normal user data was not upgraded during development.
+No balances, positions, capital allocation, simulated completed fills or order submission are added. Existing databases require the explicit migration procedure; normal user data was not upgraded during development.
+
+## Continuous read-only monitoring
+
+Phase 03D adds **Opportunities → Continuous monitoring → Start Monitoring / Stop Monitoring**. Start consumes already approved relationships, cached books and persisted fee metadata. It never syncs markets, generates/enriches relationships, fetches books or fees, or starts subscriptions. Obtain those inputs separately using their existing explicit controls. Monitoring belongs to the backend and continues when Desktop closes; a backend restart always leaves monitoring **Stopped**.
+
+The default scope is 250 deterministically ordered, deterministically verified relationships (configurable up to 1,000); manual trust requires opt-in. Coverage shows skipped relationships and partial coverage. Defaults preserve the separate **FeeAdjusted**, **GrossOnly**, **NearEdge**, and **Blocked** lanes. Unknown fees are not zero, Kalshi's unresolved public rounding conflict cannot enter fee-adjusted ranking or default alerts, and near-edge rows are not arbitrage opportunities. All economics remain read-only modeled estimates.
+
+Expand **Monitoring profile**, edit, then **Save monitoring profile**. Ranking and alert thresholds are separate. Fee-adjusted alerts are enabled by default; gross-only alerts require explicit opt-in and are labeled **GROSS / FEES UNRESOLVED**. Alerts require a threshold crossing, a valid drop below the hysteresis boundary before rearming, and a 60-second default cooldown. Alert history is historical; **Inspect current opportunity** revalidates the current key.
+
+Optional local CSV output writes under `backend/monitoring/<workspace-id>/`: an atomic top-100 snapshot (30-second default interval) and transition-only alerts rotated at 5 MB across five files. Retained SQLite alerts are limited to 5,000 and 30 days; audit history is separate. Existing installations require migration `20260923064859_OpportunityMonitoring`. See [monitoring architecture](docs/Architecture/ReadOnlyOpportunities.md#phase-03d-continuous-local-monitoring) and [Phase 03D verification](docs/Development/Phase03DVerification.md).
 
 ## Realtime orderbooks
 

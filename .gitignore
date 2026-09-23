@@ -450,3 +450,9 @@ desktop-start.lock
 *.pem
 *.key
 *.dpapi
+
+# Bounded local monitoring exports (runtime storage belongs outside the checkout)
+current-opportunities.csv
+current-opportunities.pending
+alerts.csv
+alerts.[1-4].csv

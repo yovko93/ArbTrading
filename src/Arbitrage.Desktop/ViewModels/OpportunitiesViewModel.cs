@@ -16,6 +16,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     private bool active, disposed;
     private long generation, readGeneration;
     public ObservableCollection<OpportunityResponse> Items { get; } = [];
+    public MonitoringViewModel Monitoring { get; }
     public string[] Exchanges { get; } = ["All", "Kalshi", "Polymarket"];
     [ObservableProperty] private string exchange = "All";
     [ObservableProperty] private string targetExchange = "All";
@@ -40,6 +41,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     public OpportunitiesViewModel(MainViewModel state, BackendClient backend)
     {
         this.state = state; this.backend = backend;
+        Monitoring = new(state, backend);
         state.AccessInvalidated += AccessInvalidated; state.OrderBookInvalidated += BookInvalidated;
         state.CatalogInvalidated += SourcesInvalidated; state.PropertyChanged += StateChanged;
     }
@@ -52,6 +54,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     {
         if (disposed) return;
         active = false; Reset(false);
+        Monitoring.Deactivate();
     }
     private void Reset(bool forgetJob)
     {
@@ -221,6 +224,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     {
         if (disposed) return;
         Deactivate(); disposed = true; lifetime.Dispose();
+        Monitoring.Dispose();
         state.AccessInvalidated -= AccessInvalidated; state.OrderBookInvalidated -= BookInvalidated;
         state.CatalogInvalidated -= SourcesInvalidated; state.PropertyChanged -= StateChanged;
     }

@@ -60,6 +60,11 @@ public partial class Program
             options.ClientTimeoutInterval = TimeSpan.FromSeconds(35);
         });
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<LocalInputChanges>();
+        builder.Services.AddScoped<MonitoringStore>();
+        builder.Services.AddSingleton<MonitoringCsv>();
+        builder.Services.AddSingleton<MonitoringCoordinator>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<MonitoringCoordinator>());
         builder.Services.AddSingleton(dbOptions);
         builder.Services.AddScoped<TradingDbContext>();
         builder.Services.AddScoped<DatabaseInitializer>();
@@ -72,7 +77,7 @@ public partial class Program
         builder.Services.AddSingleton<RelationshipJobs>();
         builder.Services.AddHostedService(s => s.GetRequiredService<RelationshipJobs>());
         builder.Services.AddSingleton(s => new OrderBookCache(s.GetRequiredService<TimeProvider>(),
-            settings.OrderBookCacheCapacity, settings.OrderBookFreshnessSeconds, settings.RealtimeFreshnessSeconds));
+            settings.OrderBookCacheCapacity, settings.OrderBookFreshnessSeconds, settings.RealtimeFreshnessSeconds, s.GetRequiredService<LocalInputChanges>()));
         builder.Services.AddSingleton<IExchangeCredentialStore>(s => new WindowsExchangeCredentialStore(
             Path.Combine(settings.DataDirectory, "credentials"), s.GetRequiredService<TimeProvider>()));
         builder.Services.AddSingleton<IMarketWebSocketFactory, MarketWebSocketFactory>();
@@ -151,6 +156,7 @@ public partial class Program
         api.MapMarketCatalog();
         api.MapRelationships();
         api.MapOpportunities();
+        api.MapMonitoring();
         api.MapFees();
         api.MapOrderBooks();
         api.MapRealtimeOrderBooks();

@@ -38,9 +38,9 @@ public static class ProtectedStorage
     public static void RejectLinks(string path)
     {
         for (var current = new DirectoryInfo(Path.GetFullPath(path)); current is not null; current = current.Parent)
-            if (current.Exists && (current.Attributes & FileAttributes.ReparsePoint) != 0)
+            if (current.LinkTarget is not null || current.Exists && (current.Attributes & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("Runtime storage must not contain symbolic links or reparse points.");
-        if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        if (new FileInfo(path).LinkTarget is not null || File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new IOException("Runtime storage must not contain symbolic links or reparse points.");
     }
 

@@ -179,6 +179,11 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                     await AuthorizedUiAsync(session, notice.BackendInstanceId, notice.WorkspaceId,
                         () => state.NotifyOrderBookInvalidated(notice), cancellationToken);
                 }));
+                hub.On<MonitoringInvalidation>("MonitoringChanged", new Func<MonitoringInvalidation, Task>(async notice =>
+                {
+                    await AuthorizedUiAsync(session, notice.InstanceId, notice.WorkspaceId,
+                        () => state.NotifyMonitoringInvalidated(notice), cancellationToken);
+                }));
                 hub.On<CatalogInvalidation>("CatalogInvalidated", new Func<CatalogInvalidation, Task>(async notice =>
                 {
                     if (notice.BackendInstanceId != currentInstance || notice.WorkspaceId != currentWorkspace) return;

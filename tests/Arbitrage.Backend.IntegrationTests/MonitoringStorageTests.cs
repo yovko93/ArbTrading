@@ -62,9 +62,30 @@ public sealed class MonitoringStorageTests
             }
             Assert.Equal(5, Directory.GetFiles(directory, "alerts*.csv").Length); Assert.Equal("Healthy", csv.Status);
             Assert.All(Directory.GetFiles(directory, "alerts*.csv"), file => Assert.True(new FileInfo(file).Length <= MonitoringCsv.MaximumBytes));
-            using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None)) await csv.SnapshotAsync(workspace, [row], default);
-            Assert.Equal("Failed", csv.Status); Assert.Equal("CsvWriteUnavailable", csv.Error); Assert.Equal(1, csv.Failures);
-            await csv.SnapshotAsync(workspace, [], default); Assert.Equal("Healthy", csv.Status);
+            // Replacing a file with an open handle fails on Windows but can succeed on Unix.
+            // A directory at the destination makes atomic file replacement fail on both platforms.
+            File.Delete(path);
+            Directory.CreateDirectory(path);
+            try
+            {
+                await csv.SnapshotAsync(workspace, [row], default);
+                Assert.Equal("Failed", csv.Status); Assert.Equal("CsvWriteUnavailable", csv.Error);
+                Assert.Equal(1, csv.Failures); Assert.Equal(1, csv.Snapshots);
+            }
+            finally { Directory.Delete(path); }
+            await csv.SnapshotAsync(workspace, [], default);
+            Assert.Equal("Healthy", csv.Status); Assert.Null(csv.Error);
+            Assert.Equal(1, csv.Failures); Assert.Equal(2, csv.Snapshots);
+            Assert.True(File.Exists(path)); Assert.False(File.Exists(Path.Combine(directory, "current-opportunities.pending")));
+            if (OperatingSystem.IsWindows())
+            {
+                using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+                    await csv.SnapshotAsync(workspace, [row], default);
+                Assert.Equal("Failed", csv.Status); Assert.Equal("CsvWriteUnavailable", csv.Error);
+                Assert.Equal(2, csv.Failures);
+                await csv.SnapshotAsync(workspace, [], default);
+                Assert.Equal("Healthy", csv.Status); Assert.Null(csv.Error);
+            }
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }

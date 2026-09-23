@@ -27,6 +27,11 @@ public sealed class PaperBalanceEntry
 }
 public sealed class PaperExecutionEntry
 {
+    public PaperExecutionOrigin Origin { get; set; }
+    public Guid? AutomationSessionId { get; set; }
+    public Guid? AutomationRelationshipId { get; set; }
+    public string? AutomationInputStamp { get; set; }
+    public string? AutomationProofJson { get; set; }
     public int? RiskPolicyVersion { get; set; }
     public Guid? RiskPolicyRevision { get; set; }
     public string? RiskProofJson { get; set; }
@@ -109,6 +114,13 @@ internal static class PaperModel
 {
     public static void Configure(ModelBuilder m)
     {
+        m.Entity<PaperAutomationProfileEntry>().HasKey(x => x.WorkspaceId);
+        m.Entity<PaperAutomationProfileEntry>().HasOne<Arbitrage.Domain.Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+        m.Entity<PaperAutomationControlEntry>().HasKey(x => x.WorkspaceId);
+        m.Entity<PaperAutomationControlEntry>().HasOne<Arbitrage.Domain.Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+        m.Entity<PaperExecutionEntry>().HasIndex(x => new { x.WorkspaceId, x.Origin, x.CreatedAt });
+        m.Entity<PaperExecutionEntry>().HasIndex(x => new { x.WorkspaceId, x.AutomationRelationshipId, x.CreatedAt });
+        m.Entity<PaperExecutionEntry>().HasIndex(x => new { x.WorkspaceId, x.AutomationSessionId, x.AutomationInputStamp }).IsUnique();
         var risk = m.Entity<PaperRiskProfileEntry>();
         risk.ToTable("PaperRiskProfiles");
         risk.HasKey(x => x.WorkspaceId);

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Arbitrage.Infrastructure;
 
 public sealed record PaperFunding(string Exchange, string Currency, decimal Amount);
-public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionEntry? Execution = null, bool Duplicate = false, PaperRiskDecision? RiskDecision = null);
+public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionEntry? Execution = null, bool Duplicate = false, PaperRiskDecision? RiskDecision = null, PaperAutomationReason? AutomationReason = null);
 
 // SQLite serializable transactions acquire the writer reservation before reading balances. The unique
 // request index is the durable idempotency authority, including across scopes, restart and lost replies.
@@ -64,7 +64,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
 
     public async Task<PaperCommitResult> CommitAsync(Guid actor, Guid workspace, Guid generationId, Guid requestId, string fingerprint,
         PaperPlan plan, string correlation, Func<CancellationToken, Task<PaperRejection>> revalidate,
-        Func<Action, bool> commitCurrentBooks, CancellationToken ct, PaperRiskDecision? reviewedRisk = null)
+        Func<Action, bool> commitCurrentBooks, CancellationToken ct, PaperRiskDecision? reviewedRisk = null, PaperAutomaticCommit? automatic = null)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await membership.RequireMemberAsync(actor, workspace, true, ct);
@@ -74,6 +74,12 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         var generation = await db.Set<PaperGenerationEntry>().SingleOrDefaultAsync(x => x.Id == generationId && x.WorkspaceId == workspace && x.ClosedAt == null, ct);
         if (generation is null) return new(PaperRejection.GenerationChanged);
         if (generation.Integrity != PaperIntegrity.Healthy) return new(PaperRejection.IntegrityFailure);
+        if (automatic is not null)
+        {
+            if (automatic.Permit.ActorId != actor || automatic.Permit.WorkspaceId != workspace) return new(PaperRejection.IntegrityFailure);
+            var admission = await AutomationAdmissionAsync(automatic, plan, generation, ct);
+            if (admission != PaperAutomationReason.None) return new(PaperRejection.AutomationRejected, AutomationReason: admission);
+        }
         foreach (var market in plan.Fills.Select(f => (f.Instrument.Exchange, f.Instrument.NativeMarketId)).Distinct())
             if (await db.Set<PaperResolutionEntry>().AnyAsync(r => r.GenerationId == generationId && r.Exchange == market.Exchange && r.MarketId == market.NativeMarketId, ct))
                 return new(PaperRejection.MarketAlreadyResolved);
@@ -98,6 +104,14 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
             State = PaperExecutionState.Committed, PlanJson = JsonSerializer.Serialize(plan), RiskPolicyVersion = risk.PolicyVersion,
             RiskPolicyRevision = risk.PolicyRevision, RiskProofJson = JsonSerializer.Serialize(new PaperRiskProof(risk, plan.Id, plan.Quantity, plan.Cost)) };
         db.Add(execution);
+        if (automatic is not null)
+        {
+            var p = automatic.Permit;
+            execution.Origin = PaperExecutionOrigin.AutomaticPaper; execution.AutomationSessionId = p.SessionId;
+            execution.AutomationRelationshipId = plan.Proof.RelationshipId; execution.AutomationInputStamp = automatic.TriggerStamp;
+            execution.AutomationProofJson = JsonSerializer.Serialize(new PaperAutomationProof(p.SessionId, p.Profile.PolicyVersion, p.Profile.Revision,
+                p.Profile.PolicyFingerprint, automatic.TriggerStamp, plan.Proof.RelationshipId, now, p.Profile.Settings));
+        }
         execution.SettlementMarketsJson = JsonSerializer.Serialize(await CaptureMarketsAsync(plan, ct));
         generation.Revision = checked(generation.Revision + 1);
         var journal = new PaperTransactionEntry { Id = Guid.NewGuid(), GenerationId = generationId, ExecutionId = execution.Id,
@@ -140,7 +154,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
             }
         }
         catch (OverflowException) { return new(PaperRejection.ArithmeticOverflow); }
-        db.AuditRecords.Add(new(actor, workspace, now, correlation, "Paper.ExecutionCommitted", JsonSerializer.Serialize(new { execution.Id, generationId, requestId })));
+        db.AuditRecords.Add(new(actor, workspace, now, correlation, "Paper.ExecutionCommitted", JsonSerializer.Serialize(new { execution.Id, generationId, requestId, execution.Origin, execution.AutomationSessionId })));
         await db.SaveChangesAsync(ct);
         // Metadata cannot change behind the held SQLite writer reservation. Books are protected through COMMIT.
         error = await revalidate(ct);
@@ -192,6 +206,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
             {
                 var plan = JsonSerializer.Deserialize<PaperPlan>(execution.PlanJson)!;
                 healthy &= RiskProofHealthy(execution, plan);
+                healthy &= AutomationProofHealthy(execution, plan);
                 var actual = fills.Where(f => legs.Any(l => l.ExecutionId == execution.Id && l.Id == f.LegId)).ToArray();
                 healthy &= plan.Id == execution.Id && actual.Length == plan.Fills.Length &&
                     actual.All(f => plan.Fills.Any(p => JsonSerializer.Serialize(p) == JsonSerializer.Serialize(f))) && legs.Count(l => l.ExecutionId == execution.Id) == 2;

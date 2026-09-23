@@ -137,6 +137,13 @@ public sealed partial class BackendClient(HttpClient http, ILocalConnectionFile 
                     throw new BackendFailure(ConnectionState.AuthenticationFailed, "Local authentication failed. Refresh after verifying the backend runtime directory.");
                 if (response.StatusCode == HttpStatusCode.Forbidden)
                     throw new BackendFailure(ConnectionState.AuthorizationDenied, "Access to this workspace was denied by the backend.");
+                if (path.Contains("/paper/automation/", StringComparison.Ordinal) && response.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.BadRequest)
+                {
+                    var error = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken);
+                    var code = error?.GetValueOrDefault("code") ?? "InvalidProfile";
+                    if (code.Length > 80 || !code.All(char.IsAsciiLetter)) code = "InvalidProfile";
+                    throw new BackendFailure(ConnectionState.Unavailable, code + ": refresh automatic paper status and review before trying again.");
+                }
                 if (response.StatusCode == HttpStatusCode.BadRequest)
                     throw new BackendFailure(ConnectionState.Unavailable, path.EndsWith("/admission-policy", StringComparison.Ordinal) ?
                         "Invalid paper risk policy. Check fractions, count limits, quantity, and entry thresholds." : "The display name must contain 1–100 characters without control characters.");

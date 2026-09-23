@@ -92,6 +92,8 @@ public partial class Program
         builder.Services.AddScoped<SettlementCoordinator>();
         builder.Services.AddScoped<PaperValuationCoordinator>();
         builder.Services.AddScoped<PaperCoordinator>();
+        builder.Services.AddSingleton<PaperAutomationCoordinator>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<PaperAutomationCoordinator>());
         builder.Services.AddSingleton<PaperPreviewCache>();
         builder.Services.AddSingleton<PaperDiagnostics>();
         builder.Services.AddSingleton<PaperRiskDiagnostics>();

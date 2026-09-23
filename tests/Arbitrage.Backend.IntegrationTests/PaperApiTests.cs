@@ -16,7 +16,14 @@ namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class PaperApiTests
 {
-    internal sealed class Clock : TimeProvider { public DateTimeOffset Now = DateTimeOffset.UtcNow; public override DateTimeOffset GetUtcNow() => Now; }
+    internal sealed class Clock : TimeProvider
+    {
+        public bool ManualTimers;
+        public DateTimeOffset Now = DateTimeOffset.UtcNow; public override DateTimeOffset GetUtcNow() => Now;
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            ManualTimers ? new ManualTimer() : base.CreateTimer(callback, state, dueTime, period);
+        private sealed class ManualTimer : ITimer { public bool Change(TimeSpan dueTime, TimeSpan period) => true; public void Dispose() { } public ValueTask DisposeAsync() => ValueTask.CompletedTask; }
+    }
     private sealed class NetworkSpy(string exchange) : IOrderBookSource, IMarketDiscoverySource, IPublicFeeSource, IRelationshipMetadataSource, IMarketWebSocketFactory
     {
         public int Calls; public string Exchange => exchange; public IReadOnlyList<string> Scopes => ["all"];

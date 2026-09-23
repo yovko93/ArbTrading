@@ -29,6 +29,7 @@ public static class PaperEndpoints
         group.MapSettlement();
         group.MapValuation();
         group.MapPaperRisk();
+        group.MapPaperAutomation();
         group.MapGet("/account", Account);
         group.MapPost("/account/initialize", Initialize);
         group.MapPost("/account/reset", Initialize);
@@ -96,6 +97,7 @@ public static class PaperEndpoints
         return new(row.Id, row.RequestId, row.GenerationId, row.ActorId, row.CreatedAt, row.State.ToString(), row.OpportunityKey, p.Quantity,
             p.Cost, p.ExpectedPayoutAtResolution, p.ExpectedProfitAtResolution, p.Fills.Select(Fill).ToArray(), OpportunityEndpoints.Map(p.Proof),
             row.SettlementJson is null ? null : SettlementEndpoints.Economics(JsonSerializer.Deserialize<ExecutionSettlement>(row.SettlementJson)!), row.SettledAt,
-            row.RiskPolicyVersion, row.RiskPolicyRevision, row.RiskProofJson is null ? null : PaperRiskEndpoints.Decision(JsonSerializer.Deserialize<PaperRiskProof>(row.RiskProofJson)!.Decision));
+            row.RiskPolicyVersion, row.RiskPolicyRevision, row.RiskProofJson is null ? null : PaperRiskEndpoints.Decision(JsonSerializer.Deserialize<PaperRiskProof>(row.RiskProofJson)!.Decision),
+            row.Origin.ToString(), row.AutomationProofJson is null ? null : PaperRiskEndpoints.Map<PaperAutomationProofResponse>(JsonSerializer.Deserialize<PaperAutomationProof>(row.AutomationProofJson)!));
     }
 }

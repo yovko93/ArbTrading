@@ -44,6 +44,14 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
     private Run? run;
     private long epoch;
     private bool stopping;
+    public event Action<Guid>? AutomaticPaperInputsChanged;
+    public MonitoredOpportunity[] AutomaticPaperCandidates(Guid workspace, int maximum)
+    {
+        lock (gate) return run?.Workspace == workspace && run.State == MonitoringState.Running
+            ? MonitoringRanking.Sort(run.Results.Values.Where(r => r.Lane == RankingLane.FeeAdjusted), "default").Take(Math.Clamp(maximum, 1, 100)).ToArray() : [];
+    }
+    public bool CommitIfRunning(Guid workspace, Action commit)
+    { lock (gate) { if (stopping || run?.Workspace != workspace || run.State != MonitoringState.Running) return false; commit(); return true; } }
     public const int MaximumDirty = 1024;
     public const int BatchSize = 32;
     public MonitorStatus Status(Guid workspace)
@@ -78,12 +86,15 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
     }
     public MonitorStatus StopMonitoring(Guid actor, Guid workspace)
     {
+        MonitorStatus result;
         lock (gate)
         {
             if (run?.Workspace == workspace && run.State is MonitoringState.Starting or MonitoringState.Running or MonitoringState.Degraded)
             { run.StopActor = actor; run.State = MonitoringState.Stopping; run.Cancel.Cancel(); run.Results.Clear(); run.Dirty.Clear(); }
-            return Status(workspace);
+            result = Status(workspace);
         }
+        AutomaticPaperInputsChanged?.Invoke(workspace);
+        return result;
     }
     public void ProfileChanged(Guid workspace, MonitoringProfile profile)
     {
@@ -189,6 +200,7 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
                     if (updated) r.RankingUpdates++;
                 }
                 if (updated || sweep) publisher.MonitoringChanged(r.Workspace, r.Generation);
+                if (updated || sweep) AutomaticPaperInputsChanged?.Invoke(r.Workspace);
                 if (settings.CsvEnabled && now >= r.NextCsv)
                 {
                     // Validation uses local state only and prevents exporting old positive ranks after aging.

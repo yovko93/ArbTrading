@@ -24,7 +24,8 @@ public sealed record PaperPreviewResponse(Guid PreviewId, Guid? GenerationId, Da
 public sealed record PaperExecutionResponse(Guid Id, Guid RequestId, Guid GenerationId, Guid ActorId, DateTimeOffset CreatedAt, string State,
     string OpportunityKey, decimal Quantity, decimal Cost, decimal ExpectedPayoutAtResolution, decimal ExpectedProfitAtResolution,
     PaperFillResponse[] Fills, OpportunityResponse Proof, PaperExecutionSettlementResponse? Settlement = null, DateTimeOffset? SettledAt = null,
-    int? RiskPolicyVersion = null, Guid? RiskPolicyRevision = null, PaperRiskDecisionResponse? RiskDecision = null);
+    int? RiskPolicyVersion = null, Guid? RiskPolicyRevision = null, PaperRiskDecisionResponse? RiskDecision = null,
+    string Origin = "Manual", PaperAutomationProofResponse? AutomationProof = null);
 public sealed record PaperCommitResponse(string State, string Rejection, bool Duplicate, PaperExecutionResponse? Execution, PaperRiskDecisionResponse? RiskDecision = null);
 public sealed record PaperIntegrityResponse(Guid GenerationId, string Integrity);
 public sealed record PaperDiagnosticsResponse(long Attempts, long Committed, long Rejected, long InsufficientFunds, long StaleInputs, long Duplicates, long IntegrityFailures);

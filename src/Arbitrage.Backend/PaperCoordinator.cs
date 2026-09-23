@@ -102,10 +102,10 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
             ["PAPER SIMULATION — no real orders submitted.", "Snapshot Paper Fill / Immediate Taker Simulation. No latency, market impact or fill certainty is modeled.",
                 "Expected payout and profit are projections. Realization requires a separate explicit Manual Scenario Resolution."], PaperRiskEndpoints.Decision(risk));
     }
-    private async Task<PaperPlanResult> PlanAsync(Guid actor, Guid workspace, PaperPreviewRequest request, CancellationToken ct)
+    private async Task<PaperPlanResult> PlanAsync(Guid actor, Guid workspace, PaperPreviewRequest request, CancellationToken ct, bool automatic = false)
     {
         if (request.Quantity is <= 0 or > PaperPlanner.MaximumQuantity) return new(PaperRejection.RequestedQuantityInvalid);
-        var source = new[] { jobs.CurrentSnapshot(workspace, request.OpportunityKey), monitoring.CurrentSnapshot(workspace, request.OpportunityKey) }
+        var source = new[] { automatic ? null : jobs.CurrentSnapshot(workspace, request.OpportunityKey), monitoring.CurrentSnapshot(workspace, request.OpportunityKey) }
             .Where(s => s is not null).OrderByDescending(s => s!.EvaluatedAt).FirstOrDefault();
         if (source is null) return new(PaperRejection.OpportunityNotFound);
         if (source.RelationshipTrust != RelationshipTrust.Deterministic) return new(PaperRejection.ManualRelationshipNotAllowed);
@@ -133,6 +133,44 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
         var result = await ConfirmCoreAsync(actor, workspace, request, correlation, linked.Token);
         riskDiagnostics.Record(workspace, result.RiskDecision);
         diagnostics.Record(workspace, result); return result;
+    }
+    // Backend-internal only. Authorization is a current armed permit, never a client-supplied origin flag.
+    public async Task<PaperCommitResult> ExecuteAutomaticAsync(PaperAutomationPermit permit, string key,
+        Func<Action, bool> runtimeCommit, CancellationToken ct)
+    {
+        relationships.PersistEvaluationStaleness = false;
+        if (options.TradingMode != "Paper") return new(PaperRejection.NotPaperMode);
+        if (monitoring.Status(permit.WorkspaceId).State != MonitoringState.Running) return new(PaperRejection.AutomationRejected, AutomationReason: PaperAutomationReason.MonitoringStopped);
+        var planned = await PlanAsync(permit.ActorId, permit.WorkspaceId, new(key, permit.Profile.Settings.FixedQuantity), ct, true);
+        if (planned.Plan is not { } plan) return new(planned.Rejection);
+        var stamp = PaperAutomationPolicy.Stamp(plan.Proof, permit.Profile);
+        var request = PaperAutomationPolicy.RequestId(permit.SessionId, key, stamp, plan.Quantity);
+        var fingerprint = PaperAutomationPolicy.Hash(new { permit.SessionId, key, stamp, plan.Quantity });
+        var previous = await store.RequestAsync(permit.WorkspaceId, request, ct);
+        if (previous is not null) return previous.RequestFingerprint == fingerprint ? new(PaperRejection.None, previous, true) : new(PaperRejection.DuplicateRequest);
+        var snapshot = await store.RiskSnapshotAsync(permit.WorkspaceId, permit.GenerationId, ct);
+        var risk = PaperRiskEvaluator.Evaluate(snapshot.Profile, snapshot.State, plan, clock.GetUtcNow());
+        async Task<PaperRejection> Validate(CancellationToken token)
+        {
+            if (options.TradingMode != "Paper") return PaperRejection.NotPaperMode;
+            if (monitoring.Status(permit.WorkspaceId).State != MonitoringState.Running) return PaperRejection.AutomationRejected;
+            var current = await opportunities.ValidateAsync(permit.ActorId, permit.WorkspaceId, plan.Proof, false, true, token);
+            var hard = PaperPlanner.Eligibility(current, plan.Quantity);
+            return hard != PaperRejection.None ? hard : PaperAutomationPolicy.Quality(current, permit.Profile.Settings) == PaperAutomationReason.None ? PaperRejection.None : PaperRejection.AutomationRejected;
+        }
+        var result = await store.CommitAsync(permit.ActorId, permit.WorkspaceId, permit.GenerationId, request, fingerprint, plan, "automatic-paper", Validate,
+            commit => runtimeCommit(() =>
+            {
+                if (!monitoring.CommitIfRunning(permit.WorkspaceId, () =>
+                {
+                    var candidate = monitoring.AutomaticPaperCandidates(permit.WorkspaceId, permit.Profile.Settings.MaximumCandidatesPerCycle).SingleOrDefault(r => r.Result.OpportunityKey == key);
+                    if (candidate is null || PaperAutomationPolicy.Stamp(candidate.Result, permit.Profile) != stamp ||
+                        !books.CommitIfCurrent(plan.Proof.Legs.Select(l => l.Instrument).ToArray(), plan.Proof.Legs.Select(l => l.SnapshotVersion).ToArray(), commit))
+                        throw new PaperAutomationException(PaperAutomationReason.CommitConflict);
+                })) throw new PaperAutomationException(PaperAutomationReason.MonitoringStopped);
+            }),
+            ct, risk, new(permit, stamp));
+        diagnostics.Record(permit.WorkspaceId, result); riskDiagnostics.Record(permit.WorkspaceId, result.RiskDecision); return result;
     }
     private async Task<PaperCommitResult> ConfirmCoreAsync(Guid actor, Guid workspace, ConfirmPaperRequest request, string correlation, CancellationToken ct)
     {

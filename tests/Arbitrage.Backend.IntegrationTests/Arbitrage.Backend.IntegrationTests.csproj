@@ -10,6 +10,8 @@
     <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.Settlement.cs" Link="Desktop/BackendClient.Settlement.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.Valuation.cs" Link="Desktop/BackendClient.Valuation.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.Risk.cs" Link="Desktop/BackendClient.Risk.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.Automation.cs" Link="Desktop/BackendClient.Automation.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Automation.cs" Link="Desktop/PaperTradingViewModel.Automation.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Risk.cs" Link="Desktop/PaperTradingViewModel.Risk.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Valuation.cs" Link="Desktop/PaperTradingViewModel.Valuation.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MainViewModel.cs" Link="Desktop/MainViewModel.cs" />

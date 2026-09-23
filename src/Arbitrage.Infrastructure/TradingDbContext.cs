@@ -6,6 +6,8 @@ namespace Arbitrage.Infrastructure;
 
 public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options) : DbContext(options)
 {
+    public DbSet<FeeScheduleEntry> FeeSchedules => Set<FeeScheduleEntry>();
+    public DbSet<FeeProfileEntry> FeeProfiles => Set<FeeProfileEntry>();
     public DbSet<ApplicationUser> Users => Set<ApplicationUser>();
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMembership> Memberships => Set<WorkspaceMembership>();
@@ -24,6 +26,10 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.Entity<FeeScheduleEntry>().HasKey(x => new { x.Exchange, x.MarketId });
+        model.Entity<FeeScheduleEntry>().HasOne<MarketCatalogEntry>().WithMany().HasForeignKey(x => new { x.Exchange, x.MarketId }).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<FeeProfileEntry>().HasKey(x => x.WorkspaceId);
+        model.Entity<FeeProfileEntry>().HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
         var relationship = model.Entity<MarketRelationshipEntry>();
         relationship.ToTable("MarketRelationships");
         relationship.HasKey(r => r.Id);

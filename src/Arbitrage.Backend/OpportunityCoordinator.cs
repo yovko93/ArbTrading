@@ -5,8 +5,17 @@ using Arbitrage.Strategies;
 namespace Arbitrage.Backend;
 
 // Only ResolveAsync is used: it reads the local catalog, never an exchange.
-public sealed class OpportunityCoordinator(IRelationshipProvider relationships, OrderBookService instruments, OrderBookCache cache, TimeProvider clock)
+public sealed class OpportunityCoordinator(IRelationshipProvider relationships, OrderBookService instruments, OrderBookCache cache, TimeProvider clock, IFeeStore? fees = null)
 {
+    public async Task<ArbitrageOpportunitySnapshot> EvaluateFeesAsync(Guid workspace, ArbitrageOpportunitySnapshot result, decimal minimumEdge, CancellationToken ct)
+    {
+        if (fees is null) return result;
+        var schedules = new List<ResolvedFeeSchedule>();
+        foreach (var leg in result.Legs) schedules.Add(FeeScheduleResolver.Resolve(await fees.ReadAsync(leg.Instrument.Exchange, leg.Instrument.NativeMarketId, ct), clock.GetUtcNow()));
+        var profile = await fees.ReadProfileAsync(workspace, ct);
+        return result with { Fees = FeeOpportunityEvaluator.Evaluate(result, schedules, profile.Profile, minimumEdge) with { ProfileRevision = profile.Revision },
+            Warnings = [.. result.Warnings.Select(w => w.StartsWith("PRE-FEE:", StringComparison.Ordinal) ? "Gross values exclude fees; see the separate fee result. Balances and execution remain unavailable." : w)] };
+    }
     public async Task<ArbitrageOpportunitySnapshot> EvaluateAsync(Guid actor, Guid workspace, OpportunityPlan plan,
         OpportunitySettings settings, bool manual, CancellationToken ct)
     {
@@ -33,6 +42,17 @@ public sealed class OpportunityCoordinator(IRelationshipProvider relationships, 
             var status = books.Any(b => b.Eligibility.Freshness == BookFreshness.Stale) ? OpportunityStatus.BookStale :
                 books.Any(b => b.Source == BookSourceMode.Realtime) ? OpportunityStatus.BookContinuityInsufficient : OpportunityStatus.BookUnavailable;
             return result.Invalidate(status, "Current canonical book eligibility no longer permits this evaluation.");
+        }
+        if (result.Fees is { } evaluated && fees is not null)
+        {
+            var currentProfile = await fees.ReadProfileAsync(workspace, ct);
+            var invalid = evaluated.Profile != currentProfile.Profile || evaluated.ProfileRevision != currentProfile.Revision;
+            foreach (var group in evaluated.Breakdown.GroupBy(q => (q.Context.Exchange, q.Context.MarketId)))
+            {
+                var resolved = FeeScheduleResolver.Resolve(await fees.ReadAsync(group.Key.Exchange, group.Key.MarketId, ct), clock.GetUtcNow());
+                if (group.Any(q => q.ScheduleFingerprint != resolved.Fingerprint) || resolved.Status == FeeStatus.ScheduleStale) invalid = true;
+            }
+            if (invalid) result = result with { Fees = evaluated.Invalidate() };
         }
         return result;
     }

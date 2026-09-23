@@ -34,9 +34,10 @@ public sealed record ArbitrageOpportunitySnapshot(string OpportunityKey, Opportu
     public ImmutableArray<OutcomeMapping> OutcomeMappings { get; init; } = [];
     public bool GrossArbitrageExists => Status == OpportunityStatus.Detected && GrossProfit > 0;
     public bool ExecutionEligible => false;
-    public string FeeStatus => "NotEvaluated";
+    public OpportunityFees? Fees { get; init; }
+    public string FeeStatus => Fees?.Status.ToString() ?? "NotEvaluated";
     public decimal? NetProfit => null;
     public decimal? NetEdge => null;
     public ArbitrageOpportunitySnapshot Invalidate(OpportunityStatus status, string reason) => this with
-    { Status = status, Blockers = [reason], InputQuality = OpportunityInputQuality.NonActionable, BooksActionable = false, FullyExecutableForRequestedQuantity = false };
+    { Status = status, Blockers = [reason], InputQuality = OpportunityInputQuality.NonActionable, BooksActionable = false, FullyExecutableForRequestedQuantity = false, Fees = Fees?.Invalidate() };
 }

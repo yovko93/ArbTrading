@@ -23,7 +23,8 @@ public sealed class OpportunityJobs(IServiceScopeFactory scopes, TimeProvider cl
     private bool stopping;
     public static bool Valid(EvaluateOpportunitiesRequest r) => r.MaximumRelationshipsPerRun is > 0 and <= 500 &&
         r.MaximumOpportunitiesReturned is > 0 and <= 50 && r.RuntimeSeconds is > 0 and <= 30 && r.RelationshipId != Guid.Empty &&
-        r.Exchange is null or "Kalshi" or "Polymarket" && r.TargetExchange is null or "Kalshi" or "Polymarket" && Settings(r).Valid;
+        r.Exchange is null or "Kalshi" or "Polymarket" && r.TargetExchange is null or "Kalshi" or "Polymarket" && Settings(r).Valid &&
+        r.MinimumFeeAdjustedEdgePerShare is null or >= 0 and < 1;
     private static OpportunitySettings Settings(EvaluateOpportunitiesRequest r) => new(r.MinimumGrossEdgePerShare, r.MaximumEvaluationQuantity,
         r.MaximumEvaluationNotional, r.MaximumSkewMilliseconds, r.RequestedQuantity);
     public OpportunityJobResponse Start(Guid actor, Guid workspace, EvaluateOpportunitiesRequest request)
@@ -58,7 +59,7 @@ public sealed class OpportunityJobs(IServiceScopeFactory scopes, TimeProvider cl
         }
         var validated = new List<ArbitrageOpportunitySnapshot>();
         foreach (var snapshot in snapshots) validated.Add(await coordinator.ValidateAsync(actor, workspace, snapshot, manual, false, ct));
-        var filtered = validated.Where(r => diagnostics || r.GrossArbitrageExists);
+        var filtered = validated.Where(r => diagnostics || (r.Fees is null ? r.GrossArbitrageExists : r.Fees.State == Arbitrage.Domain.FeeOpportunityStatus.FeeAdjustedDetected));
         var ordered = sortProfit ? filtered.OrderByDescending(r => r.GrossArbitrageExists).ThenByDescending(r => r.GrossProfit).ThenBy(r => r.OpportunityKey) : filtered.OrderBy(r => r.OpportunityKey);
         var items = ordered.ToArray();
         return new(items.Skip((page - 1) * size).Take(size).Select(OpportunityEndpoints.Map).ToArray(), items.Length, page, size, status);
@@ -103,6 +104,9 @@ public sealed class OpportunityJobs(IServiceScopeFactory scopes, TimeProvider cl
                 ct.ThrowIfCancellationRequested();
                 lock (gate) if (run.Results.Count >= request.MaximumOpportunitiesReturned) { state = "Partial"; notice = "Result bound reached."; break; }
                 var result = await coordinator.EvaluateAsync(run.Actor, run.Workspace, plan, Settings(request), request.IncludeManualRelationships, ct);
+                if (request.EvaluateFees) result = await coordinator.EvaluateFeesAsync(run.Workspace, result, request.MinimumFeeAdjustedEdgePerShare ?? 0, ct);
+                result = await coordinator.ValidateAsync(run.Actor, run.Workspace, result, request.IncludeManualRelationships, true, ct);
+                FeeMetrics.Record(result);
                 ct.ThrowIfCancellationRequested();
                 if (retainedSegments + result.Segments.Length > 100_000) { state = "Partial"; notice = "Retained depth memory bound reached."; break; }
                 retainedSegments += result.Segments.Length;

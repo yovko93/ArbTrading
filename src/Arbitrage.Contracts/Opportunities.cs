@@ -3,7 +3,8 @@ namespace Arbitrage.Contracts;
 public sealed record EvaluateOpportunitiesRequest(Guid? RelationshipId = null, bool IncludeManualRelationships = false,
     string? Exchange = null, string? TargetExchange = null, int MaximumRelationshipsPerRun = 100, int RuntimeSeconds = 10,
     int MaximumOpportunitiesReturned = 30, decimal MinimumGrossEdgePerShare = .001m, decimal MaximumEvaluationQuantity = 1000m,
-    int MaximumSkewMilliseconds = 1000, decimal? RequestedQuantity = null, decimal? MaximumEvaluationNotional = null);
+    int MaximumSkewMilliseconds = 1000, decimal? RequestedQuantity = null, decimal? MaximumEvaluationNotional = null,
+    bool EvaluateFees = false, decimal? MinimumFeeAdjustedEdgePerShare = null);
 public sealed record OpportunityJobResponse(Guid Id, string State, int RelationshipsScanned, int Results, DateTimeOffset StartedAt,
     DateTimeOffset? EndedAt, string? Notice);
 public sealed record OpportunityPageResponse(OpportunityResponse[] Items, int Total, int Page, int PageSize, OpportunityJobResponse Job);
@@ -21,6 +22,7 @@ public sealed record OpportunityResponse(string OpportunityKey, string Strategy,
     bool EvaluationNotionalCapped, int RelationshipPolicyVersion, string SourceFingerprint, string TargetFingerprint, string RelationshipRevision,
     bool ExecutionEligible, string FeeStatus, decimal? NetProfit, decimal? NetEdge)
 {
+    public OpportunityFeesResponse? Fees { get; init; }
     public string? SourceTitle { get; init; }
     public string? TargetTitle { get; init; }
     public RelationshipMappingResponse[] OutcomeMappings { get; init; } = [];

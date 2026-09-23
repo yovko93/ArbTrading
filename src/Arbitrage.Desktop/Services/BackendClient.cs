@@ -33,6 +33,12 @@ public sealed class BackendClient(HttpClient http, ILocalConnectionFile connecti
         SendAsync<RelationshipJobResponse>(cancel ? HttpMethod.Post : HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/jobs/{id}" + (cancel ? "/cancel" : ""), null, ct);
     public Task<OpportunityJobResponse> EvaluateOpportunitiesAsync(Guid workspace, EvaluateOpportunitiesRequest request, CancellationToken ct) =>
         SendAsync<OpportunityJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/opportunities/evaluate", request, ct);
+    public Task<FeeProfileResponse> FeeProfileAsync(Guid workspace, string? profile, CancellationToken ct) =>
+        SendAsync<FeeProfileResponse>(profile is null ? HttpMethod.Get : HttpMethod.Put, $"api/v1/workspaces/{workspace}/fees/profile", profile is null ? null : new FeeProfileResponse(profile), ct);
+    public Task<FeeRefreshJobResponse> RefreshFeesAsync(Guid workspace, FeeMarketRequest[] markets, CancellationToken ct) =>
+        SendAsync<FeeRefreshJobResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/fees/refresh", new RefreshFeesRequest(markets), ct);
+    public Task<FeeRefreshJobResponse> FeeJobAsync(Guid workspace, Guid id, bool cancel, CancellationToken ct) =>
+        SendAsync<FeeRefreshJobResponse>(cancel ? HttpMethod.Post : HttpMethod.Get, $"api/v1/workspaces/{workspace}/fees/jobs/{id}" + (cancel ? "/cancel" : ""), null, ct);
     public Task<OpportunityPageResponse> OpportunityResultsAsync(Guid workspace, Guid id, int page, bool diagnostics, bool sortProfit, CancellationToken ct) =>
         SendAsync<OpportunityPageResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/opportunities/jobs/{id}/results?page={page}&pageSize=20&diagnostics={diagnostics}&sort={(sortProfit ? "grossProfit" : "key")}", null, ct);
     public Task<OpportunityJobResponse> CancelOpportunityEvaluationAsync(Guid workspace, Guid id, CancellationToken ct) =>

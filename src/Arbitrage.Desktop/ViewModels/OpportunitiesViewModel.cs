@@ -23,6 +23,9 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool includeManualRelationships;
     [ObservableProperty] private bool showDiagnostics;
     [ObservableProperty] private bool sortByGrossProfit;
+    [ObservableProperty] private bool evaluateFees = true;
+    [ObservableProperty] private decimal minimumFeeAdjustedEdgePerShare;
+    [ObservableProperty] private FeeRefreshJobResponse? feeJob;
     [ObservableProperty] private decimal minimumGrossEdgePerShare = .001m;
     [ObservableProperty] private decimal maximumEvaluationQuantity = 1000m;
     [ObservableProperty] private int maximumSkewMilliseconds = 1000;
@@ -32,7 +35,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int page = 1;
     [ObservableProperty] private int total;
     [ObservableProperty] private string notice = "Explicit evaluation uses cached books only. Missing inputs must be obtained separately in Market Explorer.";
-    public string PageLabel => $"Page {Page} · {Total} {(ShowDiagnostics ? "diagnostic results" : "pre-fee candidates")}";
+    public string PageLabel => $"Page {Page} · {Total} {(ShowDiagnostics ? "diagnostic results" : "candidates")}";
     public string DetailText => Selected is not { } r ? "Select a result to inspect its proof, depth and liquidity origins." : Describe(r);
     public OpportunitiesViewModel(MainViewModel state, BackendClient backend)
     {
@@ -54,7 +57,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     {
         generation++; readGeneration++; lifetime.Cancel(); lifetime.Dispose(); lifetime = new();
         Items.Clear(); Selected = null; Total = 0; Busy = false;
-        if (forgetJob) Job = null;
+        if (forgetJob) { Job = null; FeeJob = null; }
     }
     private void AccessInvalidated(object? sender, EventArgs e)
     {
@@ -103,9 +106,9 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
             var result = await backend.EvaluateOpportunitiesAsync(context.Workspace, new(id, IncludeManualRelationships,
                 Exchange == "All" ? null : Exchange, TargetExchange == "All" ? null : TargetExchange,
                 MinimumGrossEdgePerShare: MinimumGrossEdgePerShare, MaximumEvaluationQuantity: MaximumEvaluationQuantity,
-                MaximumSkewMilliseconds: MaximumSkewMilliseconds), lifetime.Token);
+                MaximumSkewMilliseconds: MaximumSkewMilliseconds, EvaluateFees: EvaluateFees, MinimumFeeAdjustedEdgePerShare: MinimumFeeAdjustedEdgePerShare), lifetime.Token);
             if (Context() != context) return;
-            Job = result; Notice = "Evaluation admitted. PRE-FEE only; execution is unavailable.";
+            Job = result; Notice = EvaluateFees ? "Fee-aware evaluation uses cached metadata. Enable diagnostics to see gross candidates with unresolved fees. Execution unavailable." : "Gross evaluation admitted; fees not evaluated.";
             await RefreshAsync();
         }
         catch (OperationCanceledException) { }
@@ -114,6 +117,12 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     }
     [RelayCommand] private async Task RefreshAsync()
     {
+        if (Context() is { } feeContext && FeeJob is { State: "Running" } feeRun)
+        {
+            try { var status = await backend.FeeJobAsync(feeContext.Workspace, feeRun.Id, false, lifetime.Token); if (Context() == feeContext && FeeJob?.Id == feeRun.Id) FeeJob = status; }
+            catch (OperationCanceledException) { }
+            catch (BackendFailure failure) { if (Context() == feeContext) Failure(failure); }
+        }
         if (Context() is not { } context || Job is not { } job) return;
         var read = ++readGeneration;
         try
@@ -136,6 +145,24 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
             var result = await backend.CancelOpportunityEvaluationAsync(context.Workspace, job.Id, lifetime.Token);
             if (Context() == context && Job?.Id == job.Id) Job = result;
         }
+        catch (OperationCanceledException) { }
+        catch (BackendFailure failure) { if (Context() == context) Failure(failure); }
+    }
+    [RelayCommand] private async Task RefreshFeeDataAsync()
+    {
+        if (Context() is not { } context || Selected is not { } selected || FeeJob?.State == "Running") return;
+        try
+        {
+            var result = await backend.RefreshFeesAsync(context.Workspace, selected.Legs.Select(l => new FeeMarketRequest(l.Exchange, l.MarketId)).Distinct().ToArray(), lifetime.Token);
+            if (Context() == context) { FeeJob = result; Notice = "Explicit public fee refresh admitted. Re-evaluate after completion; gross inputs remain independent."; }
+        }
+        catch (OperationCanceledException) { }
+        catch (BackendFailure failure) { if (Context() == context) Failure(failure); }
+    }
+    [RelayCommand] private async Task CancelFeeRefreshAsync()
+    {
+        if (Context() is not { } context || FeeJob is not { } job) return;
+        try { var result = await backend.FeeJobAsync(context.Workspace, job.Id, true, lifetime.Token); if (Context() == context && FeeJob?.Id == job.Id) FeeJob = result; }
         catch (OperationCanceledException) { }
         catch (BackendFailure failure) { if (Context() == context) Failure(failure); }
     }
@@ -162,7 +189,20 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
         text.AppendLine($"Relationship eligible: {r.RelationshipEligible}; books actionable: {r.BooksActionable}; gross arbitrage exists: {r.GrossArbitrageExists}");
         text.AppendLine($"Requested quantity fully covered: {r.FullyExecutableForRequestedQuantity}; quantity capped: {r.EvaluationQuantityCapped}");
         text.AppendLine($"Input quality: {r.InputQuality}; observation skew {r.ObservedSkewMilliseconds} / {r.MaximumAllowedSkewMilliseconds} ms");
-        text.AppendLine("PRE-FEE · Fees not evaluated · Net profit/edge unknown · Execution eligible: false");
+        text.AppendLine("Gross and fee-adjusted values are separate · Net profit/edge unknown · Execution eligible: false");
+        if (r.Fees is not { } fees) text.AppendLine("PRE-FEE · Fees not evaluated");
+        else
+        {
+            text.AppendLine($"{fees.StateLabel} · {fees.State} · {fees.Status} · Fee calculation profile (diagnostic assumption): {fees.Profile}");
+            text.AppendLine($"Exchange fees: {fees.TotalExchangeFees?.ToString() ?? "Unknown"}; fee-adjusted profit: {fees.FeeAdjustedGuaranteedProfit?.ToString() ?? "Unknown"}; edge: {fees.FeeAdjustedEdgePerShare?.ToString() ?? "Unknown"}");
+            text.AppendLine(fees.Assumptions);
+            foreach (var q in fees.Breakdown)
+            {
+                text.AppendLine($"{q.Exchange}:{q.MarketId}:{q.InstrumentId} {q.LiquidityRole} {q.Quantity} @ {q.Price}: model {q.ModelFee?.ToString() ?? "Unknown"}, trade {q.RoundedTradeFee?.ToString() ?? "Unknown"}, rounding {q.RoundingFee?.ToString() ?? "Unknown"}, rounding rebate {q.Rebate?.ToString() ?? "Unknown"}, total {q.TotalFee?.ToString() ?? "Unknown"} {q.Currency} ({q.Status})");
+                text.AppendLine($"Program rebates: {q.ProgramRebates}; effective {q.EffectiveAt:O}; retrieved {q.RetrievedAt:O}; age {(q.RetrievedAt is { } at ? (DateTimeOffset.UtcNow - at).TotalMinutes.ToString("0.0") : "Unknown")} min\nSource: {q.Source}\nSchedule: {q.ScheduleFingerprint}");
+                foreach (var warning in q.Warnings) text.AppendLine("Fee warning: " + warning);
+            }
+        }
         foreach (var blocker in r.Blockers) text.AppendLine("Blocker: " + blocker);
         foreach (var warning in r.Warnings) text.AppendLine("Warning: " + warning);
         foreach (var l in r.Legs)

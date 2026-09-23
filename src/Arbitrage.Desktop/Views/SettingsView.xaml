@@ -5,6 +5,15 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel MaxWidth="850" HorizontalAlignment="Left">
       <controls:SectionHeader Title="Settings" Subtitle="Appearance stays on this Windows user profile. Workspace changes go through the authorized backend API." />
+      <Border Style="{StaticResource CardBorder}" Visibility="{Binding State.IsWorkspaceAuthorized, Converter={StaticResource BooleanToVisibility}}">
+        <StackPanel DataContext="{Binding Fees}">
+          <TextBlock Text="Fee calculation profile (diagnostic assumption)" Style="{StaticResource SectionTitleText}"/>
+          <TextBlock Text="Controls local Kalshi fee calculations only. Does not authenticate or identify your Kalshi account. Default: Unknown." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,8"/>
+          <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding Profile}" Width="210" HorizontalAlignment="Left" AutomationProperties.Name="Fee calculation profile (diagnostic assumption)"/>
+          <WrapPanel Margin="0,8"><Button Content="Load saved assumption" Command="{Binding LoadCommand}" Margin="0,0,8,0"/><Button Content="Save diagnostic assumption" Command="{Binding SaveCommand}"/></WrapPanel>
+          <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
+      </Border>
       <Border Style="{StaticResource CardBorder}">
         <StackPanel>
           <TextBlock Text="Appearance" Style="{StaticResource SectionTitleText}" />

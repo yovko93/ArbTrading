@@ -69,6 +69,10 @@ public static class OpportunityEndpoints
         r.PairedQuantity, r.FullyExecutableQuantity, r.GrossCost, r.GrossProceeds, r.GuaranteedGrossPayout, r.GrossProfit, r.GrossEdgePerShare, r.GrossReturnOnCost,
         r.RelationshipEligible, r.BooksActionable, r.GrossArbitrageExists, r.FullyExecutableForRequestedQuantity, r.EvaluationQuantityCapped, r.EvaluationNotionalCapped,
         r.RelationshipPolicyVersion, r.SourceFingerprint, r.TargetFingerprint, r.RelationshipRevision, r.ExecutionEligible, r.FeeStatus, r.NetProfit, r.NetEdge)
-        { SourceTitle = r.SourceTitle, TargetTitle = r.TargetTitle,
+        { SourceTitle = r.SourceTitle, TargetTitle = r.TargetTitle, Fees = r.Fees is { } f ? new(f.State.ToString(), f.Status.ToString(), f.Profile.ToString(),
+            f.Breakdown.Select(q => new FeeQuoteResponse(q.Context.Exchange, q.Context.MarketId, q.Context.InstrumentId, q.Context.Role.ToString(), q.Context.Quantity, q.Context.Price,
+                q.ModelFee, q.RoundedTradeFee, q.RoundingFee, q.Rebate, q.TotalFee, q.Currency, q.Status.ToString(), q.Source, q.EffectiveAt, q.RetrievedAt,
+                q.ScheduleFingerprint, [.. q.Warnings], q.ProgramRebates)).ToArray(), f.TotalExchangeFees, f.FeeAdjustedCost, f.FeeAdjustedGuaranteedProfit,
+            f.FeeAdjustedEdgePerShare, f.FeeAdjustedReturnOnCost, f.MinimumEdge) : null,
             OutcomeMappings = r.OutcomeMappings.Select(m => new RelationshipMappingResponse(m.SourceOutcomeId, m.TargetOutcomeId, m.Type.ToString())).ToArray() };
 }

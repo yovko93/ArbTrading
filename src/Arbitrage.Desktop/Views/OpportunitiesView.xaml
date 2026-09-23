@@ -29,9 +29,9 @@
  <Grid Margin="16">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="180"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <StackPanel>
-   <TextBlock Text="PRE-FEE opportunities" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}"/>
-   <TextBlock Text="Fees not evaluated · Net profit unknown · Execution unavailable" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
-   <TextBlock Text="Blocked diagnostics may retain historical values. Only Detected rows are current pre-fee candidates." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+   <TextBlock Text="Gross and fee-adjusted opportunities" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}"/>
+   <TextBlock Text="PRE-FEE gross values remain independent · Net profit unknown · Execution unavailable" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
+   <TextBlock Text="Fee-aware results are modeled estimates. Diagnostics include gross opportunities with unknown fees and gross edges removed by fees." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
    <WrapPanel Margin="0,8">
     <TextBox Text="{Binding RelationshipId, UpdateSourceTrigger=PropertyChanged}" Width="265" AutomationProperties.Name="Selected relationship ID" ToolTip="Paste a verified relationship ID from Market Matching"/>
     <Button Content="Evaluate Selected" Command="{Binding EvaluateSelectedCommand}" Margin="6,0"/>
@@ -52,9 +52,18 @@
     <TextBox Text="{Binding MaximumSkewMilliseconds, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="65" Margin="6,0" AutomationProperties.Name="Maximum observation skew in milliseconds"/>
    </WrapPanel>
    <WrapPanel><CheckBox Content="Show diagnostics (includes blocked results)" IsChecked="{Binding ShowDiagnostics}" Margin="0,0,12,0"/><CheckBox Content="Sort by gross profit (display only)" IsChecked="{Binding SortByGrossProfit}"/></WrapPanel>
+   <WrapPanel Margin="0,8">
+    <CheckBox Content="Evaluate cached fees" IsChecked="{Binding EvaluateFees}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+    <TextBlock Text="Minimum fee-adjusted edge" VerticalAlignment="Center"/>
+    <TextBox Text="{Binding MinimumFeeAdjustedEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum fee-adjusted edge"/>
+    <Button Content="Refresh Fee Data for selected result" Command="{Binding RefreshFeeDataCommand}" Margin="6,0"/>
+    <Button Content="Cancel fee refresh" Command="{Binding CancelFeeRefreshCommand}"/>
+   </WrapPanel>
   </StackPanel>
   <StackPanel Grid.Row="1" Margin="0,8">
    <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+   <TextBlock Text="{Binding FeeJob.State, StringFormat=Fee refresh: {0}}"/>
+   <TextBlock Text="{Binding FeeJob.Notice}" TextWrapping="Wrap"/>
    <WrapPanel><TextBlock Text="{Binding Job.State}" Foreground="{DynamicResource PrimaryText}" Margin="0,0,8,0"/><TextBlock Text="{Binding Job.Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/></WrapPanel>
   </StackPanel>
   <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Pre-fee candidates and diagnostics">
@@ -67,6 +76,11 @@
     <DataGridTextColumn Header="Gross cost" Binding="{Binding GrossCost, StringFormat=0.########}" Width="90"/>
     <DataGridTextColumn Header="Gross payout" Binding="{Binding GuaranteedGrossPayout, StringFormat=0.########}" Width="95"/>
     <DataGridTextColumn Header="Gross profit" Binding="{Binding GrossProfit, StringFormat=0.########}" Width="95"/>
+    <DataGridTextColumn Header="Exchange fees" Binding="{Binding Fees.TotalExchangeFees, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="100"/>
+    <DataGridTextColumn Header="Fee status" Binding="{Binding Fees.StateLabel, TargetNullValue=NotEvaluated}" Width="225"/>
+    <DataGridTextColumn Header="Fee-adjusted profit" Binding="{Binding Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="130"/>
+    <DataGridTextColumn Header="Fee-adjusted edge" Binding="{Binding Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="130"/>
+    <DataGridTextColumn Header="Diagnostic profile" Binding="{Binding Fees.Profile, TargetNullValue=Unknown}" Width="135"/>
     <DataGridTextColumn Header="Gross edge" Binding="{Binding GrossEdgePerShare, StringFormat=0.########}" Width="90"/>
     <DataGridTextColumn Header="Input quality" Binding="{Binding InputQuality}" Width="130"/>
     <DataGridTextColumn Header="Skew ms" Binding="{Binding ObservedSkewMilliseconds, StringFormat=0.###}" Width="80"/>

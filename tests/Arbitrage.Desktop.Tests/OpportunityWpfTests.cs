@@ -16,6 +16,37 @@ namespace Arbitrage.Desktop.Tests;
 [Collection("WPF")]
 public sealed class OpportunityWpfTests(WpfFixture fixture)
 {
+    [Fact] public Task Fee_unknown_negative_and_stale_render_without_zero_in_both_themes() => fixture.RunAsync(() =>
+    {
+        var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());
+        using var state = new MainViewModel(backend, NullLogger<MainViewModel>.Instance);
+        using var vm = new OpportunitiesViewModel(state, backend) { ShowDiagnostics = true };
+        foreach (var theme in new[] { "Light", "Dark" })
+        foreach (var status in new[] { "GrossDetectedFeeUnknown", "FeeAdjustedNoEdge", "FeeResultStale", "AccountFeeProfileRequired" })
+        {
+            var negative = status == "FeeAdjustedNoEdge";
+            var quote = new FeeQuoteResponse("Kalshi", "FIXTURE-A", "yes", "Taker", 25, .4m, .42m, .42m, null, null, null, "USD", "KnownModelAccountRoundingUnknown",
+                "https://docs.kalshi.com/getting_started/fee_rounding", DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow, "fixture-fingerprint", ["Diagnostic fixture"], "NotIncluded");
+            var item = Result("Detected") with { Warnings = ["Gross values exclude fees. See the separate fee diagnostic."], Fees = new(status, negative ? "Estimated" : "KnownModelAccountRoundingUnknown", negative ? "NonDirectMember" : "Unknown", [quote], negative ? 1.95968m : null,
+                negative ? 25.30968m : null, negative ? -.30968m : null, negative ? -.0123872m : null, null, 0) };
+            vm.Items.Clear(); vm.Items.Add(item); vm.Selected = item; vm.Total = 1;
+            new WpfThemePaletteApplier(Application.Current.Resources).Apply(theme == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
+            var view = new OpportunitiesView { DataContext = vm }; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
+            view.Measure(new Size(1400, 1100)); view.Arrange(new Rect(0, 0, 1400, 1100)); view.UpdateLayout();
+            var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
+            Assert.Contains(texts, t => t.Contains("diagnostic assumption", StringComparison.Ordinal));
+            Assert.Contains(texts, t => t.Contains("fee_rounding", StringComparison.Ordinal));
+            Assert.Contains(texts, t => t.Contains(status, StringComparison.Ordinal));
+            Assert.Contains(texts, t => t.Contains(negative ? "-0.30968" : "Exchange fees: Unknown", StringComparison.Ordinal));
+            Assert.Contains(Descendants<Button>(view), b => b.Content is "Refresh Fee Data for selected result");
+            if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } capture)
+            {
+                Directory.CreateDirectory(capture); var bitmap = new RenderTargetBitmap(1400, 1100, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
+                var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var stream = File.Create(Path.Combine(capture, $"fees-{theme}-{status}.png")); encoder.Save(stream);
+            }
+        }
+    });
     [Fact] public Task Prefee_provenance_trust_and_blocked_states_render_in_light_and_dark() => fixture.RunAsync(() =>
     {
         var backend = new BackendClient(new HttpClient(new RejectHandler()), new Connection());

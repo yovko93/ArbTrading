@@ -11,7 +11,7 @@ public enum PageDestination
 
 public sealed record NavigationItem(PageDestination Destination, string Label, string Icon);
 public sealed record DashboardViewModel(MainViewModel State, object? LocalBackend = null);
-public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme, object? LocalBackend = null, KalshiCredentialsViewModel? Credentials = null);
+public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme, object? LocalBackend = null, KalshiCredentialsViewModel? Credentials = null, FeeProfileViewModel? Fees = null);
 public sealed record DiagnosticsViewModel(MainViewModel State, DesktopDiagnostics Diagnostics);
 public sealed record TradingViewModel(MainViewModel State);
 public sealed record UnavailablePageViewModel(string Title, string Purpose, string Dependency)
@@ -44,13 +44,13 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty] private string pageTitle = "Dashboard";
 
     public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics,
-        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null)
+        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null, FeeProfileViewModel? fees = null)
     {
         State = state; Theme = theme; LocalBackend = localBackend;
         pages = new()
         {
             [PageDestination.Dashboard] = new DashboardViewModel(state, localBackend),
-            [PageDestination.Settings] = new SettingsViewModel(state, theme, localBackend, credentials),
+            [PageDestination.Settings] = new SettingsViewModel(state, theme, localBackend, credentials, fees),
             [PageDestination.Diagnostics] = new DiagnosticsViewModel(state, diagnostics),
             [PageDestination.Trading] = new TradingViewModel(state),
             [PageDestination.Opportunities] = (object?)opportunities ?? new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Market ingestion and strategy evaluation are not implemented."),

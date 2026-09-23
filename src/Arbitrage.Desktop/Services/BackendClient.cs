@@ -17,7 +17,7 @@ public sealed class BackendFailure(ConnectionState state, string message) : Exce
 public sealed record BackendSnapshot(SessionResponse Session, SystemStatusResponse System,
     WorkspaceSettingsResponse Workspace, ExchangeStatusResponse[] Exchanges, string Endpoint);
 
-public sealed class BackendClient(HttpClient http, ILocalConnectionFile connections)
+public sealed partial class BackendClient(HttpClient http, ILocalConnectionFile connections)
 {
     public Task<PaperAccountResponse> PaperAccountAsync(Guid workspace, CancellationToken ct) => SendAsync<PaperAccountResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/paper/account", null, ct);
     public Task<PaperAccountResponse> InitializePaperAsync(Guid workspace, InitializePaperRequest request, CancellationToken ct) =>

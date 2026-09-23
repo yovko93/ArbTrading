@@ -88,6 +88,8 @@ public partial class Program
         builder.Services.AddScoped<OrderBookService>();
         builder.Services.AddScoped<OpportunityCoordinator>();
         builder.Services.AddScoped<PaperStore>();
+        builder.Services.AddSingleton<SettlementMemory>();
+        builder.Services.AddScoped<SettlementCoordinator>();
         builder.Services.AddScoped<PaperCoordinator>();
         builder.Services.AddSingleton<PaperPreviewCache>();
         builder.Services.AddSingleton<PaperDiagnostics>();

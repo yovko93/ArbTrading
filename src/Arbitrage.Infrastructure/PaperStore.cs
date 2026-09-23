@@ -10,7 +10,7 @@ public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionE
 
 // SQLite serializable transactions acquire the writer reservation before reading balances. The unique
 // request index is the durable idempotency authority, including across scopes, restart and lost replies.
-public sealed class PaperStore(TradingDbContext db, RelationshipStore membership, TimeProvider clock)
+public sealed partial class PaperStore(TradingDbContext db, RelationshipStore membership, TimeProvider clock)
 {
     public Task<PaperGenerationEntry?> GenerationAsync(Guid workspace, Guid generation, CancellationToken ct) =>
         db.Set<PaperGenerationEntry>().AsNoTracking().SingleOrDefaultAsync(x => x.WorkspaceId == workspace && x.Id == generation, ct);
@@ -20,8 +20,9 @@ public sealed class PaperStore(TradingDbContext db, RelationshipStore membership
         db.Set<PaperGenerationEntry>().AsNoTracking().Where(x => x.WorkspaceId == workspace).OrderByDescending(x => x.CreatedAt).Take(100).ToArrayAsync(ct);
     public Task<PaperBalanceEntry[]> BalancesAsync(Guid generation, CancellationToken ct) =>
         db.Set<PaperBalanceEntry>().AsNoTracking().Where(x => x.GenerationId == generation).ToArrayAsync(ct);
-    public Task<PaperPositionEntry[]> PositionsAsync(Guid generation, CancellationToken ct) =>
-        db.Set<PaperPositionEntry>().AsNoTracking().Where(x => x.GenerationId == generation).OrderBy(x => x.Id).Take(1000).ToArrayAsync(ct);
+    public Task<PaperPositionEntry[]> PositionsAsync(Guid generation, CancellationToken ct, PaperPositionStatus? status = PaperPositionStatus.Open, int page = 1) =>
+        db.Set<PaperPositionEntry>().AsNoTracking().Where(x => x.GenerationId == generation && (status == null || x.Status == status))
+            .OrderBy(x => x.Id).Skip((page - 1) * 100).Take(100).ToArrayAsync(ct);
     public Task<PaperExecutionEntry[]> HistoryAsync(Guid workspace, Guid? generation, int page, CancellationToken ct) =>
         db.Set<PaperExecutionEntry>().AsNoTracking().Where(x => x.WorkspaceId == workspace && (generation == null || x.GenerationId == generation))
             .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Skip((page - 1) * 50).Take(50).ToArrayAsync(ct);
@@ -73,6 +74,9 @@ public sealed class PaperStore(TradingDbContext db, RelationshipStore membership
         var generation = await db.Set<PaperGenerationEntry>().SingleOrDefaultAsync(x => x.Id == generationId && x.WorkspaceId == workspace && x.ClosedAt == null, ct);
         if (generation is null) return new(PaperRejection.GenerationChanged);
         if (generation.Integrity != PaperIntegrity.Healthy) return new(PaperRejection.IntegrityFailure);
+        foreach (var market in plan.Fills.Select(f => (f.Instrument.Exchange, f.Instrument.NativeMarketId)).Distinct())
+            if (await db.Set<PaperResolutionEntry>().AnyAsync(r => r.GenerationId == generationId && r.Exchange == market.Exchange && r.MarketId == market.NativeMarketId, ct))
+                return new(PaperRejection.MarketAlreadyResolved);
         var error = await revalidate(ct);
         if (error != PaperRejection.None) return new(error);
         var balances = await db.Set<PaperBalanceEntry>().Where(b => b.GenerationId == generationId).ToArrayAsync(ct);
@@ -83,6 +87,8 @@ public sealed class PaperStore(TradingDbContext db, RelationshipStore membership
             RequestId = requestId, RequestFingerprint = fingerprint, OpportunityKey = plan.Proof.OpportunityKey, CreatedAt = now,
             State = PaperExecutionState.Committed, PlanJson = JsonSerializer.Serialize(plan) };
         db.Add(execution);
+        execution.SettlementMarketsJson = JsonSerializer.Serialize(await CaptureMarketsAsync(plan, ct));
+        generation.Revision = checked(generation.Revision + 1);
         var journal = new PaperTransactionEntry { Id = Guid.NewGuid(), GenerationId = generationId, ExecutionId = execution.Id,
             ActorId = actor, CreatedAt = now, Reason = "SnapshotPaperFill" };
         db.Add(journal);
@@ -119,7 +125,7 @@ public sealed class PaperStore(TradingDbContext db, RelationshipStore membership
                     (position.Quantity, position.CostBasis, position.Fees, position.AverageEntry) = value;
                     db.Add(new PaperFillEntry { Id = fill.Id, LegId = fill.LegId, FillJson = JsonSerializer.Serialize(fill) });
                 }
-                position.UpdatedAt = now;
+                position.UpdatedAt = now; position.Revision = checked(position.Revision + 1);
             }
         }
         catch (OverflowException) { return new(PaperRejection.ArithmeticOverflow); }
@@ -175,7 +181,7 @@ public sealed class PaperStore(TradingDbContext db, RelationshipStore membership
             {
                 var plan = JsonSerializer.Deserialize<PaperPlan>(execution.PlanJson)!;
                 var actual = fills.Where(f => legs.Any(l => l.ExecutionId == execution.Id && l.Id == f.LegId)).ToArray();
-                healthy &= execution.State == PaperExecutionState.Committed && plan.Id == execution.Id && actual.Length == plan.Fills.Length &&
+                healthy &= plan.Id == execution.Id && actual.Length == plan.Fills.Length &&
                     actual.All(f => plan.Fills.Any(p => JsonSerializer.Serialize(p) == JsonSerializer.Serialize(f))) && legs.Count(l => l.ExecutionId == execution.Id) == 2;
                 var journal = journals.SingleOrDefault(j => j.ExecutionId == execution.Id);
                 healthy &= journal is not null;
@@ -191,6 +197,7 @@ public sealed class PaperStore(TradingDbContext db, RelationshipStore membership
                     f.Sum(f => f.Notional + f.Fee) == p.CostBasis && f.Sum(f => f.Fee) == p.Fees && (p.CostBasis - p.Fees) / p.Quantity == p.AverageEntry;
             }
             healthy &= fills.All(f => positions.Any(p => p.Exchange == f.Instrument.Exchange && p.MarketId == f.Instrument.NativeMarketId && p.InstrumentId == f.Instrument.NativeInstrumentId && p.Outcome == f.Instrument.Outcome));
+            healthy &= await SettlementHealthyAsync(generation, executions, positions, journals, entries, ct);
         }
         catch (Exception ex) when (ex is JsonException or OverflowException or InvalidOperationException or NullReferenceException) { healthy = false; }
         // A flagged generation requires investigation/reset; a later good diagnostic never silently repairs it.

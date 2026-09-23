@@ -12,6 +12,7 @@ public sealed class PaperGenerationEntry
     public DateTimeOffset? ClosedAt { get; set; }
     public string Reason { get; set; } = "";
     public PaperIntegrity Integrity { get; set; }
+    public long Revision { get; set; }
 }
 public sealed class PaperBalanceEntry
 {
@@ -36,6 +37,9 @@ public sealed class PaperExecutionEntry
     public DateTimeOffset CreatedAt { get; set; }
     public string PlanJson { get; set; } = "";
     public PaperExecutionState State { get; set; }
+    public string SettlementMarketsJson { get; set; } = "[]";
+    public string? SettlementJson { get; set; }
+    public DateTimeOffset? SettledAt { get; set; }
 }
 public sealed class PaperLegEntry
 {
@@ -62,6 +66,7 @@ public sealed class PaperTransactionEntry
     public Guid GenerationId { get; set; }
     public Guid ActorId { get; set; }
     public Guid? ExecutionId { get; set; }
+    public Guid? ResolutionId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public string Reason { get; set; } = "";
 }
@@ -77,6 +82,12 @@ public sealed class PaperLedgerEntry
 }
 public sealed class PaperPositionEntry
 {
+    public PaperPositionStatus Status { get; set; }
+    public long Revision { get; set; }
+    public Guid? SettlementResolutionId { get; set; }
+    public DateTimeOffset? SettledAt { get; set; }
+    public decimal? SettlementPayout { get; set; }
+    public decimal? RealizedPnl { get; set; }
     public Guid Id { get; set; }
     public Guid GenerationId { get; set; }
     public string Exchange { get; set; } = "";
@@ -95,6 +106,7 @@ internal static class PaperModel
 {
     public static void Configure(ModelBuilder m)
     {
+        SettlementModel.Configure(m);
         m.Entity<PaperGenerationEntry>().HasKey(x => x.Id);
         m.Entity<PaperGenerationEntry>().HasIndex(x => x.WorkspaceId).IsUnique().HasFilter("\"ClosedAt\" IS NULL");
         m.Entity<PaperGenerationEntry>().HasOne<Arbitrage.Domain.Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);

@@ -7,8 +7,10 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.cs" Link="Desktop/BackendClient.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/Services/BackendClient.Settlement.cs" Link="Desktop/BackendClient.Settlement.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MainViewModel.cs" Link="Desktop/MainViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.cs" Link="Desktop/PaperTradingViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Settlement.cs" Link="Desktop/PaperTradingViewModel.Settlement.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ThemeSelectionViewModel.cs" Link="Desktop/ThemeSelectionViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ShellViewModel.cs" Link="Desktop/ShellViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MarketExplorerViewModel.cs" Link="Desktop/MarketExplorerViewModel.cs" />

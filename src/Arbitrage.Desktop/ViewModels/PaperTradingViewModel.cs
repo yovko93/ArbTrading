@@ -36,7 +36,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public string ExecutionText => SelectedExecution is not { } e ? "Select a historical execution." :
         $"{e.State} · {e.Id}\nActor {e.ActorId} · generation {e.GenerationId}\n{e.CreatedAt:O} · request {e.RequestId}\n" +
         $"Quantity {e.Quantity} · cost including fees {e.Cost}\nExpected payout at resolution {e.ExpectedPayoutAtResolution} · expected profit at resolution {e.ExpectedProfitAtResolution}\n" +
-        "Historical snapshot paper fill. No settlement or realized profit.\n" + string.Join("\n", e.Fills.Select(f =>
+        (e.Settlement is { } s ? $"Realized payout to date {s.RealizedPayoutToDate}; realized P&L to date {s.RealizedPnlToDate}; remaining open cost {s.RemainingOpenCostBasis}\nFinal realized profit {s.FinalRealizedProfit?.ToString() ?? "pending"}; return on cost {s.RealizedReturnOnCost}; expected/actual payout difference {s.ExpectedVsRealizedDifference}; settled {e.SettledAt:O}\n" : "Unresolved snapshot paper fill.\n") + string.Join("\n", e.Fills.Select(f =>
             $"{f.Exchange} {f.MarketId}/{f.InstrumentId} {f.Outcome}: BUY {f.Quantity} @ {f.Price}; fee {f.Fee} {f.Currency}; {f.LiquidityOrigin}; book {f.BookVersion}"));
     public PaperTradingViewModel(MainViewModel state, BackendClient backend)
     {
@@ -51,7 +51,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public static bool Eligible(OpportunityResponse? r) => EligibilityReason(r) == "Ready for a server-validated paper preview.";
     public void SelectOpportunity(OpportunityResponse value) { OpportunityKey = value.OpportunityKey; ClearPreview(); Notice = EligibilityReason(value); }
     public void Activate() { if (active || disposed) return; active = true; _ = PollAsync(++pollVersion); }
-    public void Deactivate() { active = false; pollVersion++; ClearPreview(); }
+    public void Deactivate() { active = false; pollVersion++; ClearPreview(); ClearResolutionPreview(); }
     private (Guid Workspace, long Access, string Instance)? Context() => !disposed && state.ConnectionStatus == "Connected" && state.HasSnapshot &&
         Guid.TryParse(state.WorkspaceIdentifier, out var id) ? (id, state.AccessGeneration, state.BackendInstance) : null;
     private async Task PollAsync(long version)
@@ -69,6 +69,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     private void AccessChanged(object? sender, EventArgs e)
     {
         lifetime.Cancel(); lifetime.Dispose(); lifetime = new(); ClearPreview(); Account = null; Positions.Clear(); Executions.Clear(); SelectedExecution = null;
+        ClearSettlement();
         Notice = "Workspace access changed; private paper data cleared.";
     }
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
@@ -78,7 +79,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     partial void OnAccountChanged(PaperAccountResponse? value) => OnPropertyChanged(nameof(AccountText));
     partial void OnPreviewChanged(PaperPreviewResponse? value) { OnPropertyChanged(nameof(PreviewText)); ExecuteCommand.NotifyCanExecuteChanged(); }
     partial void OnSelectedExecutionChanged(PaperExecutionResponse? value) => OnPropertyChanged(nameof(ExecutionText));
-    partial void OnBusyChanged(bool value) => ExecuteCommand.NotifyCanExecuteChanged();
+    partial void OnBusyChanged(bool value) { ExecuteCommand.NotifyCanExecuteChanged(); ConfirmResolutionCommand.NotifyCanExecuteChanged(); }
     [RelayCommand] private async Task RefreshAsync()
     {
         if (Busy || Context() is not { } context) return;
@@ -91,6 +92,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
             if (Account?.Generation?.Id != a.Generation?.Id && Account is not null) ClearPreview();
             Account = a; Positions.Clear(); foreach (var row in p) Positions.Add(row);
             Executions.Clear(); foreach (var row in h) Executions.Add(row);
+            await RefreshSettlementAsync();
         }
         catch (OperationCanceledException) { }
         catch (BackendFailure e) { if (Context() == context) Failure(e); }

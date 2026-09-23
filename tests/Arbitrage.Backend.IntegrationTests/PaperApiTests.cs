@@ -37,13 +37,13 @@ public sealed class PaperApiTests
         public Guid Relationship { get; private set; }
         public string Key { get; private set; } = "";
         public string Root => $"/api/v1/workspaces/{Session.DefaultWorkspaceId}";
-        public Case() => Fixture = new(s =>
+        public Case(bool preserveStorage = false) => Fixture = new(s =>
         {
             s.AddSingleton<TimeProvider>(Clock); s.RemoveAll<IOrderBookSource>(); s.RemoveAll<IMarketDiscoverySource>();
             s.AddSingleton<IOrderBookSource>(kalshi); s.AddSingleton<IOrderBookSource>(poly);
             s.AddSingleton<IMarketDiscoverySource>(kalshi); s.AddSingleton<IMarketDiscoverySource>(poly);
             s.AddSingleton<IPublicFeeSource>(kalshi); s.AddSingleton<IRelationshipMetadataSource>(kalshi); s.AddSingleton<IMarketWebSocketFactory>(kalshi);
-        });
+        }, preserveStorage: preserveStorage);
         public async Task Start(decimal money = 100, string currency = "USD", bool unresolved = false, bool manual = false)
         {
             Client = await Fixture.AuthenticatedClientAsync(); Session = (await Client.GetFromJsonAsync<SessionResponse>("/api/v1/session"))!;

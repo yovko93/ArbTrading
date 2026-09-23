@@ -1,5 +1,7 @@
 # Product scope and deferred phases
 
+Phase 04B now closes the paper lifecycle with explicit Manual Scenario Resolution, immutable settlement, cash payouts, partial/full execution settlement and realized performance by venue/currency. It supports standard binary 1/0 scenarios only. Automatic real-result ingestion, void/complex settlement, mark-to-market, real redemption/transfers/orders and Phase 04C remain deferred. See [paper architecture](PaperExecution.md).
+
 The eventual product covers all available Polymarket and Kalshi market categories, with single-market, multi-outcome, cross-exchange, logical, and combinatorial strategies and a future optimization-based solver. Intended initial capital is USD 5,000–25,000; this is planning context, not an assumed balance, allocation, or funding action.
 
 Paper, Manual, and Automatic are distinct modes. Phase 01A represents all three in the domain but accepts only the Paper environment; paper fills and all live execution capabilities are unavailable. Do not treat selecting Paper as an implemented simulator or silently downgrade an unavailable execution request.

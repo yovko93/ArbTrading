@@ -26,14 +26,16 @@ public static class PaperEndpoints
             catch (ArgumentException) { return Results.BadRequest(); }
             catch (PaperGenerationConflict) { return Results.Conflict(new { Code = "GenerationChanged" }); }
         });
+        group.MapSettlement();
         group.MapGet("/account", Account);
         group.MapPost("/account/initialize", Initialize);
         group.MapPost("/account/reset", Initialize);
-        group.MapGet("/positions", async (Guid workspaceId, Guid? generationId, PaperStore store, CancellationToken ct) =>
+        group.MapGet("/positions", async (Guid workspaceId, Guid? generationId, string? status, int? page, PaperStore store, CancellationToken ct) =>
         {
+            if (page is < 1 or > 100000 || status is not (null or "Open" or "Settled" or "All")) return Results.BadRequest();
             var generation = await ResolveGeneration(store, workspaceId, generationId, ct);
-            return Results.Ok(generation is null ? [] : (await store.PositionsAsync(generation.Id, ct)).Select(p => new PaperPositionResponse(p.Id, p.GenerationId,
-                p.Exchange, p.MarketId, p.InstrumentId, p.Outcome, p.Currency, p.Quantity, p.CostBasis, p.Fees, p.AverageEntry, p.OpenedAt, p.UpdatedAt)).ToArray());
+            return Results.Ok(generation is null ? [] : (await store.PositionsAsync(generation.Id, ct,
+                status == "All" ? null : status == "Settled" ? PaperPositionStatus.Settled : PaperPositionStatus.Open, page ?? 1)).Select(SettlementEndpoints.Position).ToArray());
         });
         group.MapGet("/executions", async (Guid workspaceId, Guid? generationId, int? page, PaperStore store, CancellationToken ct) =>
             page is < 1 or > 100000 ? Results.BadRequest() : Results.Ok((await store.HistoryAsync(workspaceId, generationId, page ?? 1, ct)).Select(Execution).ToArray()));
@@ -90,6 +92,7 @@ public static class PaperEndpoints
     {
         var p = JsonSerializer.Deserialize<PaperPlan>(row.PlanJson)!;
         return new(row.Id, row.RequestId, row.GenerationId, row.ActorId, row.CreatedAt, row.State.ToString(), row.OpportunityKey, p.Quantity,
-            p.Cost, p.ExpectedPayoutAtResolution, p.ExpectedProfitAtResolution, p.Fills.Select(Fill).ToArray(), OpportunityEndpoints.Map(p.Proof));
+            p.Cost, p.ExpectedPayoutAtResolution, p.ExpectedProfitAtResolution, p.Fills.Select(Fill).ToArray(), OpportunityEndpoints.Map(p.Proof),
+            row.SettlementJson is null ? null : SettlementEndpoints.Economics(JsonSerializer.Deserialize<ExecutionSettlement>(row.SettlementJson)!), row.SettledAt);
     }
 }

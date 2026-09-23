@@ -88,7 +88,7 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
             plan?.Proof.GrossCost, plan?.Proof.Fees?.TotalExchangeFees, plan?.Cost, plan?.ExpectedPayoutAtResolution, plan?.ExpectedProfitAtResolution,
             plan is null ? null : OpportunityEndpoints.Map(plan.Proof),
             ["PAPER SIMULATION — no real orders submitted.", "Snapshot Paper Fill / Immediate Taker Simulation. No latency, market impact or fill certainty is modeled.",
-                "Expected payout and profit at resolution are projections only. No settlement or realized profit is implemented."]);
+                "Expected payout and profit are projections. Realization requires a separate explicit Manual Scenario Resolution."]);
     }
     private async Task<PaperPlanResult> PlanAsync(Guid actor, Guid workspace, PaperPreviewRequest request, CancellationToken ct)
     {

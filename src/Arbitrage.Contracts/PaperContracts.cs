@@ -8,7 +8,8 @@ public sealed record PaperBalanceResponse(string Exchange, string Currency, deci
 public sealed record PaperGenerationResponse(Guid Id, DateTimeOffset CreatedAt, DateTimeOffset? ClosedAt, string Reason, string Integrity);
 public sealed record PaperAccountResponse(string State, PaperGenerationResponse? Generation, PaperBalanceResponse[] Balances, PaperGenerationResponse[] History);
 public sealed record PaperPositionResponse(Guid Id, Guid GenerationId, string Exchange, string MarketId, string InstrumentId, string Outcome, string Currency,
-    decimal Quantity, decimal CostBasis, decimal Fees, decimal AverageEntry, DateTimeOffset OpenedAt, DateTimeOffset UpdatedAt);
+    decimal Quantity, decimal CostBasis, decimal Fees, decimal AverageEntry, DateTimeOffset OpenedAt, DateTimeOffset UpdatedAt,
+    string Status = "Open", DateTimeOffset? SettledAt = null, decimal? SettlementPayout = null, decimal? RealizedPnl = null, Guid? SettlementResolutionId = null, string? ResolutionSource = null);
 public sealed record PaperFillResponse(Guid Id, Guid LegId, string Exchange, string MarketId, string InstrumentId, string Outcome, string Action,
     decimal Quantity, decimal Price, decimal Notional, decimal Fee, string Currency, string LiquidityOrigin, OpportunityLiquidityResponse NativeLiquidityIdentity,
     long BookVersion, DateTimeOffset FilledAt);
@@ -19,7 +20,9 @@ public sealed record PaperPreviewResponse(Guid PreviewId, Guid? GenerationId, Da
     OpportunityResponse? Proof, string[] Warnings);
 public sealed record PaperExecutionResponse(Guid Id, Guid RequestId, Guid GenerationId, Guid ActorId, DateTimeOffset CreatedAt, string State,
     string OpportunityKey, decimal Quantity, decimal Cost, decimal ExpectedPayoutAtResolution, decimal ExpectedProfitAtResolution,
-    PaperFillResponse[] Fills, OpportunityResponse Proof);
+    PaperFillResponse[] Fills, OpportunityResponse Proof, PaperExecutionSettlementResponse? Settlement = null, DateTimeOffset? SettledAt = null);
 public sealed record PaperCommitResponse(string State, string Rejection, bool Duplicate, PaperExecutionResponse? Execution);
 public sealed record PaperIntegrityResponse(Guid GenerationId, string Integrity);
 public sealed record PaperDiagnosticsResponse(long Attempts, long Committed, long Rejected, long InsufficientFunds, long StaleInputs, long Duplicates, long IntegrityFailures);
+public sealed record PaperExecutionSettlementResponse(string State, decimal RealizedPayoutToDate, decimal RealizedPnlToDate, decimal RemainingOpenCostBasis,
+    decimal ExpectedRemainingPayout, decimal? FinalRealizedProfit, decimal? RealizedReturnOnCost, decimal? ExpectedVsRealizedDifference);

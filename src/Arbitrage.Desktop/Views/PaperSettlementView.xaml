@@ -1,0 +1,59 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.PaperSettlementView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:views="clr-namespace:Arbitrage.Desktop.Views">
+ <UserControl.Resources>
+  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}"><Setter Property="RowHeight" Value="30"/><Setter Property="ColumnHeaderHeight" Value="32"/><Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/></Style>
+  <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="Padding" Value="8,4"/></Style>
+  <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
+    <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+     <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"><TextBlock Text="▾" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0" Foreground="{DynamicResource PrimaryText}"/></Border></ControlTemplate></ToggleButton.Template>
+    </ToggleButton>
+    <ContentPresenter Content="{Binding SelectedItem, RelativeSource={RelativeSource TemplatedParent}}" ContentTemplate="{TemplateBinding ItemTemplate}" Margin="8,0,25,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+    <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
+     <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1"><ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer></Border>
+    </Popup>
+   </Grid><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </UserControl.Resources>
+ <StackPanel>
+  <TextBlock Text="Simulated Resolution · MANUAL PAPER SCENARIO" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="PAPER SIMULATION ONLY. This does not report or alter the real exchange. Confirmed scenarios cannot be changed; use another generation to test another outcome." TextWrapping="Wrap" Margin="0,8"/>
+  <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+  <WrapPanel Margin="0,8"><TextBlock Text="Paper generation" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding Account.History}" SelectedItem="{Binding SettlementGeneration}" Width="320" Margin="8,0" AutomationProperties.Name="Settlement generation"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Id}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+   <Button Content="Refresh settlement data" Command="{Binding RefreshSettlementCommand}"/>
+  </WrapPanel>
+  <Border Style="{StaticResource CardBorder}"><StackPanel>
+   <WrapPanel><ComboBox ItemsSource="{Binding ResolutionCandidates}" SelectedItem="{Binding SelectedCandidate}" Width="280" AutomationProperties.Name="Unresolved paper market"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding MarketId}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+    <ComboBox ItemsSource="{Binding SelectedCandidate.Outcomes}" SelectedItem="{Binding WinningOutcome}" Width="180" Margin="8,0" AutomationProperties.Name="Simulated winning outcome"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Outcome}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+    <Button Content="Preview Resolution" Command="{Binding PreviewResolutionCommand}"/><Button Content="Confirm Paper Resolution" Command="{Binding ConfirmResolutionCommand}" Margin="8,0"/>
+   </WrapPanel>
+   <WrapPanel Margin="0,8"><Button Content="Previous markets" Command="{Binding PreviousCandidatesCommand}"/><TextBlock Text="{Binding CandidatePage}" Margin="10,0"/><Button Content="Next markets" Command="{Binding NextCandidatesCommand}"/></WrapPanel>
+   <TextBlock Text="{Binding CandidateText}" TextWrapping="Wrap" Margin="0,8"/>
+   <TextBlock Text="{Binding ResolutionPreviewText}" TextWrapping="Wrap" Margin="0,8"/>
+  </StackPanel></Border>
+  <TextBlock Text="Paper position history · original quantity and fee-inclusive cost retained" Style="{StaticResource MetricText}"/>
+  <WrapPanel Margin="0,8"><ComboBox ItemsSource="{Binding PositionFilters}" SelectedItem="{Binding PositionFilter}" Width="140" AutomationProperties.Name="Position status filter"/><Button Content="Refresh positions" Command="{Binding RefreshSettlementCommand}" Margin="8,0"/><Button Content="Previous positions" Command="{Binding PreviousPositionsCommand}"/><TextBlock Text="{Binding PositionPage}" Margin="10,0"/><Button Content="Next positions" Command="{Binding NextPositionsCommand}"/></WrapPanel>
+  <DataGrid ItemsSource="{Binding PositionHistory}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180" AutomationProperties.Name="Open and settled paper positions">
+   <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="120"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="90"/><DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="90"/><DataGridTextColumn Header="State" Binding="{Binding Status}" Width="90"/><DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="90"/><DataGridTextColumn Header="Cost basis" Binding="{Binding CostBasis}" Width="110"/><DataGridTextColumn Header="Payout" Binding="{Binding SettlementPayout}" Width="90"/><DataGridTextColumn Header="Realized P&amp;L" Binding="{Binding RealizedPnl}" Width="130"/><DataGridTextColumn Header="Settled UTC" Binding="{Binding SettledAt}" Width="180"/><DataGridTextColumn Header="Source" Binding="{Binding ResolutionSource}" Width="140"/></DataGrid.Columns>
+  </DataGrid>
+  <TextBlock Text="Settlement history · Manual Scenario Resolution" Style="{StaticResource MetricText}" Margin="0,12,0,8"/>
+  <DataGrid ItemsSource="{Binding Resolutions}" SelectedItem="{Binding SelectedResolution}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="150" AutomationProperties.Name="Paper settlement history">
+   <DataGrid.Columns><DataGridTextColumn Header="Recorded UTC" Binding="{Binding RecordedAt}" Width="180"/><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="120"/><DataGridTextColumn Header="Market" Binding="{Binding MarketId}" Width="200"/><DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="140"/><DataGridTextColumn Header="Generation" Binding="{Binding GenerationId}" Width="280"/></DataGrid.Columns>
+  </DataGrid>
+  <WrapPanel Margin="0,8"><Button Content="Previous settlements" Command="{Binding PreviousSettlementsCommand}"/><TextBlock Text="{Binding SettlementPage}" Margin="10,0"/><Button Content="Next settlements" Command="{Binding NextSettlementsCommand}"/></WrapPanel>
+  <TextBlock Text="{Binding ResolutionDetailText}" TextWrapping="Wrap" Margin="0,8"/>
+  <TextBlock Text="Paper Performance · realized accounting values" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="{Binding PerformanceText}" TextWrapping="Wrap" Margin="0,8"/>
+  <DataGrid ItemsSource="{Binding Performance.Buckets}" SelectedItem="{Binding SelectedBucket}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180" AutomationProperties.Name="Performance by venue and currency">
+   <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="120"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="90"/><DataGridTextColumn Header="Starting capital" Binding="{Binding StartingCash}" Width="130"/><DataGridTextColumn Header="Current cash" Binding="{Binding CurrentCash}" Width="130"/><DataGridTextColumn Header="Open cost" Binding="{Binding OpenCostBasis}" Width="110"/><DataGridTextColumn Header="Realized P&amp;L" Binding="{Binding CumulativeRealizedPnl}" Width="130"/><DataGridTextColumn Header="Open executions" Binding="{Binding CommittedExecutionCount}" Width="140"/><DataGridTextColumn Header="Partial" Binding="{Binding PartiallySettledExecutionCount}" Width="80"/><DataGridTextColumn Header="Settled" Binding="{Binding SettledExecutionCount}" Width="80"/></DataGrid.Columns>
+  </DataGrid>
+  <WrapPanel Margin="0,8"><TextBlock Text="Selected series:"/><TextBlock Text="{Binding SelectedBucket.Exchange}" Margin="8,0"/><TextBlock Text="{Binding SelectedBucket.Currency}"/><Button Content="Load selected curve" Command="{Binding RefreshCurveCommand}" Margin="8,0"/><Button Content="Previous curve" Command="{Binding PreviousCurveCommand}"/><TextBlock Text="{Binding CurvePage}" Margin="10,0"/><Button Content="Next curve" Command="{Binding NextCurveCommand}"/></WrapPanel>
+  <views:PaperPerformanceChart Points="{Binding CurvePoints}" Height="100" Margin="0,8" AutomationProperties.Name="Realized performance curve; exact values in following table"/>
+  <DataGrid ItemsSource="{Binding CurvePoints}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180" AutomationProperties.Name="Realized performance and cash curve values">
+   <DataGrid.Columns><DataGridTextColumn Header="UTC" Binding="{Binding Timestamp}" Width="180"/><DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="170"/><DataGridTextColumn Header="Cash" Binding="{Binding CashAvailable}" Width="120"/><DataGridTextColumn Header="Realized delta" Binding="{Binding RealizedPnlDelta}" Width="130"/><DataGridTextColumn Header="Cumulative P&amp;L" Binding="{Binding CumulativeRealizedPnl}" Width="140"/><DataGridTextColumn Header="Realized performance" Binding="{Binding RealizedPerformance}" Width="180"/></DataGrid.Columns>
+  </DataGrid>
+ </StackPanel>
+</UserControl>

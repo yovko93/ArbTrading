@@ -10,9 +10,9 @@ public enum PaperRejection
     BookUnavailable, BookStale, BookContinuityInsufficient, MarketDataChanged, BookSkewTooLarge, LiquidityConflict,
     InsufficientDepth, RequestedQuantityInvalid, InsufficientPaperFunds, FeeModelUnresolved, FeeAdjustedNoEdge,
     FeeChanged, CurrencyModelUnsupported, ArithmeticOverflow, DuplicateRequest, AccountUninitialized,
-    GenerationChanged, PreviewExpired, IntegrityFailure, ConfirmationRequired
+    GenerationChanged, PreviewExpired, IntegrityFailure, ConfirmationRequired, MarketAlreadyResolved
 }
-public enum PaperExecutionState { PendingValidation, Rejected, Committed, Settled }
+public enum PaperExecutionState { PendingValidation, Rejected, Committed, Settled, PartiallySettled }
 public enum PaperIntegrity { Healthy, NeedsReconciliation, Corrupt }
 public sealed record PaperFill(Guid Id, Guid LegId, OrderBookInstrumentId Instrument, decimal Quantity, decimal Price,
     decimal Notional, decimal Fee, string Currency, LiquidityOrigin Origin, LiquiditySourceId NativeLiquidityIdentity,
@@ -119,7 +119,7 @@ public static class PaperAccounting
         if (amount < 0 || available < amount) throw new InvalidOperationException("Insufficient paper funds.");
         return checked(available - amount);
     }
-    // Cost basis includes modeled fees. Average entry excludes fees; no realization or settlement exists.
+    // Cost basis includes modeled fees. Average entry excludes fees.
     public static (decimal Quantity, decimal CostBasis, decimal Fees, decimal AverageEntry) Accumulate(
         decimal quantity, decimal costBasis, decimal fees, PaperFill fill)
     {

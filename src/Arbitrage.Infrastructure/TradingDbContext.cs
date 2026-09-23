@@ -44,6 +44,7 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> options,
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        PaperModel.Configure(model);
         model.Entity<MonitoringProfileEntry>().HasKey(x => x.WorkspaceId);
         model.Entity<MonitoringProfileEntry>().HasOne<Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<MonitoringAlertEntry>().HasKey(x => x.Id);

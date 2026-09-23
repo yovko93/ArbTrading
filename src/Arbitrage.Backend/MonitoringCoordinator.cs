@@ -281,6 +281,10 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
         }
         return [.. validated];
     }
+    public ArbitrageOpportunitySnapshot? CurrentSnapshot(Guid workspace, string key)
+    {
+        lock (gate) return run?.Workspace == workspace ? run.Results.GetValueOrDefault(key)?.Result : null;
+    }
     private async Task AlertAsync(Run r, MonitoredOpportunity item, MonitoringProfile settings, long capturedEpoch, MonitoringStore store, CancellationToken ct)
     {
         foreach (var lane in new[] { RankingLane.FeeAdjusted, RankingLane.GrossOnly })

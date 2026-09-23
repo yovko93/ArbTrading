@@ -12,8 +12,11 @@ namespace Arbitrage.Backend.IntegrationTests;
 public sealed class BackendFixture : WebApplicationFactory<Program>
 {
     private readonly Action<IServiceCollection>? configureServices;
-    public BackendFixture(Action<IServiceCollection>? configureServices = null) => this.configureServices = configureServices;
-    public string Root { get; } = Path.Combine(Path.GetTempPath(), "ArbitrageTrading-tests", Guid.NewGuid().ToString("N"));
+    private readonly bool preserveStorage;
+    private readonly bool waitForCredentialRotation;
+    public BackendFixture(Action<IServiceCollection>? configureServices = null, string? root = null, bool preserveStorage = false)
+    { this.configureServices = configureServices; this.preserveStorage = preserveStorage; waitForCredentialRotation = root is not null; Root = root ?? Path.Combine(Path.GetTempPath(), "ArbitrageTrading-tests", Guid.NewGuid().ToString("N")); }
+    public string Root { get; }
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         if (configureServices is not null) builder.ConfigureTestServices(configureServices);
@@ -32,7 +35,15 @@ public sealed class BackendFixture : WebApplicationFactory<Program>
         LocalConnection? connection = null;
         for (var attempt = 0; attempt < 100; attempt++)
         {
-            try { connection = await file.ReadAsync(default); break; }
+            try
+            {
+                connection = await file.ReadAsync(default);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", connection.Credential);
+                if (!waitForCredentialRotation) break;
+                using var ready = await client.GetAsync("/api/v1/session");
+                if (ready.IsSuccessStatusCode) break;
+                connection = null; await Task.Delay(20);
+            }
             catch (IOException) { await Task.Delay(20); }
         }
         if (connection is null) throw new InvalidOperationException("Backend did not publish connection metadata.");
@@ -49,6 +60,15 @@ public sealed class BackendFixture : WebApplicationFactory<Program>
     public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
+        if (preserveStorage)
+        {
+            for (var attempt = 0; ; attempt++)
+            {
+                try { using var lease = new LocalRuntimeLease(Path.Combine(Root, "backend"), Path.Combine(Root, "runtime")); break; }
+                catch (IOException) when (attempt < 100) { await Task.Delay(20); }
+            }
+            return;
+        }
         // WebApplicationFactory stops the host before the entry-point finally releases its lease.
         for (var attempt = 0; Directory.Exists(Root); attempt++)
         {

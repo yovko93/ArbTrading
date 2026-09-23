@@ -95,6 +95,7 @@ public static class CatalogSemantics
 
 public sealed class RelationshipStore(TradingDbContext db, TimeProvider clock) : IRelationshipProvider
 {
+    public bool PersistEvaluationStaleness { get; set; } = true;
     public async Task RequireMemberAsync(Guid actor, Guid workspace, bool owner, CancellationToken ct)
     {
         if (!await db.Memberships.AnyAsync(m => m.UserId == actor && m.WorkspaceId == workspace && (!owner || m.Role == WorkspaceRole.Owner), ct))
@@ -229,7 +230,7 @@ public sealed class RelationshipStore(TradingDbContext db, TimeProvider clock) :
     public async Task<ApprovedRelationshipPage> ReadEvaluationPageAsync(Guid actorId, Guid workspaceId, bool includeManual,
         Guid? relationshipId, string? exchange, int skip, int take, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         await RequireMemberAsync(actorId, workspaceId, false, ct);
         var query = Query(workspaceId).AsNoTracking().Include(r => r.Mappings).Where(r => r.State == VerificationState.VerifiedDeterministic || includeManual && r.State == VerificationState.VerifiedManual);
         if (relationshipId is { } id) query = query.Where(r => r.Id == id);
@@ -244,10 +245,11 @@ public sealed class RelationshipStore(TradingDbContext db, TimeProvider clock) :
             if (current is null || row.PolicyVersion != RelationshipPolicy.Version ||
                 RelationshipPolicy.Fingerprint(current.Value.A) != row.SourceFingerprint || RelationshipPolicy.Fingerprint(current.Value.B) != row.TargetFingerprint)
             {
-                await Query(workspaceId).Where(r => r.Id == row.Id).ExecuteUpdateAsync(s => s.SetProperty(r => r.State, VerificationState.Stale), ct);
+                if (PersistEvaluationStaleness)
+                    await Query(workspaceId).Where(r => r.Id == row.Id).ExecuteUpdateAsync(s => s.SetProperty(r => r.State, VerificationState.Stale), ct);
                 // Keep any caller's tracked view consistent without using it as the read authority.
                 var tracked = db.ChangeTracker.Entries<MarketRelationshipEntry>().FirstOrDefault(e => e.Entity.Id == row.Id);
-                if (tracked is not null) { var state = tracked.Property(r => r.State); state.CurrentValue = state.OriginalValue = VerificationState.Stale; state.IsModified = false; }
+                if (PersistEvaluationStaleness && tracked is not null) { var state = tracked.Property(r => r.State); state.CurrentValue = state.OriginalValue = VerificationState.Stale; state.IsModified = false; }
                 continue;
             }
             if (!RelationshipPolicy.IsStrategyEligible(row.Type, row.State)) continue;
@@ -264,7 +266,8 @@ public sealed class RelationshipStore(TradingDbContext db, TimeProvider clock) :
                     Mappings = row.Mappings.OrderBy(m => m.SourceOutcomeId, StringComparer.Ordinal).ThenBy(m => m.TargetOutcomeId, StringComparer.Ordinal).ThenBy(m => m.Type).Select(m => new { m.SourceOutcomeId, m.TargetOutcomeId, m.Type }) })))
             });
         }
-        await transaction.CommitAsync(ct); return new(result, rows.Length, hasMore);
+        if (transaction is not null) await transaction.CommitAsync(ct);
+        return new(result, rows.Length, hasMore);
     }
 }
 public sealed class RelationshipConflictException : Exception;

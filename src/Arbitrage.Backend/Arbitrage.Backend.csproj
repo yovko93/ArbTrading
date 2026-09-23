@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <ProjectReference Include="../Arbitrage.Execution/Arbitrage.Execution.csproj" />
     <ProjectReference Include="../Arbitrage.Strategies/Arbitrage.Strategies.csproj" />
     <ProjectReference Include="../Arbitrage.Infrastructure/Arbitrage.Infrastructure.csproj" />
     <ProjectReference Include="../Arbitrage.Contracts/Arbitrage.Contracts.csproj" />

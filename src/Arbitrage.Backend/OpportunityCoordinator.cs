@@ -14,7 +14,7 @@ public sealed class OpportunityCoordinator(IRelationshipProvider relationships, 
         foreach (var leg in result.Legs) schedules.Add(FeeScheduleResolver.Resolve(await fees.ReadAsync(leg.Instrument.Exchange, leg.Instrument.NativeMarketId, ct), clock.GetUtcNow()));
         var profile = await fees.ReadProfileAsync(workspace, ct);
         return result with { Fees = FeeOpportunityEvaluator.Evaluate(result, schedules, profile.Profile, minimumEdge) with { ProfileRevision = profile.Revision },
-            Warnings = [.. result.Warnings.Select(w => w.StartsWith("PRE-FEE:", StringComparison.Ordinal) ? "Gross values exclude fees; see the separate fee result. Balances and execution remain unavailable." : w)] };
+            Warnings = [.. result.Warnings.Select(w => w.StartsWith("PRE-FEE:", StringComparison.Ordinal) ? "Gross values exclude fees; see the separate fee result. Paper execution requires separate explicit confirmation; live execution is unavailable." : w)] };
     }
     public async Task<ArbitrageOpportunitySnapshot> EvaluateAsync(Guid actor, Guid workspace, OpportunityPlan plan,
         OpportunitySettings settings, bool manual, CancellationToken ct)

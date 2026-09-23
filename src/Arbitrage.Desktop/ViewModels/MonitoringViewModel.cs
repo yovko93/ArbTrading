@@ -17,6 +17,10 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
     private DateTimeOffset lastRead;
     public ObservableCollection<MonitoringRankingResponse> Items { get; } = [];
     public ObservableCollection<MonitoringAlertResponse> Alerts { get; } = [];
+    public Action<OpportunityResponse>? PaperRequested { get; set; }
+    public string PaperReason => PaperTradingViewModel.EligibilityReason(Selected?.Opportunity);
+    private bool CanPaperPreview() => PaperRequested is not null && PaperTradingViewModel.Eligible(Selected?.Opportunity);
+    [RelayCommand(CanExecute = nameof(CanPaperPreview))] private void PaperPreview() { if (Selected is { } r) PaperRequested?.Invoke(r.Opportunity); }
     public string[] Lanes { get; } = ["All", "FeeAdjusted", "GrossOnly", "NearEdge", "Blocked"];
     public string[] Sorts { get; } = ["default", "grossProfit", "grossEdge", "feeAdjustedProfit", "feeAdjustedEdge", "quantity", "nearEdgeDistance", "updated"];
     public string[] Strategies { get; } = ["All", "CrossMarketBuyBothComplements", "CrossMarketSameOutcomeSpread", "SingleMarketBinaryComplement"];
@@ -49,7 +53,7 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
         $"{r.Lane} · {r.Opportunity.Strategy} · {r.Opportunity.RelationshipTrust} trust\n{r.Opportunity.SourceTitle}\n{r.Opportunity.TargetTitle}\n" +
         $"Key {r.Opportunity.OpportunityKey}\n{r.Opportunity.Status} · {r.Opportunity.InputQuality} · {r.AlertState}\n" +
         $"Best edge {r.BestEdge?.ToString() ?? "Unknown"} · required {r.RequiredEdge?.ToString() ?? "Unknown"} · distance {r.Distance?.ToString() ?? "Unknown"}\n" +
-        string.Join("\n", r.Opportunity.Blockers.Concat(r.Opportunity.Warnings)) + "\nModeled read-only estimate. Net profit unknown; execution unavailable.";
+        string.Join("\n", r.Opportunity.Blockers.Concat(r.Opportunity.Warnings)) + "\nModeled read-only estimate. Net profit unknown; live execution unavailable. Paper preview requires explicit confirmation.";
     public MonitoringViewModel(MainViewModel state, BackendClient backend)
     {
         this.state = state; this.backend = backend;
@@ -134,7 +138,7 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
     partial void OnAlertPageChanged(int value) { InvalidateRead(); OnPropertyChanged(nameof(AlertPageLabel)); }
     partial void OnAlertTotalChanged(int value) => OnPropertyChanged(nameof(AlertPageLabel));
     partial void OnStatusChanged(MonitoringStatusResponse? value) => OnPropertyChanged(nameof(CoverageText));
-    partial void OnSelectedChanged(MonitoringRankingResponse? value) => OnPropertyChanged(nameof(Detail));
+    partial void OnSelectedChanged(MonitoringRankingResponse? value) { OnPropertyChanged(nameof(Detail)); OnPropertyChanged(nameof(PaperReason)); PaperPreviewCommand.NotifyCanExecuteChanged(); }
     private void InvalidateRead() { readGeneration++; dirty = true; Items.Clear(); Selected = null; }
     private void Failure(BackendFailure f)
     {

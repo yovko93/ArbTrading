@@ -74,6 +74,11 @@ public sealed class OpportunityJobs(IServiceScopeFactory scopes, TimeProvider cl
         }
         return snapshot is null ? null : OpportunityEndpoints.Map(await coordinator.ValidateAsync(actor, workspace, snapshot, manual, false, ct));
     }
+    public ArbitrageOpportunitySnapshot? CurrentSnapshot(Guid workspace, string key)
+    {
+        lock (gate) return runs.Values.Where(r => r.Workspace == workspace).OrderByDescending(r => r.Status.StartedAt)
+            .SelectMany(r => r.Results).FirstOrDefault(r => r.OpportunityKey == key);
+    }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await foreach (var run in queue.Reader.ReadAllAsync(stoppingToken)) await EvaluateAsync(run, stoppingToken); }

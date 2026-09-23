@@ -43,8 +43,8 @@ public sealed class ApiTests
         Assert.Equal("Local", session.DeploymentMode); Assert.Equal("Healthy", status.PersistenceState);
         Assert.True(status.UptimeSeconds >= 0); Assert.NotEqual("unknown", status.BackendVersion);
         Assert.Equal("Paper", mode.ConfiguredMode); Assert.Equal("Paper", mode.EffectiveMode);
-        Assert.Equal(Capabilities.Phase01A, mode.Capabilities); Assert.Equal(Capabilities.Phase01A, status.Capabilities);
-        Assert.False(mode.Capabilities.PaperExecutionImplemented); Assert.False(mode.Capabilities.LiveOrderSubmissionAvailable);
+        Assert.Equal(Capabilities.Phase04A, mode.Capabilities); Assert.Equal(Capabilities.Phase04A, status.Capabilities);
+        Assert.True(mode.Capabilities.PaperExecutionImplemented); Assert.False(mode.Capabilities.LiveOrderSubmissionAvailable);
         Assert.False(mode.Capabilities.ManualLiveExecutionAvailable); Assert.False(mode.Capabilities.AutomaticLiveExecutionAvailable);
         Assert.Equal(new[] { "Polymarket", "Kalshi" }, exchanges.Select(e => e.Exchange));
         Assert.All(exchanges, e => Assert.Equal("PublicCatalog", e.IntegrationState));

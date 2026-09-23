@@ -36,7 +36,8 @@ public sealed class DesktopClientTests
         using var model = new MainViewModel(client, NullLogger<MainViewModel>.Instance);
         await model.InitializeAsync(default);
         Assert.Equal("Connected", model.ConnectionStatus); Assert.Equal("Healthy", model.Persistence);
-        Assert.Equal("Paper", model.TradingMode); Assert.Contains("not implemented", model.Execution);
+        Assert.Equal("Paper", model.TradingMode); Assert.Equal("Paper execution available", model.Execution);
+        Assert.Equal("Unavailable", model.LiveExecutionLabel);
         Assert.Contains("Polymarket: PublicCatalog", model.Exchanges); Assert.True(model.CanEdit);
         model.WorkspaceName = "Desktop command test";
         await model.SaveCommand.ExecuteAsync(null);

@@ -4,6 +4,7 @@ public sealed record Capabilities(bool WorkspaceSettings, bool PaperExecutionImp
     bool LiveOrderSubmissionAvailable, bool ManualLiveExecutionAvailable, bool AutomaticLiveExecutionAvailable)
 {
     public static Capabilities Phase01A { get; } = new(true, false, false, false, false);
+    public static Capabilities Phase04A { get; } = new(true, true, false, false, false);
 }
 public sealed record SessionResponse(Guid UserId, Guid DefaultWorkspaceId, string DeploymentMode, Capabilities Capabilities);
 public sealed record SystemStatusResponse(string BackendVersion, double UptimeSeconds, string PersistenceState,

@@ -99,6 +99,11 @@ public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics, Backen
     private readonly Channel<Dispatch> queue = Channel.CreateBounded<Dispatch>(new BoundedChannelOptions(256)
     { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
     public ChannelReader<Dispatch> Reader => queue.Reader;
+    public void PaperChanged(Guid workspace)
+    {
+        foreach (var kind in new[] { "PaperAccountChanged", "PaperPositionsChanged", "PaperExecutionChanged" })
+            Enqueue(new(workspace, new(instance.Id, workspace, kind)));
+    }
 
     public void WorkspaceChanged(Guid instanceId, Guid workspaceId, string? correlationId)
     {

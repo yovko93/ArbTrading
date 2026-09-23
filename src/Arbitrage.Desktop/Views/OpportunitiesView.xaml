@@ -54,7 +54,7 @@
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="180"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <StackPanel>
    <TextBlock Text="Gross and fee-adjusted opportunities" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}"/>
-   <TextBlock Text="PRE-FEE gross values remain independent · Net profit unknown · Execution unavailable" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
+   <TextBlock Text="PRE-FEE gross values remain independent · Net profit unknown · Live execution unavailable; paper preview is explicit" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
    <TextBlock Text="Fee-aware results are modeled estimates. Diagnostics include gross opportunities with unknown fees and gross edges removed by fees." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
    <WrapPanel Margin="0,8">
     <TextBox Text="{Binding RelationshipId, UpdateSourceTrigger=PropertyChanged}" Width="265" AutomationProperties.Name="Selected relationship ID" ToolTip="Paste a verified relationship ID from Market Matching"/>
@@ -117,6 +117,7 @@
   <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
    <StackPanel>
     <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/>
+    <WrapPanel Margin="0,8"><Button Content="Paper preview…" Command="{Binding PaperPreviewCommand}"/><TextBlock Text="{Binding PaperReason}" Margin="8,0" VerticalAlignment="Center"/></WrapPanel>
     <TextBlock Text="Consumed paired depth — exact decimal values" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}" Margin="0,12,0,4"/>
     <DataGrid ItemsSource="{Binding Selected.Segments}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Consumed paired depth"/>
    </StackPanel>

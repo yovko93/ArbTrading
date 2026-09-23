@@ -44,7 +44,7 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty] private string pageTitle = "Dashboard";
 
     public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics,
-        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null, FeeProfileViewModel? fees = null)
+        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null, FeeProfileViewModel? fees = null, PaperTradingViewModel? paper = null)
     {
         State = state; Theme = theme; LocalBackend = localBackend;
         pages = new()
@@ -60,6 +60,16 @@ public partial class ShellViewModel : ObservableObject
             [PageDestination.Portfolio] = new UnavailablePageViewModel("Portfolio", "Review positions, balances, and execution history.", "Exchange accounts and portfolio ingestion are not implemented."),
             [PageDestination.Analytics] = new UnavailablePageViewModel("Analytics", "Analyze actual historical performance when it exists.", "Market recording and execution history are not implemented.")
         };
+        if (paper is not null)
+        {
+            pages[PageDestination.Trading] = paper; pages[PageDestination.Portfolio] = paper;
+            if (opportunities is not null)
+            {
+                void OpenPaper(Arbitrage.Contracts.OpportunityResponse opportunity)
+                { paper.SelectOpportunity(opportunity); SelectedItem = Navigation.Single(n => n.Destination == PageDestination.Trading); }
+                opportunities.PaperRequested = OpenPaper; opportunities.Monitoring.PaperRequested = OpenPaper;
+            }
+        }
         SelectedItem = Navigation[0];
     }
 
@@ -68,6 +78,8 @@ public partial class ShellViewModel : ObservableObject
         if (value is null) return;
         PageTitle = value.Label;
         CurrentPage = pages[value.Destination];
+        if (pages[PageDestination.Trading] is PaperTradingViewModel paper)
+        { if (value.Destination is PageDestination.Trading or PageDestination.Portfolio) paper.Activate(); else paper.Deactivate(); }
         if (pages[PageDestination.Opportunities] is OpportunitiesViewModel opportunities)
         {
             if (value.Destination == PageDestination.Opportunities) opportunities.Activate(); else opportunities.Deactivate();

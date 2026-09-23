@@ -17,6 +17,10 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     private long generation, readGeneration;
     public ObservableCollection<OpportunityResponse> Items { get; } = [];
     public MonitoringViewModel Monitoring { get; }
+    public Action<OpportunityResponse>? PaperRequested { get; set; }
+    public string PaperReason => PaperTradingViewModel.EligibilityReason(Selected);
+    private bool CanPaperPreview() => PaperRequested is not null && PaperTradingViewModel.Eligible(Selected);
+    [RelayCommand(CanExecute = nameof(CanPaperPreview))] private void PaperPreview() { if (Selected is { } r) PaperRequested?.Invoke(r); }
     public string[] Exchanges { get; } = ["All", "Kalshi", "Polymarket"];
     [ObservableProperty] private string exchange = "All";
     [ObservableProperty] private string targetExchange = "All";
@@ -111,7 +115,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
                 MinimumGrossEdgePerShare: MinimumGrossEdgePerShare, MaximumEvaluationQuantity: MaximumEvaluationQuantity,
                 MaximumSkewMilliseconds: MaximumSkewMilliseconds, EvaluateFees: EvaluateFees, MinimumFeeAdjustedEdgePerShare: MinimumFeeAdjustedEdgePerShare), lifetime.Token);
             if (Context() != context) return;
-            Job = result; Notice = EvaluateFees ? "Fee-aware evaluation uses cached metadata. Enable diagnostics to see gross candidates with unresolved fees. Execution unavailable." : "Gross evaluation admitted; fees not evaluated.";
+            Job = result; Notice = EvaluateFees ? "Fee-aware evaluation uses cached metadata. Enable diagnostics to see gross candidates with unresolved fees. Live execution unavailable; paper preview is explicit." : "Gross evaluation admitted; fees not evaluated.";
             await RefreshAsync();
         }
         catch (OperationCanceledException) { }
@@ -173,7 +177,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     [RelayCommand] private async Task PreviousAsync() { if (Page > 1) { Page--; await RefreshAsync(); } }
     partial void OnShowDiagnosticsChanged(bool value) { Page = 1; SourcesInvalidated(this, EventArgs.Empty); OnPropertyChanged(nameof(PageLabel)); Observe(RefreshAsync()); }
     partial void OnSortByGrossProfitChanged(bool value) { Page = 1; Observe(RefreshAsync()); }
-    partial void OnSelectedChanged(OpportunityResponse? value) => OnPropertyChanged(nameof(DetailText));
+    partial void OnSelectedChanged(OpportunityResponse? value) { OnPropertyChanged(nameof(DetailText)); OnPropertyChanged(nameof(PaperReason)); PaperPreviewCommand.NotifyCanExecuteChanged(); }
     partial void OnPageChanged(int value) => OnPropertyChanged(nameof(PageLabel));
     partial void OnTotalChanged(int value) => OnPropertyChanged(nameof(PageLabel));
     private void Failure(BackendFailure failure)

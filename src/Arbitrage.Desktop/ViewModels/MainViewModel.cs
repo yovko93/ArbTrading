@@ -157,7 +157,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         if (backendChanged) HeartbeatStatus = "Awaiting heartbeat";
         ConnectionStatus = ConnectionState.Connected.ToString();
         CanEdit = true;
-        Message = "Backend state synchronized. Market Explorer shows cached public metadata; execution is unavailable.";
+        Message = "Backend state synchronized. Market Explorer shows cached public metadata; paper simulation requires explicit confirmation. Live execution is unavailable.";
         UpdateCanSave();
         CatalogRefreshRequested?.Invoke(this, EventArgs.Empty);
     }

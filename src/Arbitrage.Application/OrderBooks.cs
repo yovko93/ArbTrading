@@ -25,6 +25,17 @@ public sealed class OrderBookCache(TimeProvider clock, int capacity = 128, int f
     private static TimeSpan Validate(int seconds) => seconds is >= 1 and <= 60 ? TimeSpan.FromSeconds(seconds) : throw new ArgumentOutOfRangeException(nameof(seconds));
     private readonly int limit = capacity is >= 1 and <= 1024 ? capacity : throw new ArgumentOutOfRangeException(nameof(capacity));
     public int Count { get { lock (gate) return entries.Count; } }
+    // The caller has already saved its local transaction. Only its short COMMIT runs under this gate.
+    // This closes the last version-check/commit race without blocking acquisition during async validation.
+    public bool CommitIfCurrent(IReadOnlyList<OrderBookInstrumentId> instruments, IReadOnlyList<long> versions, Action commit)
+    {
+        lock (gate)
+        {
+            if (!VersionsMatch(instruments, versions) || instruments.Any(id => !Read(id).Eligibility.IsActionable)) return false;
+            commit();
+            return true;
+        }
+    }
     public CachedOrderBook[] ReadTogether(params OrderBookInstrumentId[] instruments)
     {
         if (instruments.Length > 2) throw new ArgumentException("Only two-leg evaluation reads are supported.");

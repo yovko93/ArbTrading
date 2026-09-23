@@ -19,6 +19,13 @@ public sealed record BackendSnapshot(SessionResponse Session, SystemStatusRespon
 
 public sealed class BackendClient(HttpClient http, ILocalConnectionFile connections)
 {
+    public Task<PaperAccountResponse> PaperAccountAsync(Guid workspace, CancellationToken ct) => SendAsync<PaperAccountResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/paper/account", null, ct);
+    public Task<PaperAccountResponse> InitializePaperAsync(Guid workspace, InitializePaperRequest request, CancellationToken ct) =>
+        SendAsync<PaperAccountResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/paper/account/{(request.ExpectedGenerationId is null ? "initialize" : "reset")}", request, ct);
+    public Task<PaperPositionResponse[]> PaperPositionsAsync(Guid workspace, CancellationToken ct) => SendAsync<PaperPositionResponse[]>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/paper/positions", null, ct);
+    public Task<PaperExecutionResponse[]> PaperHistoryAsync(Guid workspace, int page, CancellationToken ct) => SendAsync<PaperExecutionResponse[]>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/paper/executions?page={page}", null, ct);
+    public Task<PaperPreviewResponse> PaperPreviewAsync(Guid workspace, PaperPreviewRequest request, CancellationToken ct) => SendAsync<PaperPreviewResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/paper/preview", request, ct);
+    public Task<PaperCommitResponse> ConfirmPaperAsync(Guid workspace, ConfirmPaperRequest request, CancellationToken ct) => SendAsync<PaperCommitResponse>(HttpMethod.Post, $"api/v1/workspaces/{workspace}/paper/execute", request, ct);
     public Task<RelationshipPageResponse> RelationshipsAsync(Guid workspace, string? exchange, string? state, string? type, int page, CancellationToken ct) =>
         SendAsync<RelationshipPageResponse>(HttpMethod.Get, $"api/v1/workspaces/{workspace}/relationships/?page={page}&pageSize=30" +
             (exchange is null ? "" : "&exchange=" + Uri.EscapeDataString(exchange)) + (state is null ? "" : "&state=" + Uri.EscapeDataString(state)) +

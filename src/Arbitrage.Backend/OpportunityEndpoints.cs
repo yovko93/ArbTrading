@@ -73,6 +73,6 @@ public static class OpportunityEndpoints
             f.Breakdown.Select(q => new FeeQuoteResponse(q.Context.Exchange, q.Context.MarketId, q.Context.InstrumentId, q.Context.Role.ToString(), q.Context.Quantity, q.Context.Price,
                 q.ModelFee, q.RoundedTradeFee, q.RoundingFee, q.Rebate, q.TotalFee, q.Currency, q.Status.ToString(), q.Source, q.EffectiveAt, q.RetrievedAt,
                 q.ScheduleFingerprint, [.. q.Warnings], q.ProgramRebates)).ToArray(), f.TotalExchangeFees, f.FeeAdjustedCost, f.FeeAdjustedGuaranteedProfit,
-            f.FeeAdjustedEdgePerShare, f.FeeAdjustedReturnOnCost, f.MinimumEdge) : null,
+            f.FeeAdjustedEdgePerShare, f.FeeAdjustedReturnOnCost, f.MinimumEdge) { ProfileRevision = f.ProfileRevision } : null,
             OutcomeMappings = r.OutcomeMappings.Select(m => new RelationshipMappingResponse(m.SourceOutcomeId, m.TargetOutcomeId, m.Type.ToString())).ToArray() };
 }

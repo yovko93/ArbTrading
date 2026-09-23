@@ -49,6 +49,8 @@ public partial class App : System.Windows.Application
             collection.AddSingleton<MarketExplorerViewModel>();
             collection.AddSingleton<OpportunitiesViewModel>();
             collection.AddSingleton<FeeProfileViewModel>();
+            collection.AddSingleton<PaperTradingViewModel>(s => new(s.GetRequiredService<MainViewModel>(), s.GetRequiredService<BackendClient>())
+            { Confirm = message => MessageBox.Show(message, "Paper simulation confirmation", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes });
             collection.AddSingleton<RelationshipsViewModel>(s => new(s.GetRequiredService<MainViewModel>(), s.GetRequiredService<BackendClient>())
             { Confirm = message => MessageBox.Show(message, "Relationship review", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes });
             collection.AddSingleton<KalshiCredentialsViewModel>(s => new(s.GetRequiredService<MainViewModel>(), s.GetRequiredService<BackendClient>())
@@ -58,7 +60,7 @@ public partial class App : System.Windows.Application
             });
             collection.AddSingleton<ShellViewModel>(s => new ShellViewModel(s.GetRequiredService<MainViewModel>(),
                 s.GetRequiredService<ThemeSelectionViewModel>(), s.GetRequiredService<DesktopDiagnostics>(),
-                s.GetRequiredService<BackendProcessViewModel>(), s.GetRequiredService<MarketExplorerViewModel>(), s.GetRequiredService<KalshiCredentialsViewModel>(), s.GetRequiredService<RelationshipsViewModel>(), s.GetRequiredService<OpportunitiesViewModel>(), s.GetRequiredService<FeeProfileViewModel>()));
+                s.GetRequiredService<BackendProcessViewModel>(), s.GetRequiredService<MarketExplorerViewModel>(), s.GetRequiredService<KalshiCredentialsViewModel>(), s.GetRequiredService<RelationshipsViewModel>(), s.GetRequiredService<OpportunitiesViewModel>(), s.GetRequiredService<FeeProfileViewModel>(), s.GetRequiredService<PaperTradingViewModel>()));
             collection.AddSingleton<ILocalConnectionFile>(new ProtectedLocalConnectionFile(runtimeDirectory));
             collection.AddHttpClient<BackendClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
@@ -106,6 +108,7 @@ public partial class App : System.Windows.Application
         services?.GetService<RelationshipsViewModel>()?.Dispose();
         services?.GetService<OpportunitiesViewModel>()?.Dispose();
         services?.GetService<FeeProfileViewModel>()?.Dispose();
+        services?.GetService<PaperTradingViewModel>()?.Dispose();
         services?.GetService<KalshiCredentialsViewModel>()?.Dispose();
         services?.Dispose();
         logger?.Dispose();

@@ -87,6 +87,10 @@ public partial class Program
         builder.Services.AddSingleton<OrderBookRefreshGate>();
         builder.Services.AddScoped<OrderBookService>();
         builder.Services.AddScoped<OpportunityCoordinator>();
+        builder.Services.AddScoped<PaperStore>();
+        builder.Services.AddScoped<PaperCoordinator>();
+        builder.Services.AddSingleton<PaperPreviewCache>();
+        builder.Services.AddSingleton<PaperDiagnostics>();
         builder.Services.AddScoped<IFeeStore, FeeStore>();
         builder.Services.AddHttpClient<IPublicFeeSource, PublicFeeSource>(c => c.Timeout = TimeSpan.FromSeconds(25))
             .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler);
@@ -156,21 +160,22 @@ public partial class Program
         api.MapMarketCatalog();
         api.MapRelationships();
         api.MapOpportunities();
+        api.MapPaper();
         api.MapMonitoring();
         api.MapFees();
         api.MapOrderBooks();
         api.MapRealtimeOrderBooks();
         api.MapGet("/system/status", async (ILocalProfileStore profiles, CancellationToken ct) => new SystemStatusResponse(
             Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown", started.Elapsed.TotalSeconds,
-            await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable", "Local", settings.TradingMode, "Paper", Capabilities.Phase01A));
+            await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable", "Local", settings.TradingMode, "Paper", Capabilities.Phase04A));
         api.MapGet("/session", async (ILocalProfileStore profiles, WorkspaceService workspaces, CancellationToken ct) =>
         {
             var profile = await profiles.GetAsync(ct);
             var workspace = await workspaces.ReadAsync(profile.DefaultWorkspaceId, ct);
-            return workspace.IsSuccess ? Results.Ok(new SessionResponse(profile.UserId, profile.DefaultWorkspaceId, "Local", Capabilities.Phase01A)) : Results.StatusCode(503);
+            return workspace.IsSuccess ? Results.Ok(new SessionResponse(profile.UserId, profile.DefaultWorkspaceId, "Local", Capabilities.Phase04A)) : Results.StatusCode(503);
         });
         api.MapGet("/exchanges/status", () => new[] { new ExchangeStatusResponse("Polymarket", "PublicCatalog"), new ExchangeStatusResponse("Kalshi", "PublicCatalog") });
-        api.MapGet("/trading/mode", () => new TradingModeResponse(settings.TradingMode, "Paper", Capabilities.Phase01A));
+        api.MapGet("/trading/mode", () => new TradingModeResponse(settings.TradingMode, "Paper", Capabilities.Phase04A));
         api.MapGet("/workspaces/{workspaceId:guid}/snapshot", async (Guid workspaceId, WorkspaceService workspaces,
             ILocalProfileStore profiles, BackendInstance instance, HttpContext context, CancellationToken ct) =>
         {
@@ -179,9 +184,9 @@ public partial class Program
             var profile = await profiles.GetAsync(ct);
             var status = new SystemStatusResponse(Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown",
                 started.Elapsed.TotalSeconds, await profiles.IsHealthyAsync(ct) ? "Healthy" : "Unavailable",
-                "Local", settings.TradingMode, "Paper", Capabilities.Phase01A);
+                "Local", settings.TradingMode, "Paper", Capabilities.Phase04A);
             return Results.Ok(new ApplicationSnapshotResponse(1, instance.Id, profile.Id, DateTimeOffset.UtcNow,
-                new SessionResponse(profile.UserId, workspaceId, "Local", Capabilities.Phase01A), status,
+                new SessionResponse(profile.UserId, workspaceId, "Local", Capabilities.Phase04A), status,
                 new WorkspaceSettingsResponse(workspaceId, workspace.Value!.DisplayName),
                 [new("Polymarket", "PublicCatalog"), new("Kalshi", "PublicCatalog")]));
         });
@@ -234,9 +239,9 @@ public partial class Program
             {
                 var profile = await readyScope.ServiceProvider.GetRequiredService<ILocalProfileStore>().GetAsync(CancellationToken.None);
                 app.Services.GetRequiredService<RealtimePublisher>().Diagnostic(profile.DefaultWorkspaceId,
-                    "Information", "Backend", "Ready", "Local backend is ready; execution is unavailable.");
+                    "Information", "Backend", "Ready", "Local backend is ready; explicit paper simulation is available. Live execution is unavailable.");
             }
-            logger.Information("Local backend initialized; execution unavailable");
+            logger.Information("Local backend initialized; paper simulation available; live execution unavailable");
             await app.WaitForShutdownAsync();
         }
         finally { await app.StopAsync(); }

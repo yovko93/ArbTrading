@@ -4,7 +4,7 @@ Phase 01A established persistent local identity and workspace ownership, authent
 
 Phase 02B.1 adds explicitly refreshed, read-only REST orderbook snapshots, canonical decimal L2 normalization, a bounded in-memory cache, and gross executable-depth previews. In Market Explorer, select a market/outcome and choose **Refresh Order Book**. Navigation and header Refresh only read local data. Kalshi asks are explicitly derived from opposite-side bids for supported binary metadata; Polymarket uses native outcome-token bids and asks. Snapshots become stale after five seconds by default and disappear from the cache after backend restart.
 
-Public metadata and REST orderbook reads require no exchange credentials. Phase 02B.2 adds explicitly started realtime orderbooks: public Polymarket WebSockets and optional authenticated Kalshi WebSockets. There is no order submission, AI call, or paper fill simulator. Paper remains the only supported execution environment; all execution capabilities are unavailable. See [Phase 02B.2 verification](docs/Development/Phase02B.2Verification.md) and [exchange integration](docs/Development/ExchangeIntegration.md).
+Public metadata and REST orderbook reads require no exchange credentials. Phase 02B.2 adds explicitly started realtime orderbooks: public Polymarket WebSockets and optional authenticated Kalshi WebSockets. There is no live order submission or AI call. Phase 04A adds explicit paper snapshot simulation; Paper remains the only supported execution environment and all live execution capabilities remain unavailable. See [Phase 02B.2 verification](docs/Development/Phase02B.2Verification.md) and [exchange integration](docs/Development/ExchangeIntegration.md).
 
 ## Market relationships
 
@@ -27,7 +27,7 @@ Phase 03C adds **Evaluate cached fees**, enabled by default in Desktop (the API 
 
 Official sources verified on 2026-09-23 contain a Kalshi rounding discrepancy: the regulatory PDF describes centicent alignment and whole-cent examples, while the API describes six-decimal trade fees and account-specific alignment. Public Kalshi schedules therefore expose model components but leave totals unresolved. Unsupported fee types also fail closed. Polymarket uses explicit market fee parameters; five-decimal ceiling is a conservative modeled-fill assumption where the official rounding mode is unspecified, and program rebates are excluded. USDC fees are never silently converted to USD for cross-exchange totals. See [Phase 03C sources, numeric fixtures and verification](docs/Development/Phase03CVerification.md).
 
-No balances, positions, capital allocation, simulated completed fills or order submission are added. Existing databases require the explicit migration procedure; normal user data was not upgraded during development.
+Phases 03A–03D add no balances, positions, capital allocation, simulated completed fills or order submission. Phase 04A paper accounting is described below. Existing databases require the explicit migration procedure; normal user data was not upgraded during development.
 
 ## Continuous read-only monitoring
 
@@ -38,6 +38,14 @@ The default scope is 250 deterministically ordered, deterministically verified r
 Expand **Monitoring profile**, edit, then **Save monitoring profile**. Ranking and alert thresholds are separate. Fee-adjusted alerts are enabled by default; gross-only alerts require explicit opt-in and are labeled **GROSS / FEES UNRESOLVED**. Alerts require a threshold crossing, a valid drop below the hysteresis boundary before rearming, and a 60-second default cooldown. Alert history is historical; **Inspect current opportunity** revalidates the current key.
 
 Optional local CSV output writes under `backend/monitoring/<workspace-id>/`: an atomic top-100 snapshot (30-second default interval) and transition-only alerts rotated at 5 MB across five files. Retained SQLite alerts are limited to 5,000 and 30 days; audit history is separate. Existing installations require migration `20260923064859_OpportunityMonitoring`. See [monitoring architecture](docs/Architecture/ReadOnlyOpportunities.md#phase-03d-continuous-local-monitoring) and [Phase 03D verification](docs/Development/Phase03DVerification.md).
+
+## Paper execution and portfolio
+
+Phase 04A activates **Trading / Portfolio** for explicit paper-only snapshot simulation. Initialize venue balances manually (the UI prefills Kalshi USD and Polymarket USDC, but creates no funds until confirmed). Choose **Paper preview** on an eligible current opportunity, enter quantity, create a preview, then explicitly confirm paper execution. Previews expire after five seconds. Both legs must be fully executable, deterministically verified, fresh and fee-resolved. USD and USDC are never converted or merged; Kalshi's unresolved public fee discrepancy still blocks execution.
+
+Executions, native-level fills, proofs, cash debits and positions persist atomically in SQLite. Request IDs protect repeated confirmations after lost replies. Reset creates a new generation and retains old history. Expected payout/profit at resolution is never credited as cash: settlement and realized profit are not implemented. Monitoring and alerts never execute automatically. Paper atomicity is **not** evidence that live cross-exchange execution can be atomic.
+
+Existing installations require explicit migration `20260923092015_PaperExecution` using the established backup/`--migrate` procedure. No normal user database was migrated during development. See [paper architecture and API](docs/Architecture/PaperExecution.md) and [Phase 04A verification](docs/Development/Phase04AVerification.md).
 
 ## Realtime orderbooks
 

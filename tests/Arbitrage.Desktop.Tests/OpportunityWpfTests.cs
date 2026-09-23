@@ -129,7 +129,7 @@ public sealed class OpportunityWpfTests(WpfFixture fixture)
             }
         }
     });
-    private static OpportunityResponse Result(string status)
+    internal static OpportunityResponse Result(string status)
     {
         var result = new OpportunityResponse("fixture", "CrossMarketBuyBothComplements", Guid.NewGuid(), "Manual", DateTimeOffset.UtcNow,
         status, status == "Detected" ? [] : ["Cached inputs do not establish a current candidate. Explicitly reevaluate after correcting inputs."],

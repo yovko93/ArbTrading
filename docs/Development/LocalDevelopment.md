@@ -89,7 +89,7 @@ The design-time factory is for schema generation only and uses a temporary place
 
 Startup exits nonzero on invalid deployment/execution/binding configuration, storage permissions, lock conflicts, corrupt storage, or required migration. Raw exception messages are intentionally suppressed to avoid leaking secrets from configuration. Check each listed category, verify per-user permissions, and stop the other backend if present. A leftover lock filename is harmless; the open file handle is the lease. Never remove/replace a live backend's data directory.
 
-All `/api/v1` routes require Bearer authentication: `system/status`, `session`, `exchanges/status`, `trading/mode`, and GET/PUT `workspaces/{workspaceId}/settings`. PUT accepts only `{ "displayName": "Name" }`, trims whitespace, rejects blank/control/overlong names, and audits successful changes atomically. Server-generated correlation IDs accompany responses. Invalid names are 400, missing/invalid credentials 401, inaccessible workspaces 404, and storage failures 503. No endpoint can activate execution.
+All `/api/v1` routes require Bearer authentication: `system/status`, `session`, `exchanges/status`, `trading/mode`, and GET/PUT `workspaces/{workspaceId}/settings`. PUT accepts only `{ "displayName": "Name" }`, trims whitespace, rejects blank/control/overlong names, and audits successful changes atomically. Server-generated correlation IDs accompany responses. Invalid names are 400, missing/invalid credentials 401, inaccessible workspaces 404, and storage failures 503. No endpoint can activate live execution. Phase 04A adds separately confirmed paper-only endpoints, documented in PaperExecution.md.
 
 ## Phase 01C realtime and local backend controls
 

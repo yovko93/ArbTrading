@@ -3,7 +3,7 @@
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Margin="16">
    <TextBlock Text="Continuous opportunity monitoring" FontSize="22" FontWeight="SemiBold"/>
-   <TextBlock Text="READ-ONLY · Local cached inputs · No automatic subscriptions or fetches · Net profit unknown · Execution unavailable" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
+   <TextBlock Text="READ-ONLY · Local cached inputs · No automatic subscriptions or fetches · Net profit unknown · Live execution unavailable; paper preview is explicit" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
    <TextBlock Text="Backend-owned: closing this page or desktop does not stop monitoring. Restarting the backend leaves it Stopped." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
    <WrapPanel Margin="0,8"><Button Content="Start Monitoring" Command="{Binding StartCommand}"/><Button Content="Stop Monitoring" Command="{Binding StopCommand}" Margin="8,0"/><Button Content="Refresh display" Command="{Binding RefreshCommand}"/></WrapPanel>
    <TextBlock Text="{Binding CoverageText}" TextWrapping="Wrap"/>
@@ -66,6 +66,7 @@
    </DataGrid>
    <WrapPanel Margin="0,6"><Button Content="Previous alerts" Command="{Binding PreviousAlertsCommand}"/><TextBlock Text="{Binding AlertPageLabel}" Margin="12,0" VerticalAlignment="Center"/><Button Content="Next alerts" Command="{Binding NextAlertsCommand}"/><Button Content="Inspect current opportunity" Command="{Binding InspectAlertCommand}" Margin="8,0"/></WrapPanel>
    <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Margin="0,10"/>
+   <WrapPanel Margin="0,8"><Button Content="Paper preview…" Command="{Binding PaperPreviewCommand}"/><TextBlock Text="{Binding PaperReason}" Margin="8,0" VerticalAlignment="Center"/></WrapPanel>
   </StackPanel>
  </ScrollViewer>
 </UserControl>

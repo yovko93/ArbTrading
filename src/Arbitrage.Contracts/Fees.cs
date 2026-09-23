@@ -13,6 +13,7 @@ public sealed record FeeQuoteResponse(string Exchange, string MarketId, string I
 public sealed record OpportunityFeesResponse(string State, string Status, string Profile, FeeQuoteResponse[] Breakdown, decimal? TotalExchangeFees,
     decimal? FeeAdjustedCost, decimal? FeeAdjustedGuaranteedProfit, decimal? FeeAdjustedEdgePerShare, decimal? FeeAdjustedReturnOnCost, decimal MinimumEdge)
 {
+    public Guid ProfileRevision { get; init; }
     public string StateLabel => State switch
     {
         "FeeAdjustedDetected" => "Fee-adjusted opportunity (estimate)",

@@ -11,7 +11,7 @@ namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class PaperConcurrencyTests
 {
-    [Theory] [InlineData("enough", 100, 2)] [InlineData("overspend", 8, 1)] [InlineData("duplicate", 100, 1)]
+    [Theory] [InlineData("enough", 100, 1)] [InlineData("overspend", 8, 1)] [InlineData("duplicate", 100, 1)]
     public async Task Concurrent_baskets_serialize_cash_and_durable_request_identity(string scenario, decimal balance, int committed)
     {
         await using var c = new PaperApiTests.Case(); await c.Start(balance);
@@ -24,6 +24,7 @@ public sealed class PaperConcurrencyTests
         Assert.Equal(committed * 3, await c.Fixture.WithDatabaseAsync(db => db.Set<PaperFillEntry>().CountAsync()));
         if (scenario == "duplicate") { Assert.All(results, r => Assert.Equal("Committed", r.State)); Assert.Single(results, r => r.Duplicate); }
         if (scenario == "overspend") Assert.Contains(results, r => r.Rejection == "InsufficientPaperFunds");
+        if (scenario == "enough") Assert.Contains(results, r => r.Rejection == "FinancialStateChanged"); // Reviewed headroom changed; a fresh preview is required.
         Assert.All((await c.Account()).Balances, b => Assert.True(b.AvailableCash >= 0 && b.ReservedCash == 0));
     }
     [Theory] [InlineData("shutdown")] [InlineData("last-book-check")]
@@ -37,7 +38,7 @@ public sealed class PaperConcurrencyTests
             var store = scope.ServiceProvider.GetRequiredService<PaperStore>(); var validations = 0;
             Task<PaperRejection> Validate(CancellationToken ct)
             { if (++validations == 2 && failure == "shutdown") cancel.Cancel(); return Task.FromResult(PaperRejection.None); }
-            var task = store.CommitAsync(c.Session.UserId, c.Session.DefaultWorkspaceId, ticket.Generation, Guid.NewGuid(), "fixture", ticket.Plan, "rollback-test", Validate, _ => false, cancel.Token);
+            var task = store.CommitAsync(c.Session.UserId, c.Session.DefaultWorkspaceId, ticket.Generation, Guid.NewGuid(), "fixture", ticket.Plan, "rollback-test", Validate, _ => false, cancel.Token, ticket.Risk);
             if (failure == "shutdown") await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
             else Assert.Equal(PaperRejection.MarketDataChanged, (await task).Rejection);
         }
@@ -60,7 +61,7 @@ public sealed class PaperConcurrencyTests
             await using var scope = c.Fixture.Services.CreateAsyncScope();
             return await scope.ServiceProvider.GetRequiredService<PaperStore>().CommitAsync(c.Session.UserId, c.Session.DefaultWorkspaceId, ticket.Generation,
                 Guid.NewGuid(), "reset-barrier", ticket.Plan, "reset-barrier", async ct => { entered.TrySetResult(); await release.Task.WaitAsync(ct); return PaperRejection.None; },
-                commit => { commit(); return true; }, default);
+                commit => { commit(); return true; }, default, ticket.Risk);
         });
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         var resetEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

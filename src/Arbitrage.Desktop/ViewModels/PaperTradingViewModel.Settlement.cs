@@ -46,6 +46,7 @@ public partial class PaperTradingViewModel
     partial void OnSettlementGenerationChanged(PaperGenerationResponse? value)
     {
         ClearValuation(); ValuationPage = 1;
+        ClearRisk();
         ClearResolutionPreview(); SelectedCandidate = null; SelectedResolution = null; Performance = null; SelectedBucket = null;
         ResolutionCandidates.Clear(); Resolutions.Clear(); PositionHistory.Clear(); CurvePoints.Clear(); SettlementPage = CandidatePage = PositionPage = CurvePage = 1;
     }
@@ -80,6 +81,7 @@ public partial class PaperTradingViewModel
             SelectedBucket ??= performance.Buckets.FirstOrDefault();
             await RefreshCurveAsync();
             if (viewVersion == pollVersion) await RefreshValuationAsync();
+            if (viewVersion == pollVersion) await RefreshRiskAsync();
         }
         catch (OperationCanceledException) { }
         catch (BackendFailure e) { if (Context() == context) Failure(e); }

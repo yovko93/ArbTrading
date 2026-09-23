@@ -94,6 +94,7 @@ public partial class Program
         builder.Services.AddScoped<PaperCoordinator>();
         builder.Services.AddSingleton<PaperPreviewCache>();
         builder.Services.AddSingleton<PaperDiagnostics>();
+        builder.Services.AddSingleton<PaperRiskDiagnostics>();
         builder.Services.AddScoped<IFeeStore, FeeStore>();
         builder.Services.AddHttpClient<IPublicFeeSource, PublicFeeSource>(c => c.Timeout = TimeSpan.FromSeconds(25))
             .ConfigurePrimaryHttpMessageHandler(PublicMarketTransport.CreateHandler);

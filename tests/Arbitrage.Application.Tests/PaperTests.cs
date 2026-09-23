@@ -8,7 +8,7 @@ namespace Arbitrage.Application.Tests;
 public sealed class PaperTests
 {
     private static readonly DateTimeOffset At = DateTimeOffset.Parse("2026-09-23T00:00:00Z");
-    private static (ArbitrageOpportunitySnapshot Snapshot, CachedOrderBook[] Books) Fixture(decimal quantity = 10, string currency = "USD")
+    internal static (ArbitrageOpportunitySnapshot Snapshot, CachedOrderBook[] Books) Fixture(decimal quantity = 10, string currency = "USD")
     {
         var a = new OrderBookInstrumentId("Kalshi", "a", "yes", "Yes"); var b = new OrderBookInstrumentId("Polymarket", "b", "456", "No");
         CachedOrderBook Book(OrderBookInstrumentId id, params (decimal Price, decimal Qty)[] levels)

@@ -1,5 +1,7 @@
 # Execution
 
+Phase 04D adds pure `PaperRiskEvaluator`, immutable `PaperRiskLimits`/`PaperRiskProfile`, accounting-only `CurrentPaperRiskState`, and typed decisions with exact violations/headroom. It evaluates an already validated `PaperPlan`; it does not duplicate relationship, fee or depth algorithms. Initial cash is the stable denominator for each exchange/currency. Infrastructure reads accounting state and re-evaluates under the serialized financial writer transaction. There are no implicit active defaults, marks used for admission, automatic quantity suggestions, or automatic executions.
+
 Active Phase 04A pure paper-execution boundary. `PaperPlanner` projects existing paired-depth and fee evaluations into native-level snapshot fills. `PaperAccounting` provides checked decimal cash and position arithmetic. Infrastructure persists the ledger; Backend coordinates explicit authenticated preview/confirmation. Execution has no transports, credentials, EF/SQLite or WPF dependencies.
 
 Phase 04B adds pure `PaperSettlement` rules for explicit ManualScenario binary 1/0 payouts, position P&L and partial/full execution economics. Captured deterministic complementary execution proof rejects contradictory payouts. Infrastructure coordinates atomic settlement and reconciliation; Backend exposes owner-only preview/confirm; no current market-data or fee source is required.

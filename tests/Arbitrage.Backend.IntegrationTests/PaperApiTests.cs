@@ -44,7 +44,7 @@ public sealed class PaperApiTests
             s.AddSingleton<IMarketDiscoverySource>(kalshi); s.AddSingleton<IMarketDiscoverySource>(poly);
             s.AddSingleton<IPublicFeeSource>(kalshi); s.AddSingleton<IRelationshipMetadataSource>(kalshi); s.AddSingleton<IMarketWebSocketFactory>(kalshi);
         }, preserveStorage: preserveStorage);
-        public async Task Start(decimal money = 100, string currency = "USD", bool unresolved = false, bool manual = false)
+        public async Task Start(decimal money = 100, string currency = "USD", bool unresolved = false, bool manual = false, bool configureRisk = true)
         {
             Client = await Fixture.AuthenticatedClientAsync(); Session = (await Client.GetFromJsonAsync<SessionResponse>("/api/v1/session"))!;
             Relationship = await OpportunityApiTests.Seed(Fixture, manual ? VerificationState.VerifiedManual : VerificationState.VerifiedDeterministic);
@@ -62,6 +62,7 @@ public sealed class PaperApiTests
             Key = Assert.Single(page.Items).OpportunityKey;
             using var response = await Client.PostAsJsonAsync(Root + "/paper/account/initialize", new InitializePaperRequest(true, null, "Explicit isolated fixture funding",
                 [new("Kalshi", "USD", money), new("Polymarket", currency, money)])); response.EnsureSuccessStatusCode();
+            if (configureRisk) (await Client.PutAsJsonAsync(Root + "/paper/admission-policy", new SavePaperRiskPolicyRequest(null, true, PaperRiskApiTests.Permissive))).EnsureSuccessStatusCode();
         }
         public void Books()
         {

@@ -10,7 +10,8 @@ public enum PaperRejection
     BookUnavailable, BookStale, BookContinuityInsufficient, MarketDataChanged, BookSkewTooLarge, LiquidityConflict,
     InsufficientDepth, RequestedQuantityInvalid, InsufficientPaperFunds, FeeModelUnresolved, FeeAdjustedNoEdge,
     FeeChanged, CurrencyModelUnsupported, ArithmeticOverflow, DuplicateRequest, AccountUninitialized,
-    GenerationChanged, PreviewExpired, IntegrityFailure, ConfirmationRequired, MarketAlreadyResolved
+    GenerationChanged, PreviewExpired, IntegrityFailure, ConfirmationRequired, MarketAlreadyResolved,
+    RiskPolicyNotConfigured, RiskLimitExceeded, RiskPolicyChanged, FinancialStateChanged
 }
 public enum PaperExecutionState { PendingValidation, Rejected, Committed, Settled, PartiallySettled }
 public enum PaperIntegrity { Healthy, NeedsReconciliation, Corrupt }

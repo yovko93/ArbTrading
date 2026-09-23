@@ -52,6 +52,7 @@ public sealed class PaperPersistenceTests
             var relationship = await OpportunityApiTests.Seed(f, VerificationState.VerifiedDeterministic);
             await f.WithDatabaseAsync(async db => { var fees = new FeeStore(db); await fees.SaveAsync(FeeApiTests.Schedule("Kalshi", "a"), default); await fees.SaveAsync(FeeApiTests.Schedule("Polymarket", "b"), default); await fees.SetProfileAsync(workspace, KalshiFeeAccountProfile.DirectMember, default); return 0; });
             var path = $"/api/v1/workspaces/{workspace}";
+            (await client.PutAsJsonAsync(path + "/paper/admission-policy", new SavePaperRiskPolicyRequest(null, true, PaperRiskApiTests.Permissive))).EnsureSuccessStatusCode();
             (await client.PostAsJsonAsync(path + "/paper/account/initialize", new InitializePaperRequest(true, null, "Restart fixture", [new("Kalshi", "USD", 100), new("Polymarket", "USD", 100)]))).EnsureSuccessStatusCode();
             OpportunityApiTests.Books(f);
             var job = await OpportunityApiTests.Start(client, path + "/opportunities", new(relationship, EvaluateFees: true));

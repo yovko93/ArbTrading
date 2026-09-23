@@ -27,6 +27,9 @@ public sealed class PaperBalanceEntry
 }
 public sealed class PaperExecutionEntry
 {
+    public int? RiskPolicyVersion { get; set; }
+    public Guid? RiskPolicyRevision { get; set; }
+    public string? RiskProofJson { get; set; }
     public Guid Id { get; set; }
     public Guid WorkspaceId { get; set; }
     public Guid GenerationId { get; set; }
@@ -106,6 +109,16 @@ internal static class PaperModel
 {
     public static void Configure(ModelBuilder m)
     {
+        var risk = m.Entity<PaperRiskProfileEntry>();
+        risk.ToTable("PaperRiskProfiles");
+        risk.HasKey(x => x.WorkspaceId);
+        risk.Property(x => x.Revision).IsConcurrencyToken();
+        risk.HasOne<Arbitrage.Domain.Workspace>().WithMany().HasForeignKey(x => x.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+        risk.HasOne<Arbitrage.Domain.ApplicationUser>().WithMany().HasForeignKey(x => x.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
+        risk.OwnsOne(x => x.Limits, owned => { owned.Ignore(x => x.IsValid); owned.Ignore(x => x.Fingerprint); });
+        risk.Navigation(x => x.Limits).IsRequired();
+        m.Entity<PaperPositionEntry>().HasIndex(x => new { x.GenerationId, x.Status });
+        m.Entity<PaperExecutionEntry>().HasIndex(x => new { x.GenerationId, x.State });
         SettlementModel.Configure(m);
         m.Entity<PaperGenerationEntry>().HasKey(x => x.Id);
         m.Entity<PaperGenerationEntry>().HasIndex(x => x.WorkspaceId).IsUnique().HasFilter("\"ClosedAt\" IS NULL");

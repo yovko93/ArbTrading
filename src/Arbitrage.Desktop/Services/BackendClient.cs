@@ -138,7 +138,10 @@ public sealed partial class BackendClient(HttpClient http, ILocalConnectionFile 
                 if (response.StatusCode == HttpStatusCode.Forbidden)
                     throw new BackendFailure(ConnectionState.AuthorizationDenied, "Access to this workspace was denied by the backend.");
                 if (response.StatusCode == HttpStatusCode.BadRequest)
-                    throw new BackendFailure(ConnectionState.Unavailable, "The display name must contain 1–100 characters without control characters.");
+                    throw new BackendFailure(ConnectionState.Unavailable, path.EndsWith("/admission-policy", StringComparison.Ordinal) ?
+                        "Invalid paper risk policy. Check fractions, count limits, quantity, and entry thresholds." : "The display name must contain 1–100 characters without control characters.");
+                if (response.StatusCode == HttpStatusCode.Conflict && path.EndsWith("/admission-policy", StringComparison.Ordinal))
+                    throw new BackendFailure(ConnectionState.Unavailable, "RiskPolicyChanged: another policy revision was saved. Refresh and review before saving again.");
                 if (!response.IsSuccessStatusCode)
                     throw new BackendFailure(ConnectionState.Unavailable, "The requested backend operation is unavailable.");
                 var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken) ?? throw new JsonException();

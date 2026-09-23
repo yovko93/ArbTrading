@@ -17,6 +17,7 @@ public sealed class PaperDesktopTests
     }
     private sealed class Handler : HttpMessageHandler
     {
+        private readonly PaperPreviewResponse preview = Preview();
         public int Mutations, Executions; public bool DelayPreview, Deny, LoseResponse;
         public readonly List<ConfirmPaperRequest> Requests = [];
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -32,12 +33,14 @@ public sealed class PaperDesktopTests
                 if (LoseResponse) throw new HttpRequestException("Lost fixture response");
                 return new(HttpStatusCode.OK) { Content = JsonContent.Create(new PaperCommitResponse("Rejected", "MarketDataChanged", false, null)) };
             }
-            object result = path.EndsWith("/preview", StringComparison.Ordinal) ? Preview() : path.EndsWith("/positions", StringComparison.Ordinal) ? Array.Empty<PaperPositionResponse>() :
+            object result = path.EndsWith("/admission-status", StringComparison.Ordinal) ? new PaperRiskStatusResponse("WithinLimits",
+                new(1, preview.RiskDecision!.PolicyRevision!.Value, PaperRiskApiTests.Permissive, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Guid.NewGuid(), new string('A', 64)), preview.RiskDecision) :
+                path.EndsWith("/preview", StringComparison.Ordinal) ? preview : path.EndsWith("/positions", StringComparison.Ordinal) ? Array.Empty<PaperPositionResponse>() :
                 path.EndsWith("/executions", StringComparison.Ordinal) ? Array.Empty<PaperExecutionResponse>() : new PaperAccountResponse("Uninitialized", null, [], []);
             return new(HttpStatusCode.OK) { Content = JsonContent.Create(result) };
         }
     }
-    private static PaperPreviewResponse Preview() => new(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(5), true, "None", new string('A', 64), 10, 10, [], [], 9.1m, .26792m, 9.36792m, 10, .63208m, null, ["PAPER SIMULATION"]);
+    private static PaperPreviewResponse Preview() => new(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(5), true, "None", new string('A', 64), 10, 10, [], [], 9.1m, .26792m, 9.36792m, 10, .63208m, null, ["PAPER SIMULATION"], PaperRiskDesktopTests.Decision());
     private static MainViewModel State(BackendClient backend)
     {
         var state = new MainViewModel(backend, NullLogger<MainViewModel>.Instance); var workspace = Guid.NewGuid();

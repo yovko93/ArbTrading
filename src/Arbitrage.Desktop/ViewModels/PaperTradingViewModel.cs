@@ -42,6 +42,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     {
         this.state = state; this.backend = backend;
         state.AccessInvalidated += AccessChanged; state.PropertyChanged += StateChanged;
+        state.PaperValuationInvalidated += RiskInvalidated;
         state.PaperValuationInvalidated += ValuationInvalidated; state.CatalogInvalidated += ValuationInvalidated; state.OrderBookInvalidated += ValuationBookInvalidated;
     }
     public static string EligibilityReason(OpportunityResponse? r) => r is null ? "Select a current opportunity." :
@@ -52,7 +53,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public static bool Eligible(OpportunityResponse? r) => EligibilityReason(r) == "Ready for a server-validated paper preview.";
     public void SelectOpportunity(OpportunityResponse value) { OpportunityKey = value.OpportunityKey; ClearPreview(); Notice = EligibilityReason(value); }
     public void Activate() { if (active || disposed) return; active = true; _ = PollAsync(++pollVersion); }
-    public void Deactivate() { active = false; pollVersion++; ClearPreview(); ClearResolutionPreview(); ClearValuation(); }
+    public void Deactivate() { active = false; pollVersion++; ClearPreview(); ClearResolutionPreview(); ClearValuation(); ClearRisk(); }
     private (Guid Workspace, long Access, string Instance)? Context() => !disposed && state.ConnectionStatus == "Connected" && state.HasSnapshot &&
         Guid.TryParse(state.WorkspaceIdentifier, out var id) ? (id, state.AccessGeneration, state.BackendInstance) : null;
     private async Task PollAsync(long version)
@@ -71,6 +72,8 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     {
         lifetime.Cancel(); lifetime.Dispose(); lifetime = new(); ClearPreview(); Account = null; Positions.Clear(); Executions.Clear(); SelectedExecution = null;
         ClearSettlement();
+        ClearRisk();
+        ResetRiskForm();
         ClearValuation();
         Notice = "Workspace access changed; private paper data cleared.";
     }
@@ -95,6 +98,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
             if (Account?.Generation?.Id != a.Generation?.Id && Account is not null) ClearPreview();
             Account = a; Positions.Clear(); foreach (var row in p) Positions.Add(row);
             Executions.Clear(); foreach (var row in h) Executions.Add(row);
+            if (a.Generation is null) await RefreshRiskAsync();
             await RefreshSettlementAsync();
         }
         catch (OperationCanceledException) { }
@@ -130,10 +134,10 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         catch (BackendFailure e) { if (Context() == context && captured == revision) Failure(e); }
         finally { Busy = false; }
     }
-    private bool CanExecute() => !Busy && Preview?.WouldExecute == true && Context() is not null;
+    private bool CanExecute() => !Busy && Preview is { WouldExecute: true, RiskApproved: true } && Context() is not null;
     [RelayCommand(CanExecute = nameof(CanExecute))] private async Task ExecuteAsync()
     {
-        if (Preview is not { WouldExecute: true } p || Context() is not { } context || Busy) return;
+        if (Preview is not { WouldExecute: true, RiskApproved: true } p || Context() is not { } context || Busy) return;
         if (!Confirm("CONFIRM PAPER EXECUTION\nPAPER SIMULATION — NO REAL ORDERS\n" + Describe(p))) return;
         if (Preview != p || Context() != context) return;
         // Retain this request across a lost response. Never retry it automatically, including on 401.
@@ -159,7 +163,8 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         $"\nExpected payout at resolution {p.ExpectedPayoutAtResolution}; expected profit at resolution {p.ExpectedProfitAtResolution}\n" +
         $"Relationship trust: {p.Proof?.RelationshipTrust}; revision {p.Proof?.RelationshipRevision}\nFee profile: {p.Proof?.Fees?.Profile}; revision {p.Proof?.Fees?.ProfileRevision}\n" +
         string.Join("\n", p.Proof?.Legs.Select(l => $"{l.Exchange} book {l.SnapshotVersion}: {l.SourceMode}/{l.Continuity}; retrieved {l.RetrievedAt:O}; age at preview {(p.CreatedAt - l.RetrievedAt)?.TotalSeconds:0.###}s") ?? []) +
-        "\n" + string.Join("\n", p.Warnings);
+        "\n" + RiskDescription(p.RiskDecision) + "\n" + string.Join("\n", p.Warnings);
     public void Dispose() { if (disposed) return; disposed = true; active = false; lifetime.Cancel(); lifetime.Dispose(); state.AccessInvalidated -= AccessChanged; state.PropertyChanged -= StateChanged;
+        state.PaperValuationInvalidated -= RiskInvalidated;
         state.PaperValuationInvalidated -= ValuationInvalidated; state.CatalogInvalidated -= ValuationInvalidated; state.OrderBookInvalidated -= ValuationBookInvalidated; }
 }

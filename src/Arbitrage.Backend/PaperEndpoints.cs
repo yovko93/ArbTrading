@@ -28,6 +28,7 @@ public static class PaperEndpoints
         });
         group.MapSettlement();
         group.MapValuation();
+        group.MapPaperRisk();
         group.MapGet("/account", Account);
         group.MapPost("/account/initialize", Initialize);
         group.MapPost("/account/reset", Initialize);
@@ -51,7 +52,7 @@ public static class PaperEndpoints
             var result = await paper.ConfirmAsync(actor.UserId!.Value, workspaceId, request, context.TraceIdentifier, ct);
             if (result.Execution is not null && !result.Duplicate) realtime.PaperChanged(workspaceId);
             return Results.Ok(new PaperCommitResponse(result.Execution is null ? "Rejected" : "Committed", result.Rejection.ToString(), result.Duplicate,
-                result.Execution is null ? null : Execution(result.Execution)));
+                result.Execution is null ? null : Execution(result.Execution), PaperRiskEndpoints.Decision(result.RiskDecision)));
         });
         group.MapPost("/reconcile", async (Guid workspaceId, Guid generationId, IRequestActor actor, PaperStore store, CancellationToken ct) =>
         {
@@ -94,6 +95,7 @@ public static class PaperEndpoints
         var p = JsonSerializer.Deserialize<PaperPlan>(row.PlanJson)!;
         return new(row.Id, row.RequestId, row.GenerationId, row.ActorId, row.CreatedAt, row.State.ToString(), row.OpportunityKey, p.Quantity,
             p.Cost, p.ExpectedPayoutAtResolution, p.ExpectedProfitAtResolution, p.Fills.Select(Fill).ToArray(), OpportunityEndpoints.Map(p.Proof),
-            row.SettlementJson is null ? null : SettlementEndpoints.Economics(JsonSerializer.Deserialize<ExecutionSettlement>(row.SettlementJson)!), row.SettledAt);
+            row.SettlementJson is null ? null : SettlementEndpoints.Economics(JsonSerializer.Deserialize<ExecutionSettlement>(row.SettlementJson)!), row.SettledAt,
+            row.RiskPolicyVersion, row.RiskPolicyRevision, row.RiskProofJson is null ? null : PaperRiskEndpoints.Decision(JsonSerializer.Deserialize<PaperRiskProof>(row.RiskProofJson)!.Decision));
     }
 }

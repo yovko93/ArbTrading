@@ -9,7 +9,7 @@ using Arbitrage.Strategies;
 
 namespace Arbitrage.Backend;
 
-public sealed record PaperPreviewTicket(Guid Id, Guid Actor, Guid Workspace, Guid Generation, DateTimeOffset At, PaperPlan Plan);
+public sealed record PaperPreviewTicket(Guid Id, Guid Actor, Guid Workspace, Guid Generation, DateTimeOffset At, PaperPlan Plan, PaperRiskDecision Risk);
 public sealed class PaperPreviewCache(TimeProvider clock)
 {
     private readonly object gate = new();
@@ -63,7 +63,7 @@ internal sealed class PaperCounters
 
 public sealed class PaperCoordinator(PaperStore store, RelationshipStore relationships, OpportunityJobs jobs, MonitoringCoordinator monitoring,
     OpportunityCoordinator opportunities, OrderBookCache books, PaperPreviewCache previews, LocalOptions options, TimeProvider clock,
-    PaperDiagnostics diagnostics, IHostApplicationLifetime lifetime)
+    PaperDiagnostics diagnostics, IHostApplicationLifetime lifetime, PaperRiskDiagnostics riskDiagnostics)
 {
     public async Task<PaperPreviewResponse> PreviewAsync(Guid actor, Guid workspace, PaperPreviewRequest request, CancellationToken ct)
     {
@@ -72,6 +72,7 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
         var generation = await store.ActiveAsync(workspace, ct);
         var balances = generation is null ? [] : await store.BalancesAsync(generation.Id, ct);
         PaperPlan? plan = null;
+        PaperRiskDecision? risk = null;
         var error = options.TradingMode != "Paper" ? PaperRejection.NotPaperMode : generation is null ? PaperRejection.AccountUninitialized :
             generation.Integrity != PaperIntegrity.Healthy ? PaperRejection.IntegrityFailure : PaperRejection.None;
         if (error == PaperRejection.None)
@@ -79,8 +80,19 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
             var result = await PlanAsync(actor, workspace, request, ct); error = result.Rejection; plan = result.Plan;
             if (plan is not null) error = PaperStore.Funds(plan, balances);
         }
-        if (plan is not null && generation is not null && error is PaperRejection.None or PaperRejection.InsufficientPaperFunds)
-            previews.Add(new(id, actor, workspace, generation.Id, now, plan));
+        if (plan is not null && generation is not null)
+        {
+            var snapshot = await store.RiskSnapshotAsync(workspace, generation.Id, ct);
+            // Debit display, funds eligibility and risk headroom must describe the SAME read snapshot.
+            balances = snapshot.State.Buckets.Select(b => new PaperBalanceEntry { GenerationId = generation.Id, Exchange = b.Exchange,
+                Currency = b.Currency, InitialCash = b.InitialCash, AvailableCash = b.AvailableCash, Revision = b.Revision }).ToArray();
+            error = PaperStore.Funds(plan, balances);
+            risk = PaperRiskEvaluator.Evaluate(snapshot.Profile, snapshot.State, plan, now);
+            riskDiagnostics.Record(workspace, risk);
+            if (error == PaperRejection.None && risk.Decision != PaperRiskOutcome.Approved)
+                error = risk.Decision == PaperRiskOutcome.NotConfigured ? PaperRejection.RiskPolicyNotConfigured : PaperRejection.RiskLimitExceeded;
+            previews.Add(new(id, actor, workspace, generation.Id, now, plan, risk));
+        }
         return new(id, generation?.Id, now, now + PaperPlanner.PreviewMaximumAge, error == PaperRejection.None, error.ToString(), request.OpportunityKey,
             request.Quantity, plan?.Quantity ?? 0, plan?.Fills.Select(PaperEndpoints.Fill).ToArray() ?? [], plan?.Debits.Select(d =>
             { var cash = balances.SingleOrDefault(b => b.Exchange == d.Exchange && b.Currency == d.Currency)?.AvailableCash ?? 0;
@@ -88,7 +100,7 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
             plan?.Proof.GrossCost, plan?.Proof.Fees?.TotalExchangeFees, plan?.Cost, plan?.ExpectedPayoutAtResolution, plan?.ExpectedProfitAtResolution,
             plan is null ? null : OpportunityEndpoints.Map(plan.Proof),
             ["PAPER SIMULATION — no real orders submitted.", "Snapshot Paper Fill / Immediate Taker Simulation. No latency, market impact or fill certainty is modeled.",
-                "Expected payout and profit are projections. Realization requires a separate explicit Manual Scenario Resolution."]);
+                "Expected payout and profit are projections. Realization requires a separate explicit Manual Scenario Resolution."], PaperRiskEndpoints.Decision(risk));
     }
     private async Task<PaperPlanResult> PlanAsync(Guid actor, Guid workspace, PaperPreviewRequest request, CancellationToken ct)
     {
@@ -119,6 +131,7 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime.ApplicationStopping);
         var result = await ConfirmCoreAsync(actor, workspace, request, correlation, linked.Token);
+        riskDiagnostics.Record(workspace, result.RiskDecision);
         diagnostics.Record(workspace, result); return result;
     }
     private async Task<PaperCommitResult> ConfirmCoreAsync(Guid actor, Guid workspace, ConfirmPaperRequest request, string correlation, CancellationToken ct)
@@ -146,6 +159,6 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
         var legIds = ticket.Plan.Fills.Select(f => f.LegId).Distinct().ToDictionary(id => id, _ => Guid.NewGuid());
         var executionPlan = ticket.Plan with { Id = Guid.NewGuid(), Fills = [.. ticket.Plan.Fills.Select(f => f with { Id = Guid.NewGuid(), LegId = legIds[f.LegId], FilledAt = clock.GetUtcNow() })] };
         return await store.CommitAsync(actor, workspace, ticket.Generation, request.RequestId, fingerprint, executionPlan, correlation, Validate,
-            commit => books.CommitIfCurrent(ticket.Plan.Proof.Legs.Select(l => l.Instrument).ToArray(), ticket.Plan.Proof.Legs.Select(l => l.SnapshotVersion).ToArray(), commit), ct);
+            commit => books.CommitIfCurrent(ticket.Plan.Proof.Legs.Select(l => l.Instrument).ToArray(), ticket.Plan.Proof.Legs.Select(l => l.SnapshotVersion).ToArray(), commit), ct, ticket.Risk);
     }
 }

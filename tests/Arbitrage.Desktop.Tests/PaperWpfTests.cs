@@ -46,6 +46,7 @@ public sealed class PaperWpfTests(WpfFixture fixture)
             if (scenario is "FeeModelUnresolved" or "MarketDataChanged")
                 vm.Preview = vm.Preview! with { Fills = [], Debits = [], ExecutableQuantity = 0, GrossCost = null, TotalFees = null, FeeAdjustedCost = null,
                     ExpectedPayoutAtResolution = null, ExpectedProfitAtResolution = null, Proof = null };
+            if (scenario == "EligiblePreview") vm.Preview = vm.Preview! with { RiskDecision = new("Approved", 1, Guid.NewGuid(), new string('A', 64), generation, 0, [], [], [], 0, 2, 0, 1, 0, 1, [], at) };
             if (scenario == "InsufficientPaperFunds")
             {
                 vm.Account = vm.Account! with { Balances = vm.Account!.Balances.Select(b => b with { InitialCash = 5, AvailableCash = 5, TotalCash = 5 }).ToArray() };

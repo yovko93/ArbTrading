@@ -12,6 +12,7 @@
    <TextBlock Text="Paper Trading · SIMULATION ONLY" Style="{StaticResource MetricText}"/>
    <TextBlock Text="Mode: Paper. No real orders submitted. Snapshot fills and explicit Manual Scenario Resolution." TextWrapping="Wrap" Margin="0,8"/>
    <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
+   <views:PaperRiskView/>
    <Border Style="{StaticResource CardBorder}"><StackPanel>
     <TextBlock Text="{Binding AccountText}" TextWrapping="Wrap"/>
     <DataGrid ItemsSource="{Binding Account.Balances}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" AutomationProperties.Name="Paper venue balances">

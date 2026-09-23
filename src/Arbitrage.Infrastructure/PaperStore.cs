@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Arbitrage.Infrastructure;
 
 public sealed record PaperFunding(string Exchange, string Currency, decimal Amount);
-public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionEntry? Execution = null, bool Duplicate = false);
+public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionEntry? Execution = null, bool Duplicate = false, PaperRiskDecision? RiskDecision = null);
 
 // SQLite serializable transactions acquire the writer reservation before reading balances. The unique
 // request index is the durable idempotency authority, including across scopes, restart and lost replies.
@@ -64,7 +64,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
 
     public async Task<PaperCommitResult> CommitAsync(Guid actor, Guid workspace, Guid generationId, Guid requestId, string fingerprint,
         PaperPlan plan, string correlation, Func<CancellationToken, Task<PaperRejection>> revalidate,
-        Func<Action, bool> commitCurrentBooks, CancellationToken ct)
+        Func<Action, bool> commitCurrentBooks, CancellationToken ct, PaperRiskDecision? reviewedRisk = null)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await membership.RequireMemberAsync(actor, workspace, true, ct);
@@ -82,10 +82,21 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         var balances = await db.Set<PaperBalanceEntry>().Where(b => b.GenerationId == generationId).ToArrayAsync(ct);
         error = Funds(plan, balances);
         if (error != PaperRejection.None) return new(error);
+        var risk = PaperRiskEvaluator.Evaluate(await RiskProfileAsync(workspace, ct), await RiskStateAsync(generation, ct), plan, clock.GetUtcNow());
+        // Always recompute inside the writer transaction, even when revision checks subsequently reject.
+        if (reviewedRisk is not null && reviewedRisk.PolicyRevision != risk.PolicyRevision)
+            return new(PaperRejection.RiskPolicyChanged, RiskDecision: risk with { Decision = PaperRiskOutcome.Rejected,
+                Violations = risk.Violations.Add(new(PaperRiskViolationCode.RiskPolicyChanged)) });
+        if (risk.Decision != PaperRiskOutcome.Approved)
+            return new(risk.Decision == PaperRiskOutcome.NotConfigured ? PaperRejection.RiskPolicyNotConfigured : PaperRejection.RiskLimitExceeded, RiskDecision: risk);
+        if (reviewedRisk is null || reviewedRisk.FinancialRevision != generation.Revision)
+            return new(PaperRejection.FinancialStateChanged, RiskDecision: risk with { Decision = PaperRiskOutcome.Rejected,
+                Violations = risk.Violations.Add(new(PaperRiskViolationCode.FinancialStateChanged)) });
         var now = clock.GetUtcNow();
         var execution = new PaperExecutionEntry { Id = plan.Id, WorkspaceId = workspace, GenerationId = generationId, ActorId = actor,
             RequestId = requestId, RequestFingerprint = fingerprint, OpportunityKey = plan.Proof.OpportunityKey, CreatedAt = now,
-            State = PaperExecutionState.Committed, PlanJson = JsonSerializer.Serialize(plan) };
+            State = PaperExecutionState.Committed, PlanJson = JsonSerializer.Serialize(plan), RiskPolicyVersion = risk.PolicyVersion,
+            RiskPolicyRevision = risk.PolicyRevision, RiskProofJson = JsonSerializer.Serialize(new PaperRiskProof(risk, plan.Id, plan.Quantity, plan.Cost)) };
         db.Add(execution);
         execution.SettlementMarketsJson = JsonSerializer.Serialize(await CaptureMarketsAsync(plan, ct));
         generation.Revision = checked(generation.Revision + 1);
@@ -136,7 +147,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         if (error != PaperRejection.None) return new(error);
         ct.ThrowIfCancellationRequested();
         if (!commitCurrentBooks(() => { ct.ThrowIfCancellationRequested(); tx.Commit(); })) return new(PaperRejection.MarketDataChanged);
-        return new(PaperRejection.None, execution);
+        return new(PaperRejection.None, execution, RiskDecision: risk);
     }
     private void Entry(Guid transaction, string exchange, string currency, string reason, decimal available, decimal reserved) =>
         db.Add(new PaperLedgerEntry { Id = Guid.NewGuid(), TransactionId = transaction, Exchange = exchange, Currency = currency,
@@ -180,6 +191,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
             foreach (var execution in executions)
             {
                 var plan = JsonSerializer.Deserialize<PaperPlan>(execution.PlanJson)!;
+                healthy &= RiskProofHealthy(execution, plan);
                 var actual = fills.Where(f => legs.Any(l => l.ExecutionId == execution.Id && l.Id == f.LegId)).ToArray();
                 healthy &= plan.Id == execution.Id && actual.Length == plan.Fills.Length &&
                     actual.All(f => plan.Fills.Any(p => JsonSerializer.Serialize(p) == JsonSerializer.Serialize(f))) && legs.Count(l => l.ExecutionId == execution.Id) == 2;

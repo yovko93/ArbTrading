@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Channels;
 using Arbitrage.Contracts;
 using Arbitrage.Desktop.ViewModels;
 using Arbitrage.LocalTransport;
@@ -17,6 +18,28 @@ public interface IRealtimeDelay
 public sealed class RealtimeDelay : IRealtimeDelay
 {
     public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) => Task.Delay(delay, cancellationToken);
+}
+
+// A bounded auto-reset notification. One unread item represents every pending wake;
+// additional writers coalesce without a separate counter that can diverge from storage.
+internal sealed class CoalescingWake
+{
+    private readonly Channel<byte> channel = Channel.CreateBounded<byte>(new BoundedChannelOptions(1)
+    {
+        SingleReader = true,
+        SingleWriter = false,
+        FullMode = BoundedChannelFullMode.DropWrite
+    });
+
+    public void Signal() => channel.Writer.TryWrite(0);
+    public Task WaitAsync(CancellationToken cancellationToken) => channel.Reader.ReadAsync(cancellationToken).AsTask();
+    public async Task<bool> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout);
+        try { await channel.Reader.ReadAsync(deadline.Token); return true; }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return false; }
+    }
 }
 
 public sealed record RealtimeOptions(TimeSpan ConsistencyInterval, TimeSpan HeartbeatStaleAfter)
@@ -43,11 +66,12 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
 {
     private readonly RealtimeOptions settings = options ?? new(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(45));
     private readonly CancellationTokenSource lifetime = new();
-    private readonly SemaphoreSlim wake = new(0, 1);
+    private readonly CoalescingWake wake = new();
     private Task? runner;
     private long generation;
     private long notifications;
-    private int wakeQueued;
+    private readonly object lifecycleGate = new();
+    private int disposed;
     private readonly object stopGate = new();
     private Guid stoppedInstance;
     private volatile bool authPaused;
@@ -61,9 +85,12 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
 
     public void Start()
     {
-        if (runner is not null) return;
-        state.AccessInvalidated += OnAccessInvalidated;
-        runner = RunSafelyAsync(lifetime.Token);
+        lock (lifecycleGate)
+        {
+            if (disposed != 0 || runner is not null) return;
+            state.AccessInvalidated += OnAccessInvalidated;
+            runner = RunSafelyAsync(lifetime.Token);
+        }
     }
 
     private void OnAccessInvalidated(object? sender, EventArgs args)
@@ -115,10 +142,7 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
             if (stoppedInstance != Guid.Empty && stoppedInstance != replacement) stoppedInstance = Guid.Empty;
     }
 
-    private void Signal()
-    {
-        if (Interlocked.Exchange(ref wakeQueued, 1) == 0) wake.Release();
-    }
+    private void Signal() => wake.Signal();
 
     private async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -128,7 +152,8 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
             if (StoppedInstance != Guid.Empty || authPaused)
             {
                 await wake.WaitAsync(cancellationToken);
-                Interlocked.Exchange(ref wakeQueued, 0);
+                // Access invalidation itself wakes the loop but does not authorize retry.
+                if (authPaused) continue;
                 // Refresh is a bounded observation even after an intentional stop.
             }
             var session = Interlocked.Increment(ref generation);
@@ -228,7 +253,6 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                     session == Volatile.Read(ref generation) && !authPaused)
                 {
                     var signaled = await wake.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
-                    Interlocked.Exchange(ref wakeQueued, 0);
                     if (closed || hub.State != HubConnectionState.Connected || session != Volatile.Read(ref generation)) break;
                     var heartbeatTick = Interlocked.Read(ref lastHeartbeatTick);
                     if (Stopwatch.GetElapsedTime(heartbeatTick == 0 ? subscriptionTick : heartbeatTick) > settings.HeartbeatStaleAfter)
@@ -298,17 +322,20 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
                         "Realtime transport disconnected. Retained snapshot is stale."), cancellationToken);
             }
             if (cancellationToken.IsCancellationRequested) break;
-            // Invalidation wakes an active wait; it is not permission to retry the revoked session.
-            if (authPaused) { wake.Wait(0); Interlocked.Exchange(ref wakeQueued, 0); }
             if (authPaused || StoppedInstance != Guid.Empty) continue;
             attempt = Math.Min(attempt + 1, 5);
             var backoff = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt))) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 500));
             using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var delayTask = delay.DelayAsync(backoff, wait.Token);
             var wakeTask = wake.WaitAsync(wait.Token);
-            await Task.WhenAny(delayTask, wakeTask);
+            var winner = await Task.WhenAny(delayTask, wakeTask);
             wait.Cancel();
-            Interlocked.Exchange(ref wakeQueued, 0);
+            // If the delay won, wait until the cancelled reader is detached. A signal racing
+            // before cancellation is knowingly consumed because this loop is already proceeding;
+            // a later signal remains as the single bounded item for the next iteration.
+            if (winner == delayTask)
+                try { await wakeTask; }
+                catch (OperationCanceledException) when (wait.IsCancellationRequested) { }
         }
     }
 
@@ -375,7 +402,11 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
 
     public void Dispose()
     {
-        state.AccessInvalidated -= OnAccessInvalidated;
+        lock (lifecycleGate)
+        {
+            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+            state.AccessInvalidated -= OnAccessInvalidated;
+        }
         lifetime.Cancel(); Signal();
         // The run loop owns HubConnection disposal; shutdown never stops the backend host.
     }
@@ -383,6 +414,8 @@ public sealed class RealtimeSession(BackendClient backend, MainViewModel state, 
     public async Task StopAsync()
     {
         Dispose();
-        if (runner is not null) await runner;
+        Task? running;
+        lock (lifecycleGate) running = runner;
+        if (running is not null) await running;
     }
 }

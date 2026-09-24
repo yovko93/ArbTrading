@@ -138,8 +138,8 @@ public sealed class DesktopShellTests
         shell.SelectedItem = shell.Navigation[0];
         Assert.Same(firstDashboard, shell.CurrentPage);
         Assert.Equal("Unsaved local edit", state.WorkspaceName);
-        Assert.Equal("Unavailable", state.ManualExecutionLabel);
-        Assert.Equal("Unavailable", state.AutomaticExecutionLabel);
+        Assert.Equal("Unknown", state.ManualExecutionLabel);
+        Assert.Equal("Unknown", state.AutomaticExecutionLabel);
     }
 
     [Fact]
@@ -170,6 +170,92 @@ public sealed class DesktopShellTests
         await state.RefreshCommand.ExecuteAsync(null);
         Assert.Equal("Connected", state.ConnectionStatus);
         Assert.Equal("Unsaved", state.WorkspaceName);
+    }
+
+    [Theory]
+    [InlineData(false, false, "Paper: Unavailable", "Live: Unavailable", "Warning", "Neutral")]
+    [InlineData(true, false, "Paper: Available", "Live: Unavailable", "Good", "Neutral")]
+    [InlineData(true, true, "Paper: Available", "Live: Available", "Good", "Good")]
+    [InlineData(false, true, "Paper: Unavailable", "Live: Available", "Warning", "Good")]
+    public void Shell_capability_labels_follow_authenticated_snapshot(bool paper, bool live, string paperLabel, string liveLabel, string paperTone, string liveTone)
+    {
+        using var state = StateModel(_ => new(HttpStatusCode.ServiceUnavailable));
+        Assert.False(state.HasSnapshot);
+        Assert.Equal("Paper: Unknown", state.PaperStatusLabel);
+        Assert.Equal("Live: Unknown", state.LiveStatusLabel);
+        Assert.Equal("Neutral", state.PaperStatusTone);
+        Assert.Equal("Neutral", state.LiveStatusTone);
+        Assert.Equal("Backend capability state unavailable", state.LocalModeSummary);
+        Assert.Equal("Unknown", state.PaperExecutionLabel);
+        var capabilities = new Capabilities(true, paper, live, false, false);
+        var workspace = Guid.NewGuid(); var user = Guid.NewGuid();
+        state.ApplyRealtimeSnapshot(new(1, Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow,
+            new(user, workspace, "Local", capabilities),
+            new("fixture", 1, "Healthy", "Local", "Paper", "Paper", capabilities),
+            new(workspace, "Fixture"), []), "http://127.0.0.1:5274");
+        Assert.Equal(paperLabel, state.PaperStatusLabel);
+        Assert.Equal(liveLabel, state.LiveStatusLabel);
+        Assert.Equal(paperTone, state.PaperStatusTone);
+        Assert.Equal(liveTone, state.LiveStatusTone);
+        Assert.Equal($"Paper simulation {(paper ? "available" : "unavailable")} · live execution {(live ? "available" : "unavailable")}", state.LocalModeSummary);
+        Assert.Contains(state.LocalModeSummary, state.Message);
+        Assert.Equal(paper, state.Message.Contains("Manual paper execution requires explicit confirmation.", StringComparison.Ordinal));
+        Assert.Equal(paper ? "Available" : "Not implemented", state.PaperExecutionLabel);
+        Assert.Equal(live ? "Available" : "Unavailable", state.LiveExecutionLabel);
+        Assert.Equal("Unavailable", state.ManualExecutionLabel);
+        Assert.Equal("Unavailable", state.AutomaticExecutionLabel);
+    }
+
+    [Fact]
+    public void Retained_capability_is_marked_stale_then_cleared_on_access_denial()
+    {
+        using var state = StateModel(_ => new(HttpStatusCode.ServiceUnavailable));
+        var changes = new List<string>(); state.PropertyChanged += (_, e) => changes.Add(e.PropertyName!);
+        var capabilities = Capabilities.Phase04A; var workspace = Guid.NewGuid();
+        state.ApplyRealtimeSnapshot(new(1, Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow,
+            new(Guid.NewGuid(), workspace, "Local", capabilities),
+            new("fixture", 1, "Healthy", "Local", "Paper", "Paper", capabilities),
+            new(workspace, "Fixture"), []), "http://127.0.0.1:5274");
+        changes.Clear(); state.SetRealtimeStatus("Disconnected", "Fixture transport loss");
+        Assert.True(state.HasSnapshot); Assert.True(state.IsStale);
+        Assert.Equal("Paper: Available · stale", state.PaperStatusLabel);
+        Assert.Equal("Live: Unavailable · stale", state.LiveStatusLabel);
+        Assert.Equal("Warning", state.PaperStatusTone);
+        Assert.StartsWith("Last-known:", state.LocalModeSummary);
+        Assert.Contains(nameof(MainViewModel.LocalModeSummary), changes);
+        Assert.Contains(nameof(MainViewModel.PaperStatusLabel), changes);
+        changes.Clear(); state.SetRealtimeStatus("AuthorizationDenied", "Fixture access denied");
+        Assert.False(state.HasSnapshot); Assert.Null(state.Snapshot);
+        Assert.Equal("Paper: Unknown", state.PaperStatusLabel);
+        Assert.Equal("Live: Unknown", state.LiveStatusLabel);
+        Assert.Equal("Backend capability state unavailable", state.LocalModeSummary);
+        Assert.Equal("Neutral", state.PaperStatusTone);
+        Assert.Contains(nameof(MainViewModel.LocalModeSummary), changes);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Refresh_message_uses_loaded_capabilities(bool paper, bool live)
+    {
+        var workspace = Guid.NewGuid(); var user = Guid.NewGuid();
+        var capabilities = new Capabilities(true, paper, live, false, false);
+        using var state = StateModel(request =>
+        {
+            object body = request.RequestUri!.AbsolutePath switch
+            {
+                "/api/v1/session" => new SessionResponse(user, workspace, "Local", capabilities),
+                "/api/v1/system/status" => new SystemStatusResponse("fixture", 1, "Healthy", "Local", "Paper", "Paper", capabilities),
+                "/api/v1/exchanges/status" => Array.Empty<ExchangeStatusResponse>(),
+                _ => new WorkspaceSettingsResponse(workspace, "Fixture")
+            };
+            return new(HttpStatusCode.OK) { Content = JsonContent.Create(body) };
+        });
+        await state.InitializeAsync(default);
+        Assert.Equal("Connected", state.ConnectionStatus);
+        Assert.Contains(state.LocalModeSummary, state.Message);
+        Assert.DoesNotContain("execution is unavailable", state.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

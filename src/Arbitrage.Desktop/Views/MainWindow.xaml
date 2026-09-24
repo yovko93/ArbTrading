@@ -49,7 +49,7 @@
         <Border Grid.Row="2" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="8,14,8,0">
           <StackPanel>
             <TextBlock Text="LOCAL MODE" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold" FontSize="11" />
-            <TextBlock Text="Public catalog · execution unavailable" Style="{StaticResource MutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding State.LocalModeSummary}" Style="{StaticResource MutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
       </Grid>
@@ -69,7 +69,8 @@
             <controls:StatusBadge Label="{Binding LocalBackend.ProcessStatus}" Tone="Neutral" Margin="0,0,7,0" />
             <controls:StatusBadge Label="{Binding State.ConnectionStatus}" Tone="Neutral" Margin="0,0,7,0" />
             <controls:StatusBadge Label="{Binding State.TradingMode}" Tone="Neutral" Margin="0,0,7,0" />
-            <controls:StatusBadge Label="Execution unavailable" Tone="Warning" />
+            <controls:StatusBadge Label="{Binding State.PaperStatusLabel}" Tone="{Binding State.PaperStatusTone}" Margin="0,0,7,0" />
+            <controls:StatusBadge Label="{Binding State.LiveStatusLabel}" Tone="{Binding State.LiveStatusTone}" />
           </WrapPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">

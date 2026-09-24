@@ -65,10 +65,22 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     public bool IsWorkspaceAuthorized => !IsWorkspaceAccessDenied;
     public string DataAge => !HasSnapshot ? "No backend snapshot" : IsStale ? "Last-known snapshot · stale" : "Latest completed refresh";
     public string LastRefreshLabel => LastSuccessfulRefresh?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz") ?? "Never";
-    public string PaperExecutionLabel => Snapshot?.System.Capabilities.PaperExecutionImplemented == true ? "Available" : "Not implemented";
-    public string LiveExecutionLabel => Snapshot?.System.Capabilities.LiveOrderSubmissionAvailable == true ? "Available" : "Unavailable";
-    public string ManualExecutionLabel => Snapshot?.System.Capabilities.ManualLiveExecutionAvailable == true ? "Available" : "Unavailable";
-    public string AutomaticExecutionLabel => Snapshot?.System.Capabilities.AutomaticLiveExecutionAvailable == true ? "Available" : "Unavailable";
+    private bool HasCapabilitySnapshot => HasSnapshot && Snapshot is not null && !IsWorkspaceAccessDenied;
+    private bool CapabilityIsStale => HasCapabilitySnapshot && (IsStale || ConnectionStatus != "Connected");
+    public string PaperExecutionLabel => !HasCapabilitySnapshot ? "Unknown" : Snapshot!.System.Capabilities.PaperExecutionImplemented ? "Available" : "Not implemented";
+    public string LiveExecutionLabel => !HasCapabilitySnapshot ? "Unknown" : Snapshot!.System.Capabilities.LiveOrderSubmissionAvailable ? "Available" : "Unavailable";
+    public string ManualExecutionLabel => !HasCapabilitySnapshot ? "Unknown" : Snapshot!.System.Capabilities.ManualLiveExecutionAvailable ? "Available" : "Unavailable";
+    public string AutomaticExecutionLabel => !HasCapabilitySnapshot ? "Unknown" : Snapshot!.System.Capabilities.AutomaticLiveExecutionAvailable ? "Available" : "Unavailable";
+    public string PaperStatusLabel => !HasCapabilitySnapshot ? "Paper: Unknown" :
+        $"Paper: {(Snapshot!.System.Capabilities.PaperExecutionImplemented ? "Available" : "Unavailable")}{(CapabilityIsStale ? " · stale" : "")}";
+    public string LiveStatusLabel => !HasCapabilitySnapshot ? "Live: Unknown" :
+        $"Live: {(Snapshot!.System.Capabilities.LiveOrderSubmissionAvailable ? "Available" : "Unavailable")}{(CapabilityIsStale ? " · stale" : "")}";
+    public string PaperStatusTone => !HasCapabilitySnapshot ? "Neutral" : CapabilityIsStale ? "Warning" : Snapshot!.System.Capabilities.PaperExecutionImplemented ? "Good" : "Warning";
+    public string LiveStatusTone => !HasCapabilitySnapshot ? "Neutral" : CapabilityIsStale ? "Warning" : Snapshot!.System.Capabilities.LiveOrderSubmissionAvailable ? "Good" : "Neutral";
+    private string CapabilitySummary => !HasCapabilitySnapshot ? "Execution status unknown" :
+        $"Paper simulation {(Snapshot!.System.Capabilities.PaperExecutionImplemented ? "available" : "unavailable")} · live execution {(Snapshot.System.Capabilities.LiveOrderSubmissionAvailable ? "available" : "unavailable")}";
+    public string LocalModeSummary => !HasCapabilitySnapshot ? "Backend capability state unavailable" :
+        CapabilityIsStale ? $"Last-known: {CapabilitySummary} · stale" : CapabilitySummary;
     public string PolymarketLabel => Snapshot?.Exchanges.FirstOrDefault(e => e.Exchange == "Polymarket")?.IntegrationState ?? "Unavailable";
     public string KalshiLabel => Snapshot?.Exchanges.FirstOrDefault(e => e.Exchange == "Kalshi")?.IntegrationState ?? "Unavailable";
 
@@ -98,7 +110,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
             if (requestedGeneration != Volatile.Read(ref privateStateGeneration)) return;
             ApplyBackendSnapshot(result);
             ConnectionStatus = ConnectionState.Connected.ToString();
-            Message = "Backend state refreshed. Public market metadata is available in Market Explorer; execution is unavailable.";
+            Message = $"Backend state refreshed. Market Explorer shows cached public metadata. {CapabilitySummary}.";
             diagnostics?.Record("Information", "Backend refresh succeeded.");
             NotifyDerived();
         }
@@ -159,7 +171,8 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         if (backendChanged) HeartbeatStatus = "Awaiting heartbeat";
         ConnectionStatus = ConnectionState.Connected.ToString();
         CanEdit = true;
-        Message = "Backend state synchronized. Market Explorer shows cached public metadata; paper simulation requires explicit confirmation. Live execution is unavailable.";
+        Message = $"Backend state synchronized. Market Explorer shows cached public metadata. {CapabilitySummary}." +
+            (response.System.Capabilities.PaperExecutionImplemented ? " Manual paper execution requires explicit confirmation." : "");
         UpdateCanSave();
         CatalogRefreshRequested?.Invoke(this, EventArgs.Empty);
     }
@@ -278,21 +291,28 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     {
         OnPropertyChanged(nameof(WorkspaceHeader)); OnPropertyChanged(nameof(VisibleUserId));
         OnPropertyChanged(nameof(VisibleWorkspaceIdentifier)); OnPropertyChanged(nameof(IsWorkspaceAccessDenied));
-        OnPropertyChanged(nameof(IsWorkspaceAuthorized)); UpdateCanSave();
+        OnPropertyChanged(nameof(IsWorkspaceAuthorized)); NotifyCapabilityPresentation(); UpdateCanSave();
     }
-    partial void OnHasSnapshotChanged(bool value) { OnPropertyChanged(nameof(WorkspaceHeader)); OnPropertyChanged(nameof(DataAge)); }
-    partial void OnIsStaleChanged(bool value) => OnPropertyChanged(nameof(DataAge));
+    partial void OnHasSnapshotChanged(bool value) { OnPropertyChanged(nameof(WorkspaceHeader)); OnPropertyChanged(nameof(DataAge)); NotifyCapabilityPresentation(); }
+    partial void OnIsStaleChanged(bool value) { OnPropertyChanged(nameof(DataAge)); NotifyCapabilityPresentation(); }
     partial void OnLastSuccessfulRefreshChanged(DateTimeOffset? value) => OnPropertyChanged(nameof(LastRefreshLabel));
     partial void OnSnapshotChanged(BackendSnapshot? value) => NotifyDerived();
     partial void OnCanEditChanged(bool value) => UpdateCanSave();
     private void UpdateCanSave() => CanSave = CanEdit && IsDirty && !IsBusy && ValidationMessage.Length == 0;
     private void NotifyDerived()
     {
-        OnPropertyChanged(nameof(PaperExecutionLabel)); OnPropertyChanged(nameof(LiveExecutionLabel));
-        OnPropertyChanged(nameof(ManualExecutionLabel)); OnPropertyChanged(nameof(AutomaticExecutionLabel));
+        NotifyCapabilityPresentation();
         OnPropertyChanged(nameof(PolymarketLabel)); OnPropertyChanged(nameof(KalshiLabel));
         OnPropertyChanged(nameof(WorkspaceHeader)); OnPropertyChanged(nameof(DataAge));
         OnPropertyChanged(nameof(VisibleUserId)); OnPropertyChanged(nameof(VisibleWorkspaceIdentifier));
+    }
+    private void NotifyCapabilityPresentation()
+    {
+        OnPropertyChanged(nameof(PaperExecutionLabel)); OnPropertyChanged(nameof(LiveExecutionLabel));
+        OnPropertyChanged(nameof(ManualExecutionLabel)); OnPropertyChanged(nameof(AutomaticExecutionLabel));
+        OnPropertyChanged(nameof(PaperStatusLabel)); OnPropertyChanged(nameof(LiveStatusLabel));
+        OnPropertyChanged(nameof(PaperStatusTone)); OnPropertyChanged(nameof(LiveStatusTone));
+        OnPropertyChanged(nameof(LocalModeSummary));
     }
     public void Dispose() { lifetime.Cancel(); lifetime.Dispose(); }
 }

@@ -14,12 +14,13 @@ public sealed record DashboardViewModel(MainViewModel State, object? LocalBacken
 public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme, object? LocalBackend = null, KalshiCredentialsViewModel? Credentials = null, FeeProfileViewModel? Fees = null);
 public sealed record DiagnosticsViewModel(MainViewModel State, DesktopDiagnostics Diagnostics);
 public sealed record TradingViewModel(MainViewModel State);
+public sealed record StrategiesViewModel(MainViewModel State);
 public sealed record UnavailablePageViewModel(string Title, string Purpose, string Dependency)
 {
     public string DataNotice => "No operational data is being generated for this module.";
 }
 
-public partial class ShellViewModel : ObservableObject
+public partial class ShellViewModel : ObservableObject, IDisposable
 {
     private readonly Dictionary<PageDestination, object> pages;
     public MainViewModel State { get; }
@@ -45,7 +46,7 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty] private string pageTitle = "Dashboard";
 
     public ShellViewModel(MainViewModel state, ThemeSelectionViewModel theme, DesktopDiagnostics diagnostics,
-        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null, FeeProfileViewModel? fees = null, PaperTradingViewModel? paper = null)
+        object? localBackend = null, MarketExplorerViewModel? marketExplorer = null, KalshiCredentialsViewModel? credentials = null, RelationshipsViewModel? relationships = null, OpportunitiesViewModel? opportunities = null, FeeProfileViewModel? fees = null, PaperTradingViewModel? paper = null, BackendClient? analyticsBackend = null)
     {
         State = state; Theme = theme; LocalBackend = localBackend;
         pages = new()
@@ -55,12 +56,12 @@ public partial class ShellViewModel : ObservableObject
             [PageDestination.Diagnostics] = new DiagnosticsViewModel(state, diagnostics),
             [PageDestination.Trading] = new TradingViewModel(state),
             [PageDestination.PaperReliability] = (object?)paper?.Reliability ?? new UnavailablePageViewModel("Paper Reliability", "Measure paper system reliability.", "Paper services unavailable."),
-            [PageDestination.Opportunities] = (object?)opportunities ?? new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Market ingestion and strategy evaluation are not implemented."),
+            [PageDestination.Opportunities] = (object?)opportunities ?? new UnavailablePageViewModel("Opportunities", "Discover and evaluate arbitrage opportunities across markets.", "Opportunity services are unavailable in this shell instance."),
             [PageDestination.MarketExplorer] = (object?)marketExplorer ?? new UnavailablePageViewModel("Market Explorer", "Browse locally cached public markets.", "Market Explorer is not available in this shell instance."),
             [PageDestination.MarketMatching] = (object?)relationships ?? new UnavailablePageViewModel("Market Matching", "Compare market rules and candidate equivalents.", "Relationships are unavailable in this shell instance."),
-            [PageDestination.Strategies] = new UnavailablePageViewModel("Strategies", "Configure and review arbitrage strategies.", "Strategy evaluation and optimization are not implemented."),
-            [PageDestination.Portfolio] = new UnavailablePageViewModel("Portfolio", "Review positions, balances, and execution history.", "Exchange accounts and portfolio ingestion are not implemented."),
-            [PageDestination.Analytics] = new UnavailablePageViewModel("Analytics", "Analyze actual historical performance when it exists.", "Market recording and execution history are not implemented.")
+            [PageDestination.Strategies] = new StrategiesViewModel(state),
+            [PageDestination.Portfolio] = new UnavailablePageViewModel("Portfolio", "Review paper positions, balances, and execution history.", "Paper portfolio services are unavailable in this shell instance."),
+            [PageDestination.Analytics] = new PaperAnalyticsViewModel(state, analyticsBackend)
         };
         if (paper is not null)
         {
@@ -87,6 +88,8 @@ public partial class ShellViewModel : ObservableObject
         { if (value.Destination == PageDestination.Trading) trading.Activate(); else trading.Deactivate(); }
         if (pages[PageDestination.Portfolio] is PaperPortfolioViewModel portfolio)
         { if (value.Destination == PageDestination.Portfolio) portfolio.Activate(); else portfolio.Deactivate(); }
+        if (pages[PageDestination.Analytics] is PaperAnalyticsViewModel analytics)
+        { if (value.Destination == PageDestination.Analytics) analytics.Activate(); else analytics.Deactivate(); }
         if (pages[PageDestination.Opportunities] is OpportunitiesViewModel opportunities)
         {
             if (value.Destination == PageDestination.Opportunities) opportunities.Activate(); else opportunities.Deactivate();
@@ -100,5 +103,10 @@ public partial class ShellViewModel : ObservableObject
             if (value.Destination == PageDestination.MarketExplorer) explorer.Activate();
             else explorer.Deactivate();
         }
+    }
+
+    public void Dispose()
+    {
+        if (pages[PageDestination.Analytics] is PaperAnalyticsViewModel analytics) analytics.Dispose();
     }
 }

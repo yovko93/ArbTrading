@@ -127,8 +127,12 @@ public sealed class DesktopShellTests
         var shell = new ShellViewModel(state, selection, diagnostics);
         Assert.Equal(11, shell.Navigation.Count);
         Assert.Single(shell.Navigation, item => item.Destination == PageDestination.PaperReliability);
+        shell.SelectedItem = shell.Navigation.Single(n => n.Destination == PageDestination.Strategies);
+        Assert.IsType<StrategiesViewModel>(shell.CurrentPage);
+        shell.SelectedItem = shell.Navigation.Single(n => n.Destination == PageDestination.Analytics);
+        Assert.IsType<PaperAnalyticsViewModel>(shell.CurrentPage);
         state.WorkspaceName = "Unsaved local edit";
-        var firstDashboard = shell.CurrentPage;
+        var firstDashboard = shell.Navigation[0];
         foreach (var item in shell.Navigation)
         {
             shell.SelectedItem = item;
@@ -136,7 +140,8 @@ public sealed class DesktopShellTests
             Assert.NotNull(shell.CurrentPage);
         }
         shell.SelectedItem = shell.Navigation[0];
-        Assert.Same(firstDashboard, shell.CurrentPage);
+        Assert.IsType<DashboardViewModel>(shell.CurrentPage);
+        Assert.Equal(firstDashboard, shell.SelectedItem);
         Assert.Equal("Unsaved local edit", state.WorkspaceName);
         Assert.Equal("Unknown", state.ManualExecutionLabel);
         Assert.Equal("Unknown", state.AutomaticExecutionLabel);

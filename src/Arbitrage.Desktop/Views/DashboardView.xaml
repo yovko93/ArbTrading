@@ -4,7 +4,7 @@
              xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel MaxWidth="1100" HorizontalAlignment="Left">
-      <controls:SectionHeader Title="Workspace overview" Subtitle="Latest completed backend request. No market or execution feed is active." />
+      <controls:SectionHeader Title="Workspace overview" Subtitle="Local backend, workspace, exchange, and execution status." />
       <Border Style="{StaticResource CardBorder}">
         <StackPanel>
           <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource SectionTitleText}" />
@@ -55,8 +55,14 @@
             <TextBlock Text="Polymarket" /><TextBlock Grid.Column="1" Text="{Binding State.PolymarketLabel}" />
             <TextBlock Grid.Row="1" Text="Kalshi" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding State.KalshiLabel}" />
           </Grid>
-          <TextBlock Text="Market counts, balances, P&amp;L, and opportunities: — (not available)"
-                     Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+        </StackPanel>
+      </Border>
+      <Border Style="{StaticResource CardBorder}">
+        <StackPanel>
+          <TextBlock Text="Where to work" Style="{StaticResource SectionTitleText}" />
+          <TextBlock Text="Markets → Market Explorer · Opportunities → Opportunities" Margin="0,8,0,0" TextWrapping="Wrap" />
+          <TextBlock Text="Paper entry → Trading · Holdings and P&amp;L → Portfolio" Margin="0,5,0,0" TextWrapping="Wrap" />
+          <TextBlock Text="Burn-in evidence → Paper Reliability" Margin="0,5,0,0" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
     </StackPanel>

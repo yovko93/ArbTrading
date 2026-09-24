@@ -13,6 +13,8 @@
     <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:TradingViewModel}"><views:TradingView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:StrategiesViewModel}"><views:StrategiesView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:PaperAnalyticsViewModel}"><views:PaperAnalyticsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:PaperTradingPageViewModel}"><views:PaperTradingView DataContext="{Binding State}" /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:PaperPortfolioViewModel}"><views:PaperPortfolioView DataContext="{Binding State}" /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:PaperReliabilityViewModel}"><views:PaperReliabilityView /></DataTemplate>

@@ -60,7 +60,7 @@ public partial class App : System.Windows.Application
             });
             collection.AddSingleton<ShellViewModel>(s => new ShellViewModel(s.GetRequiredService<MainViewModel>(),
                 s.GetRequiredService<ThemeSelectionViewModel>(), s.GetRequiredService<DesktopDiagnostics>(),
-                s.GetRequiredService<BackendProcessViewModel>(), s.GetRequiredService<MarketExplorerViewModel>(), s.GetRequiredService<KalshiCredentialsViewModel>(), s.GetRequiredService<RelationshipsViewModel>(), s.GetRequiredService<OpportunitiesViewModel>(), s.GetRequiredService<FeeProfileViewModel>(), s.GetRequiredService<PaperTradingViewModel>()));
+                s.GetRequiredService<BackendProcessViewModel>(), s.GetRequiredService<MarketExplorerViewModel>(), s.GetRequiredService<KalshiCredentialsViewModel>(), s.GetRequiredService<RelationshipsViewModel>(), s.GetRequiredService<OpportunitiesViewModel>(), s.GetRequiredService<FeeProfileViewModel>(), s.GetRequiredService<PaperTradingViewModel>(), s.GetRequiredService<BackendClient>()));
             collection.AddSingleton<ILocalConnectionFile>(new ProtectedLocalConnectionFile(runtimeDirectory));
             collection.AddHttpClient<BackendClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
@@ -102,6 +102,7 @@ public partial class App : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         lifetime.Cancel();
+        services?.GetService<ShellViewModel>()?.Dispose();
         services?.GetService<RealtimeSession>()?.Dispose();
         services?.GetService<MainViewModel>()?.Dispose();
         services?.GetService<MarketExplorerViewModel>()?.Dispose();

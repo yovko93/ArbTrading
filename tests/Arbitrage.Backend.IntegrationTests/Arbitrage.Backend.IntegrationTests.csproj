@@ -22,6 +22,7 @@
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Settlement.cs" Link="Desktop/PaperTradingViewModel.Settlement.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ThemeSelectionViewModel.cs" Link="Desktop/ThemeSelectionViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ShellViewModel.cs" Link="Desktop/ShellViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperAnalyticsViewModel.cs" Link="Desktop/PaperAnalyticsViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MarketExplorerViewModel.cs" Link="Desktop/MarketExplorerViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/OpportunitiesViewModel.cs" Link="Desktop/OpportunitiesViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MonitoringViewModel.cs" Link="Desktop/MonitoringViewModel.cs" />

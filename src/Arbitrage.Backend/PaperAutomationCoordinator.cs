@@ -11,7 +11,7 @@ public sealed record PaperAutomationRuntime(PaperAutomationState State, PaperAut
 
 // One sequential local worker. Timers reconcile safety only; no dependency can acquire exchange data.
 public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, MonitoringCoordinator monitor, LocalOptions options,
-    TimeProvider clock, RealtimePublisher publisher) : BackgroundService
+    TimeProvider clock, RealtimePublisher publisher, PaperReliabilityTelemetry? reliability = null) : BackgroundService
 {
     private sealed class Session(PaperAutomationPermit permit)
     {
@@ -35,7 +35,13 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
     private readonly SemaphoreSlim process = new(1, 1), commands = new(1, 1);
     private readonly Dictionary<Guid, Session> sessions = [];
     private bool stopping;
-    private static void Count(Session s, string key) => s.Counters[key] = s.Counters.GetValueOrDefault(key) is var n && n < long.MaxValue ? n + 1 : long.MaxValue;
+    private void Count(Session s, string key)
+    {
+        s.Counters[key] = s.Counters.GetValueOrDefault(key) is var n && n < long.MaxValue ? n + 1 : long.MaxValue;
+        reliability?.Count(s.Permit.WorkspaceId, key);
+        if (key == "AdaptiveSizingAttempts") reliability?.Count(s.Permit.WorkspaceId, "SizingAttempts");
+        if (key == "WorkerFault") reliability?.Count(s.Permit.WorkspaceId, "UnexpectedWorkerFaults");
+    }
     public PaperAutomationRuntime Runtime(Guid workspace)
     {
         lock (gate) return sessions.TryGetValue(workspace, out var s) ? new(s.State, s.Reason, s.Permit, s.Committed, s.Considered, s.Skipped, s.Rejected,
@@ -49,6 +55,9 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
             if (s.State != PaperAutomationState.Armed) return;
             s.State = reason == PaperAutomationReason.KillSwitchLatched ? PaperAutomationState.KillSwitchLatched : reason == PaperAutomationReason.WorkerFault ? PaperAutomationState.Faulted : PaperAutomationState.Disarmed;
             s.Reason = reason; s.StopActor = actor; s.Pending.Clear(); s.Cancel.Cancel(); s.AuditPending = true; Count(s, "SessionsDisarmed");
+            reliability?.SetState(s.Permit.WorkspaceId, armed: false, healthy: false);
+            reliability?.Count(s.Permit.WorkspaceId, "SessionStop:" + reason);
+            if (reason == PaperAutomationReason.WorkerFault) reliability?.Count(s.Permit.WorkspaceId, "UnexpectedWorkerFaults");
         }
         publisher.PaperAutomationChanged(s.Permit.WorkspaceId);
     }
@@ -64,6 +73,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
                 Count(s, "CandidatesObserved"); var key = row.Result.OpportunityKey;
                 if (s.Pending.Contains(key)) Count(s, "CandidatesCoalesced");
                 else if (s.Pending.Count < 100) { s.Pending.Add(key); Count(s, "CandidatesQueued"); }
+                reliability?.Maximum(workspace, "QueueHighWaterMark", s.Pending.Count);
             }
         }
     }
@@ -98,6 +108,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
             {
                 lock (gate) return !stopping && monitor.CommitIfRunning(workspace, () => { commit(); sessions[workspace] = new(permit); Count(sessions[workspace], "SessionsArmed"); });
             }, ct);
+            reliability?.SetState(workspace, armed: true, healthy: true);
             Notify(workspace); publisher.PaperAutomationChanged(workspace);
         }
         finally { commands.Release(); }
@@ -175,6 +186,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
                             s.Committed >= p.Profile.Settings.MaximumExecutionsPerSession ? PaperAutomationReason.SessionExecutionLimitReached :
                             await store.AutomationHourlyCountAsync(p.WorkspaceId, token) >= p.Profile.Settings.MaximumExecutionsPerHour ? PaperAutomationReason.HourlyExecutionLimitReached :
                             PaperRiskEvaluator.Evaluate(snapshot.Profile, snapshot.State, null, clock.GetUtcNow()).Decision != PaperRiskOutcome.Approved ? PaperAutomationReason.BlockedByRisk : PaperAutomationReason.None;
+                        reliability?.SetState(p.WorkspaceId, healthy: reason == PaperAutomationReason.None);
                         if (reason != PaperAutomationReason.None) { Stop(s, reason); await AuditStopAsync(s, ct); continue; }
                     }
                     Notify(s.Permit.WorkspaceId); // Missed-event recovery; same stamps do not get retried on timer ticks.
@@ -186,6 +198,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
                         lock (gate)
                         {
                             if (!s.Pending.Remove(key)) continue;
+                            reliability?.Input(s.Permit.WorkspaceId, key, stamp);
                             if (s.Attempted.GetValueOrDefault(key) == stamp) { Count(s, "DuplicateInputsSuppressed"); continue; }
                             if (s.Permit.Profile.Settings.SizingMode == PaperSizingMode.LargestAdmissibleGridQuantity &&
                                 PaperQuantityGrid.TryCreate(s.Permit.Profile.Settings, out var grid) && !sizingBudget.CanComplete(grid.Length))
@@ -200,6 +213,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
                         if (reason == PaperAutomationReason.InsufficientDepth && s.Permit.Profile.Settings.SizingMode == PaperSizingMode.LargestAdmissibleGridQuantity) reason = PaperAutomationReason.None;
                         if (reason == PaperAutomationReason.None)
                         {
+                            if (s.Permit.Profile.Settings.SizingMode == PaperSizingMode.FixedQuantity) reliability?.Count(s.Permit.WorkspaceId, "SizingAttempts");
                             using var scope = scopes.CreateScope();
                             result = await scope.ServiceProvider.GetRequiredService<PaperCoordinator>().ExecuteAutomaticAsync(s.Permit, key, commit =>
                             { lock (gate) return !stopping && s.State == PaperAutomationState.Armed && sessions.GetValueOrDefault(s.Permit.WorkspaceId) == s &&

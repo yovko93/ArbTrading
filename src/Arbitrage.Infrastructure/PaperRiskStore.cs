@@ -38,7 +38,7 @@ public sealed partial class PaperStore
         row.PolicyVersion = PaperRiskProfile.Version; row.Revision = Guid.NewGuid(); row.Limits = limits;
         row.UpdatedAt = now; row.UpdatedBy = actor; row.Fingerprint = limits.Fingerprint;
         db.AuditRecords.Add(new(actor, workspace, now, correlation, create ? "PaperRiskPolicyConfigured" : "PaperRiskPolicyUpdated", JsonSerializer.Serialize(row.Profile())));
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return row.Profile();
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); reliability?.SetState(workspace, healthy: false); return row.Profile();
     }
     // One coherent read snapshot for policy, revision and accounting. Final admission calls RiskStateAsync
     // inside the existing immediate SQLite writer transaction instead of opening a second transaction.

@@ -14,7 +14,7 @@ public sealed record MonitorStatus(MonitoringState State, DateTimeOffset? Starte
 
 // One explicitly admitted workspace at a time. No connector, credential, subscription or refresh dependencies.
 public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBookCache cache, LocalInputChanges changes,
-    TimeProvider clock, RealtimePublisher publisher, MonitoringCsv csv) : BackgroundService
+    TimeProvider clock, RealtimePublisher publisher, MonitoringCsv csv, Arbitrage.Execution.PaperReliabilityTelemetry? reliability = null) : BackgroundService
 {
     private sealed class Run(Guid actor, Guid workspace, MonitoringProfile profile, DateTimeOffset now, long epoch)
     {
@@ -94,6 +94,7 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
             result = Status(workspace);
         }
         AutomaticPaperInputsChanged?.Invoke(workspace);
+        reliability?.SetState(workspace, monitoring: false, healthy: false);
         return result;
     }
     public void ProfileChanged(Guid workspace, MonitoringProfile profile)
@@ -143,7 +144,7 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
                 var notices = changes.Drain();
                 lock (gate)
                 {
-                    if (notices.Overflow) { r.Reconcile = true; r.Rebuild = true; }
+                    if (notices.Overflow) { r.Reconcile = true; r.Rebuild = true; reliability?.Count(r.Workspace, "QueueOverflowReconciliationCount"); }
                     foreach (var change in notices.Changes.Where(c => c.WorkspaceId is null || c.WorkspaceId == r.Workspace))
                     {
                         if (change.Kind == LocalChangeKind.Relationship) r.Rebuild = true;
@@ -164,6 +165,7 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
                     // Overflow fallback visits each plan exactly once; subsequent notifications remain deduplicated.
                     if (r.Reconcile) { r.Reconciliations++; r.Dirty.Clear(); r.Reconcile = false; r.ReconcileRemaining = new(r.Plans.Keys.Order(StringComparer.Ordinal)); }
                     while (r.Dirty.Count < MaximumDirty && r.ReconcileRemaining.TryDequeue(out var key)) r.Dirty.Add(key);
+                    reliability?.Maximum(r.Workspace, "MonitoringQueueHighWaterMark", r.Dirty.Count);
                     keys = r.Dirty.Order(StringComparer.Ordinal).Take(BatchSize).ToArray(); foreach (var key in keys) r.Dirty.Remove(key);
                 }
                 var coordinator = services.GetRequiredService<OpportunityCoordinator>();
@@ -200,7 +202,8 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
                     if (updated) r.RankingUpdates++;
                 }
                 if (updated || sweep) publisher.MonitoringChanged(r.Workspace, r.Generation);
-                if (updated || sweep) AutomaticPaperInputsChanged?.Invoke(r.Workspace);
+                reliability?.SetState(r.Workspace, monitoring: r.State == MonitoringState.Running);
+                if (updated || sweep) { reliability?.Count(r.Workspace, "MonitoringInvalidations"); AutomaticPaperInputsChanged?.Invoke(r.Workspace); }
                 if (settings.CsvEnabled && now >= r.NextCsv)
                 {
                     // Validation uses local state only and prevents exporting old positive ranks after aging.
@@ -210,8 +213,8 @@ public sealed class MonitoringCoordinator(IServiceScopeFactory scopes, OrderBook
                 }
             }
             catch (OperationCanceledException) when (r.Cancel.IsCancellationRequested || ct.IsCancellationRequested) { }
-            catch (UnauthorizedAccessException) { lock (gate) { r.State = MonitoringState.Faulted; r.Error = "WorkspaceAccessRevoked"; r.Results.Clear(); r.Dirty.Clear(); } }
-            catch (Exception) { lock (gate) { r.State = MonitoringState.Faulted; r.Error = "MonitoringUnavailable"; r.Results.Clear(); r.Dirty.Clear(); } }
+            catch (UnauthorizedAccessException) { reliability?.SetState(r.Workspace, monitoring: false, healthy: false); lock (gate) { r.State = MonitoringState.Faulted; r.Error = "WorkspaceAccessRevoked"; r.Results.Clear(); r.Dirty.Clear(); } }
+            catch (Exception) { reliability?.SetState(r.Workspace, monitoring: false, healthy: false); lock (gate) { r.State = MonitoringState.Faulted; r.Error = "MonitoringUnavailable"; r.Results.Clear(); r.Dirty.Clear(); } }
         }
         finally { process.Release(); }
     }

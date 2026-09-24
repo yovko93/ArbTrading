@@ -88,6 +88,10 @@ public partial class Program
         builder.Services.AddScoped<OrderBookService>();
         builder.Services.AddScoped<OpportunityCoordinator>();
         builder.Services.AddScoped<PaperStore>();
+        builder.Services.AddSingleton<Arbitrage.Execution.PaperReliabilityTelemetry>();
+        builder.Services.AddScoped<PaperReliabilityStore>();
+        builder.Services.AddSingleton<PaperReliabilityCoordinator>();
+        builder.Services.AddHostedService(s => s.GetRequiredService<PaperReliabilityCoordinator>());
         builder.Services.AddSingleton<SettlementMemory>();
         builder.Services.AddScoped<SettlementCoordinator>();
         builder.Services.AddScoped<PaperValuationCoordinator>();

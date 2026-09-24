@@ -456,3 +456,7 @@ current-opportunities.csv
 current-opportunities.pending
 alerts.csv
 alerts.[1-4].csv
+
+# Paper reliability exports contain local campaign evidence
+**/reliability/*/*/report.json
+**/reliability/*/*/report.pending

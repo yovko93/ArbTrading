@@ -101,6 +101,7 @@ public sealed class RealtimePublisher(BackendDiagnosticStore diagnostics, Backen
     public ChannelReader<Dispatch> Reader => queue.Reader;
     public void PaperValuationChanged(Guid workspace) => Enqueue(new(workspace, new(instance.Id, workspace, "PaperValuationChanged")));
     public void PaperAutomationChanged(Guid workspace) => Enqueue(new(workspace, new(instance.Id, workspace, "PaperAutomationChanged")));
+    public void PaperReliabilityChanged(Guid workspace) => Enqueue(new(workspace, new(instance.Id, workspace, "PaperReliabilityChanged")));
     public void PaperChanged(Guid workspace)
     {
         foreach (var kind in new[] { "PaperAccountChanged", "PaperPositionsChanged", "PaperExecutionChanged", "PaperResolutionChanged", "PaperPerformanceChanged" })

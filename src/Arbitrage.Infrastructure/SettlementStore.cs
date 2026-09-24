@@ -147,6 +147,7 @@ public sealed partial class PaperStore
             Exchange = request.Selection.Exchange, MarketId = request.Selection.MarketId, Source = PaperResolutionSource.ManualScenario,
             Status = PaperResolutionStatus.Committed, ResolvedAt = now, RecordedAt = now };
         db.Add(resolution);
+        db.Add(new PaperWriterOrderEntry { WorkspaceId = workspace, At = now, Kind = "SettlementCommitted", ReferenceId = resolution.Id });
         foreach (var o in p.Outcomes) db.Add(new PaperResolutionOutcomeEntry { ResolutionId = resolution.Id, InstrumentId = o.InstrumentId, Outcome = o.Outcome, PayoutPerShare = o.PayoutPerShare });
         var journal = new PaperTransactionEntry { Id = Guid.NewGuid(), GenerationId = generation.Id, ActorId = actor, ResolutionId = resolution.Id, CreatedAt = now, Reason = "PaperSettlement" };
         db.Add(journal);

@@ -142,3 +142,11 @@ Phase 01B provides full desktop navigation and exactly **Dark, Light, System** t
 ## Current paper valuation
 
 Phase 04C adds **Current Executable Mark** in Paper Trading / Portfolio. **Refresh Valuation** recomputes from local canonical bid depth and cached fee schedules; it never acquires market data. Full-depth gross and fee-adjusted unrealized P&L, completeness-gated equity, coverage, capital utilization and concentration remain separate by venue/currency. Unknown marks or fees display Unavailable. Original entry accounting, confirmed settlement and the realized performance curve remain unchanged. No paper SELL/close action, exchange account or persisted MTM history is added. See [paper architecture](docs/Architecture/PaperExecution.md) and [Phase 04C verification](docs/Development/Phase04CVerification.md).
+
+## Phase 04G: paper reliability evidence
+
+The **Paper Reliability** page records explicitly started, workspace-owned paper burn-in campaigns. Start, Pause, Resume, Evaluate, Complete, Cancel and JSON Export are independent of Auto Paper arming. A campaign never starts monitoring, acquires exchange data or enables execution. Completed/cancelled reports are frozen.
+
+Standard policy v1 requires 24 observed backend hours, 24 monitoring hours, 4 armed hours, 4 locally healthy automation hours, 100 observed candidate inputs, 25 distinct key/input stamps, 20 sizing attempts, 5 committed automatic paper executions and zero unexpected worker faults. Fully settled executions have an explicit minimum of zero. All mandatory invariants must be satisfied; gaps and unknown evidence block CriteriaMet, and proven violations are sticky. Paper economics remain separate by generation, venue and currency. CriteriaMet is paper evidence only and unlocks nothing.
+
+JSON exports stay beneath the backend data directory in `reliability/<workspace>/<campaign>/report.json`. Existing databases need the explicit migration workflow described above; the migration is additive. See [Phase 04G verification](docs/Development/Phase04GVerification.md) and [paper architecture](docs/Architecture/PaperExecution.md).

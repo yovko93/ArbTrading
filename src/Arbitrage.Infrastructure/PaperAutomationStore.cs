@@ -68,7 +68,7 @@ public sealed partial class PaperStore
         if (row is null) { row = new() { WorkspaceId = workspace }; db.Add(row); }
         row.ProfileJson = JsonSerializer.Serialize(profile);
         AutomationAudit(actor, workspace, previous is null ? "PaperAutomationProfileConfigured" : "PaperAutomationProfileUpdated", profile);
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return profile;
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); reliability?.SetState(workspace, healthy: false); return profile;
     }
     public async Task<PaperAutomationControlEntry> SetAutomationKillAsync(Guid actor, Guid workspace, bool latch, Guid? expected,
         bool confirmed, string reason, CancellationToken ct)
@@ -83,6 +83,7 @@ public sealed partial class PaperStore
         if (latch) { row.LatchedAt = clock.GetUtcNow(); row.LatchedBy = actor; }
         else { row.ResetAt = clock.GetUtcNow(); row.ResetBy = actor; }
         AutomationAudit(actor, workspace, latch ? "PaperAutomationEmergencyStopped" : "PaperAutomationKillSwitchReset", row);
+        db.Add(new PaperWriterOrderEntry { WorkspaceId = workspace, At = clock.GetUtcNow(), Kind = latch ? "KillSwitchLatched" : "KillSwitchReset", ReferenceId = row.Revision });
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return row;
     }
     public async Task<PaperAutomationPermit> ArmAutomationAsync(Guid actor, Guid workspace, Guid expectedProfile, Guid expectedRisk,
@@ -102,13 +103,17 @@ public sealed partial class PaperStore
         if (assessment.Decision != PaperRiskOutcome.Approved) throw new PaperAutomationException(assessment.Decision == PaperRiskOutcome.InvalidFinancialState ? PaperAutomationReason.IntegrityFailure : PaperAutomationReason.BlockedByRisk);
         if (await AutomationHourlyCountAsync(workspace, ct) >= profile.Settings.MaximumExecutionsPerHour) throw new PaperAutomationException(PaperAutomationReason.HourlyExecutionLimitReached);
         var permit = new PaperAutomationPermit(Guid.NewGuid(), workspace, actor, g.Id, profile, risk.Revision, risk.Fingerprint, kill?.Revision, clock.GetUtcNow());
-        AutomationAudit(actor, workspace, "PaperAutomationArmed", permit); await db.SaveChangesAsync(ct);
+        AutomationAudit(actor, workspace, "PaperAutomationArmed", permit);
+        db.Add(new PaperWriterOrderEntry { WorkspaceId = workspace, At = clock.GetUtcNow(), Kind = "AutomationArmed", ReferenceId = permit.SessionId,
+            SessionId = permit.SessionId, ProofJson = JsonSerializer.Serialize(new ReliabilityArmProof(permit, risk, reliability?.BackendId ?? Guid.Empty)) });
+        await db.SaveChangesAsync(ct);
         if (!activate(permit, () => { ct.ThrowIfCancellationRequested(); tx.Commit(); })) throw new PaperAutomationException(PaperAutomationReason.MonitoringStopped);
         return permit;
     }
     public async Task AutomationDisarmedAuditAsync(PaperAutomationPermit permit, Guid actor, PaperAutomationReason reason, CancellationToken ct)
     {
         AutomationAudit(actor, permit.WorkspaceId, "PaperAutomationDisarmed", new { permit.SessionId, Reason = reason.ToString() });
+        db.Add(new PaperWriterOrderEntry { WorkspaceId = permit.WorkspaceId, At = clock.GetUtcNow(), Kind = "AutomationDisarmed", ReferenceId = permit.SessionId, SessionId = permit.SessionId, ProofJson = reason.ToString() });
         await db.SaveChangesAsync(ct);
     }
     private void AutomationAudit(Guid actor, Guid workspace, string action, object value) =>
@@ -147,7 +152,7 @@ public sealed partial class PaperStore
         return PaperAutomationPolicy.Evaluate(profile.Settings, plan, await AutomationHistoryAsync(p, plan.Proof.RelationshipId, plan.Proof.OpportunityKey, automatic.TriggerStamp, ct),
             (await RiskStateAsync(generation, ct)).Buckets, clock.GetUtcNow());
     }
-    private static bool AutomationProofHealthy(PaperExecutionEntry e, PaperPlan plan)
+    internal static bool AutomationProofHealthy(PaperExecutionEntry e, PaperPlan plan)
     {
         if (e.Origin == PaperExecutionOrigin.Manual) return e.AutomationProofJson is null && e.AutomationSessionId is null && e.AutomationInputStamp is null && e.AutomationRelationshipId is null;
         if (e.Origin != PaperExecutionOrigin.AutomaticPaper || e.RiskProofJson is null || e.AutomationProofJson is null) return false;

@@ -125,7 +125,8 @@ public sealed class DesktopShellTests
         using var selection = new ThemeSelectionViewModel(theme, diagnostics);
         using var state = StateModel(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
         var shell = new ShellViewModel(state, selection, diagnostics);
-        Assert.Equal(10, shell.Navigation.Count);
+        Assert.Equal(11, shell.Navigation.Count);
+        Assert.Single(shell.Navigation, item => item.Destination == PageDestination.PaperReliability);
         state.WorkspaceName = "Unsaved local edit";
         var firstDashboard = shell.CurrentPage;
         foreach (var item in shell.Navigation)

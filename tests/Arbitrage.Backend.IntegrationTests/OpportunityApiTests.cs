@@ -80,8 +80,9 @@ public sealed class OpportunityApiTests
     [Theory] [InlineData("fingerprint")] [InlineData("policy")] [InlineData("mapping")]
     public async Task Retained_results_recheck_catalog_policy_and_approval_revision(string mutation)
     {
-        await using var f = new BackendFixture(); using var client = await f.AuthenticatedClientAsync();
-        var id = await Seed(f, VerificationState.VerifiedDeterministic); Books(f);
+        var clock = new PaperApiTests.Clock { ManualTimers = true };
+        await using var f = new BackendFixture(s => s.AddSingleton<TimeProvider>(clock)); using var client = await f.AuthenticatedClientAsync();
+        var id = await Seed(f, VerificationState.VerifiedDeterministic); Books(f, at: clock.Now);
         var profile = await f.WithDatabaseAsync(db => db.LocalProfiles.SingleAsync()); var root = $"/api/v1/workspaces/{profile.DefaultWorkspaceId}/opportunities";
         var job = await Start(client, root, new(id)); var result = Assert.Single((await client.GetFromJsonAsync<OpportunityPageResponse>($"{root}/jobs/{job.Id}/results"))!.Items);
         await f.WithDatabaseAsync(async db =>

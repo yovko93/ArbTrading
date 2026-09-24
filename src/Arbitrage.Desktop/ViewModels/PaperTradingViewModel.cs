@@ -17,6 +17,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     private bool active, disposed;
     private ConfirmPaperRequest? pendingRequest;
     public Func<string, bool> Confirm { get; set; } = _ => false;
+    public PaperReliabilityViewModel Reliability { get; }
     public ObservableCollection<PaperPositionResponse> Positions { get; } = [];
     public ObservableCollection<PaperExecutionResponse> Executions { get; } = [];
     [ObservableProperty] private PaperAccountResponse? account;
@@ -43,6 +44,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public PaperTradingViewModel(MainViewModel state, BackendClient backend)
     {
         this.state = state; this.backend = backend;
+        Reliability = new(state, backend) { Confirm = text => Confirm(text) };
         state.AccessInvalidated += AccessChanged; state.PropertyChanged += StateChanged;
         state.PaperValuationInvalidated += RiskInvalidated;
         state.PaperValuationInvalidated += AutomationInvalidated;
@@ -170,7 +172,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         $"Relationship trust: {p.Proof?.RelationshipTrust}; revision {p.Proof?.RelationshipRevision}\nFee profile: {p.Proof?.Fees?.Profile}; revision {p.Proof?.Fees?.ProfileRevision}\n" +
         string.Join("\n", p.Proof?.Legs.Select(l => $"{l.Exchange} book {l.SnapshotVersion}: {l.SourceMode}/{l.Continuity}; retrieved {l.RetrievedAt:O}; age at preview {(p.CreatedAt - l.RetrievedAt)?.TotalSeconds:0.###}s") ?? []) +
         "\n" + RiskDescription(p.RiskDecision) + "\n" + string.Join("\n", p.Warnings);
-    public void Dispose() { if (disposed) return; disposed = true; active = false; lifetime.Cancel(); lifetime.Dispose(); state.AccessInvalidated -= AccessChanged; state.PropertyChanged -= StateChanged;
+    public void Dispose() { if (disposed) return; disposed = true; Reliability.Dispose(); active = false; lifetime.Cancel(); lifetime.Dispose(); state.AccessInvalidated -= AccessChanged; state.PropertyChanged -= StateChanged;
         state.PaperValuationInvalidated -= RiskInvalidated;
         state.PaperValuationInvalidated -= AutomationInvalidated;
         state.PaperValuationInvalidated -= ValuationInvalidated; state.CatalogInvalidated -= ValuationInvalidated; state.OrderBookInvalidated -= ValuationBookInvalidated;

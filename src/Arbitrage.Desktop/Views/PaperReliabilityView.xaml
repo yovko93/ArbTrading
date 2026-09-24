@@ -1,0 +1,39 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.PaperReliabilityView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="{DynamicResource ApplicationBackground}">
+ <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="20">
+  <TextBlock Text="Paper Reliability Campaign" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="PAPER SIMULATION EVIDENCE ONLY. CriteriaMet never enables live trading. No actual fills, exchange latency or real-capital profitability is demonstrated." TextWrapping="Wrap" Margin="0,8"/>
+  <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite"/>
+  <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8"/>
+  <WrapPanel><StackPanel Width="300" Margin="0,0,12,8"><TextBlock Text="Campaign name"/><TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" AutomationProperties.Name="Campaign name"/></StackPanel>
+   <StackPanel Width="500"><TextBlock Text="Notes"/><TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AutomationProperties.Name="Campaign notes"/></StackPanel></WrapPanel>
+  <WrapPanel Margin="0,8">
+   <Button Content="Start Reliability Campaign…" Command="{Binding ActionCommand}" CommandParameter="start"/>
+   <Button Content="Pause…" Command="{Binding ActionCommand}" CommandParameter="pause" Margin="6,0"/><Button Content="Resume…" Command="{Binding ActionCommand}" CommandParameter="resume"/>
+   <Button Content="Evaluate Now…" Command="{Binding ActionCommand}" CommandParameter="evaluate" Margin="6,0"/><Button Content="Complete…" Command="{Binding ActionCommand}" CommandParameter="complete"/>
+   <Button Content="Cancel…" Command="{Binding ActionCommand}" CommandParameter="cancel" Margin="6,0"/><Button Content="Export Report" Command="{Binding ExportCommand}"/>
+  </WrapPanel>
+  <WrapPanel><Button Content="Refresh" Command="{Binding RefreshCommand}"/><Button Content="Previous campaigns" Command="{Binding PreviousHistoryCommand}" Margin="6,0"/><Button Content="Next campaigns" Command="{Binding NextHistoryCommand}"/><Button Content="Read selected report" Command="{Binding ReadReportCommand}" Margin="6,0"/></WrapPanel>
+  <DataGrid ItemsSource="{Binding Campaigns}" SelectedItem="{Binding Campaign}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="140" Margin="0,10" AutomationProperties.Name="Campaign history">
+   <DataGrid.Columns><DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="280"/><DataGridTextColumn Header="State" Binding="{Binding State}" Width="130"/><DataGridTextColumn Header="Started UTC" Binding="{Binding StartedAt}" Width="220"/></DataGrid.Columns>
+  </DataGrid>
+  <TextBlock Text="{Binding Runtime}" TextWrapping="Wrap"/>
+  <TextBlock Text="Evidence criteria — each criterion is independent" Style="{StaticResource MetricText}" Margin="0,12,0,5"/>
+  <DataGrid ItemsSource="{Binding Criteria}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Evidence criteria"><DataGrid.Columns>
+   <DataGridTextColumn Header="Criterion" Binding="{Binding Code}" Width="320"/><DataGridTextColumn Header="Observed" Binding="{Binding ObservedValue}" Width="200"/><DataGridTextColumn Header="Required" Binding="{Binding RequiredValue}" Width="180"/><DataGridTextColumn Header="Status" Binding="{Binding State}" Width="160"/>
+  </DataGrid.Columns></DataGrid>
+  <TextBlock Text="Safety invariants — Violated and Unknown are not Satisfied" Style="{StaticResource MetricText}" Margin="0,12,0,5"/>
+  <DataGrid ItemsSource="{Binding Report.Invariants}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Safety invariants"><DataGrid.Columns>
+   <DataGridTextColumn Header="Invariant" Binding="{Binding Code}" Width="500"/><DataGridTextColumn Header="Status" Binding="{Binding State}" Width="160"/><DataGridTextColumn Header="Evidence" Binding="{Binding ExplanationCode}" Width="240"/>
+  </DataGrid.Columns></DataGrid>
+  <TextBlock Text="Operational funnel and sizing statistics" Style="{StaticResource MetricText}" Margin="0,12,0,5"/>
+  <ItemsControl ItemsSource="{Binding Report.Counters}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Key}" Width="400"/><TextBlock Text="{Binding Value}"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+  <ItemsControl ItemsSource="{Binding Report.Statistics}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Key}" Width="400"/><TextBlock Text="{Binding Value}"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+  <TextBlock Text="Paper economics — separate from system reliability" Style="{StaticResource MetricText}" Margin="0,12,0,5"/>
+  <DataGrid ItemsSource="{Binding Report.Economics}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="200" MinColumnWidth="110" AutomationProperties.Name="Paper economics by generation venue currency"><DataGrid.Columns>
+   <DataGridTextColumn Header="Generation" Binding="{Binding GenerationId}" Width="250"/><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}"/><DataGridTextColumn Header="Entry cost" Binding="{Binding EntryCost}"/><DataGridTextColumn Header="Expected profit allocation" Width="200" Binding="{Binding ExpectedProfitAtEntry}"/><DataGridTextColumn Header="Settled payout" Binding="{Binding SettlementPayout}"/><DataGridTextColumn Header="Realized paper profit" Width="190" Binding="{Binding RealizedPaperProfit}"/><DataGridTextColumn Header="Open cost" Binding="{Binding UnsettledCostBasis}"/>
+  </DataGrid.Columns></DataGrid>
+  <TextBlock Text="Basket expected payout is allocated equally to its two legs for venue reporting; this is not an expected venue outcome. ManualScenario resolution is not exchange performance. No USD/USDC aggregation." TextWrapping="Wrap" Margin="0,8"/>
+  <ItemsControl ItemsSource="{Binding Report.Limitations}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+ </StackPanel></ScrollViewer>
+</UserControl>

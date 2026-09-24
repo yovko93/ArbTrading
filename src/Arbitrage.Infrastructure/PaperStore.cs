@@ -10,7 +10,7 @@ public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionE
 
 // SQLite serializable transactions acquire the writer reservation before reading balances. The unique
 // request index is the durable idempotency authority, including across scopes, restart and lost replies.
-public sealed partial class PaperStore(TradingDbContext db, RelationshipStore membership, TimeProvider clock)
+public sealed partial class PaperStore(TradingDbContext db, RelationshipStore membership, TimeProvider clock, PaperReliabilityTelemetry? reliability = null)
 {
     public Task<PaperGenerationEntry?> GenerationAsync(Guid workspace, Guid generation, CancellationToken ct) =>
         db.Set<PaperGenerationEntry>().AsNoTracking().SingleOrDefaultAsync(x => x.WorkspaceId == workspace && x.Id == generation, ct);
@@ -45,6 +45,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         var generation = new PaperGenerationEntry { Id = Guid.NewGuid(), WorkspaceId = workspace, ActorId = actor, CreatedAt = now,
             Reason = reason, Integrity = PaperIntegrity.Healthy };
         db.Add(generation);
+        db.Add(new PaperWriterOrderEntry { WorkspaceId = workspace, At = now, Kind = "GenerationTransition", ReferenceId = generation.Id });
         var journal = new PaperTransactionEntry { Id = Guid.NewGuid(), GenerationId = generation.Id, ActorId = actor, CreatedAt = now, Reason = "ExplicitInitialFunding" };
         db.Add(journal);
         foreach (var f in funding)
@@ -56,6 +57,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         db.AuditRecords.Add(new(actor, workspace, now, correlation, old is null ? "Paper.AccountInitialized" : "Paper.GenerationReset",
             JsonSerializer.Serialize(new { generation.Id, PreviousGenerationId = old?.Id, Reason = reason, Funding = funding })));
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        reliability?.SetState(workspace, healthy: false);
         return generation;
     }
     public static PaperRejection Funds(PaperPlan plan, IReadOnlyList<PaperBalanceEntry> balances) =>
@@ -114,6 +116,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
                 p.Profile.PolicyFingerprint, automatic.TriggerStamp, plan.Proof.RelationshipId, now, p.Profile.Settings, automatic.Sizing));
         }
         execution.SettlementMarketsJson = JsonSerializer.Serialize(await CaptureMarketsAsync(plan, ct));
+        db.Add(new PaperWriterOrderEntry { WorkspaceId = workspace, At = now, Kind = "Execution", ReferenceId = execution.Id, SessionId = execution.AutomationSessionId });
         generation.Revision = checked(generation.Revision + 1);
         var journal = new PaperTransactionEntry { Id = Guid.NewGuid(), GenerationId = generationId, ExecutionId = execution.Id,
             ActorId = actor, CreatedAt = now, Reason = "SnapshotPaperFill" };
@@ -168,7 +171,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         db.Add(new PaperLedgerEntry { Id = Guid.NewGuid(), TransactionId = transaction, Exchange = exchange, Currency = currency,
             Reason = reason, AvailableDelta = available, ReservedDelta = reserved });
 
-    public async Task<PaperIntegrity> ReconcileAsync(Guid actor, Guid workspace, Guid generationId, CancellationToken ct)
+    public async Task<PaperIntegrity> ReconcileAsync(Guid actor, Guid workspace, Guid generationId, CancellationToken ct, bool readOnly = false)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await membership.RequireMemberAsync(actor, workspace, true, ct);
@@ -229,6 +232,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         }
         catch (Exception ex) when (ex is JsonException or OverflowException or InvalidOperationException or NullReferenceException) { healthy = false; }
         // A flagged generation requires investigation/reset; a later good diagnostic never silently repairs it.
+        if (readOnly) { await tx.CommitAsync(ct); return healthy ? generation.Integrity : PaperIntegrity.Corrupt; }
         if (!healthy) generation.Integrity = PaperIntegrity.Corrupt;
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return generation.Integrity;
     }

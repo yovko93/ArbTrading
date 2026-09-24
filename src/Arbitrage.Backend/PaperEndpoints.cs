@@ -30,6 +30,7 @@ public static class PaperEndpoints
         group.MapValuation();
         group.MapPaperRisk();
         group.MapPaperAutomation();
+        group.MapPaperReliability();
         group.MapGet("/account", Account);
         group.MapPost("/account/initialize", Initialize);
         group.MapPost("/account/reset", Initialize);

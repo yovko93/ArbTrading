@@ -1,5 +1,7 @@
 # Arbitrage Trading
 
+For a real multi-hour **paper-only** reliability campaign, use the [Phase 04H operator runbook](docs/Operations/PaperBurnInRunbook.md) and [daily checklist](docs/Operations/PaperBurnInDailyChecklist.md). The [readiness verification](docs/Development/Phase04HVerification.md) records isolated rehearsals; it is not a production burn-in result.
+
 Phase 04F adds **deterministic adaptive paper sizing** alongside unchanged FixedQuantity automation. An explicitly saved adaptive profile selects the largest admissible quantity on its decimal Min/Max/Step grid using exact cached L2, fees, risk and session budgets. Search is descending, bounded at 256 quantities per opportunity and 512 exact evaluations per cycle, with no monotonicity assumption or portfolio optimization. A financial race rejects the selected quantity without a smaller fallback. Read-only sizing preview is diagnostic and never arms or authorizes execution. See [paper architecture](docs/Architecture/PaperExecution.md) and [Phase 04F verification](docs/Development/Phase04FVerification.md).
 
 Automatic Paper retains the persistent emergency kill switch, monitoring input deduplication and session/hourly/cooldown limits. Configure paper risk first, save an automation profile, start monitoring, then explicitly arm. Mode remains Paper; no real orders are submitted. The backend continues after WPF closes or disconnects. Backend restart always requires explicit rearming; resetting a kill switch never arms.

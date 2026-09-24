@@ -47,6 +47,38 @@ public sealed class PaperReliabilityTests
         Assert.Equal(before, await Financial(c));
         Assert.Equal(HttpStatusCode.Conflict, (await c.Client.PostAsJsonAsync(c.Root + "/paper/reliability/complete", new PaperReliabilityActionRequest(campaign.Id, campaign.Revision))).StatusCode);
     }
+    [Fact] public async Task Operational_smoke_campaign_observes_explicit_arm_execution_disarm_and_frozen_export()
+    {
+        await using var c = await PaperSizingApiTests.Start();
+        await PaperAutomationTests.Configure(c);
+        Assert.Equal("Running", c.Fixture.Services.GetRequiredService<MonitoringCoordinator>().Status(c.Session.DefaultWorkspaceId).State.ToString());
+        var campaign = await Act(c, "start");
+        Assert.Equal("Collecting", campaign.State);
+        (await PaperAutomationTests.Arm(c)).EnsureSuccessStatusCode();
+        Assert.Equal("Armed", (await PaperAutomationTests.Status(c))!.State);
+        await c.Fixture.Services.GetRequiredService<PaperAutomationCoordinator>().ProcessOnceAsync();
+        await Act(c, "evaluate", campaign);
+        var observed = await Report(c, campaign.Id);
+        Assert.Equal(1, observed.Counters["AutomaticExecutionsCommitted"]);
+        Assert.True(observed.Counters.GetValueOrDefault("CandidateInputsObserved") > 0);
+        Assert.Single(observed.Executions);
+        Assert.All(observed.Invariants, i => Assert.Equal("Satisfied", i.State));
+        (await c.Client.PostAsync(c.Root + "/paper/automation/disarm", null)).EnsureSuccessStatusCode();
+        Assert.Equal("Disarmed", (await PaperAutomationTests.Status(c))!.State);
+        campaign = await Act(c, "complete", campaign);
+        Assert.Equal("Completed", campaign.State);
+        var frozen = JsonSerializer.Serialize(await Report(c, campaign.Id));
+        var export = await c.Client.PostAsync(c.Root + $"/paper/reliability/campaigns/{campaign.Id}/export", null);
+        export.EnsureSuccessStatusCode();
+        var path = (await export.Content.ReadFromJsonAsync<PaperReliabilityExportResponse>())!.Path;
+        var bytes = await File.ReadAllTextAsync(path);
+        Assert.Contains("PAPER SIMULATION EVIDENCE ONLY", bytes);
+        c.Clock.Now += TimeSpan.FromHours(1);
+        await c.Fixture.Services.GetRequiredService<PaperReliabilityCoordinator>().ProcessOnceAsync();
+        Assert.Equal(frozen, JsonSerializer.Serialize(await Report(c, campaign.Id)));
+        (await c.Client.PostAsync(c.Root + $"/paper/reliability/campaigns/{campaign.Id}/export", null)).EnsureSuccessStatusCode();
+        Assert.Equal(bytes, await File.ReadAllTextAsync(path));
+    }
     [Theory] [InlineData(false)] [InlineData(true)]
     public async Task Existing_fixed_and_adaptive_auto_evidence_is_valid_and_boundary_scoped(bool adaptive)
     {

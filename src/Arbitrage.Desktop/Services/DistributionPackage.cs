@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Arbitrage.LocalTransport;
+using Arbitrage.Distribution;
 
 namespace Arbitrage.Desktop.Services;
 
@@ -10,13 +11,16 @@ public sealed record DistributionManifest(int SchemaVersion, string Product, str
     string TargetFrameworkDesktop, string TargetFrameworkBackend, string SourceCommit, bool SourceDirty,
     DateTimeOffset BuildUtc, string DesktopRelativePath, string BackendRelativePath, string BackendConfigRelativePath,
     string DesktopSha256, string BackendSha256, string BackendConfigSha256, string PackageMode,
-    Dictionary<string, string> Files);
+    Dictionary<string, string> Files, bool SigningRequired = false, DistributionSigning? Signing = null);
 
-public sealed record DistributionValidation(bool IsPackage, bool Valid, string Status, DistributionManifest? Manifest = null)
+public sealed record DistributionSigning(string Mode, string Status, string? PublisherSubject, string? CertificateThumbprint,
+    string? SignatureAlgorithm, bool Timestamped, bool RequireTimestamp, string[] Files);
+
+public sealed record DistributionValidation(bool IsPackage, bool Valid, string Status, DistributionManifest? Manifest = null, string SignatureSummary = "")
 {
     public string Summary => !IsPackage ? "Distribution: Development · Manifest: Missing" :
         $"Distribution: PortablePackage · Manifest: {(Valid ? "Valid" : "Invalid")} · {Status}" +
-        (Manifest is null ? "" : $"\nRID: {Manifest.RuntimeIdentifier} · Source: {Manifest.SourceCommit}{(Manifest.SourceDirty ? " (dirty local build)" : "")} · Built: {Manifest.BuildUtc:O}");
+        (Manifest is null ? "" : $"\nRID: {Manifest.RuntimeIdentifier} · Source: {Manifest.SourceCommit}{(Manifest.SourceDirty ? " (dirty local build)" : "")} · Built: {Manifest.BuildUtc:O}") + "\n" + SignatureSummary;
 }
 
 // The manifest detects package corruption; it is not a signature or an execution capability source.
@@ -35,7 +39,7 @@ public static class DistributionPackage
             ProtectedStorage.RejectLinks(descriptor);
             if (new FileInfo(descriptor).Length > 1024 * 1024) throw new InvalidDataException();
             var m = JsonSerializer.Deserialize<DistributionManifest>(File.ReadAllText(descriptor)) ?? throw new InvalidDataException();
-            if (m.SchemaVersion != 1 || m.Product != "ArbitrageTrading" || m.RuntimeIdentifier != "win-x64" || m.PackageMode != "PortableZip" ||
+            if (m.SchemaVersion is not (1 or 2) || m.Product != "ArbitrageTrading" || m.RuntimeIdentifier != "win-x64" || m.PackageMode != "PortableZip" ||
                 m.TargetFrameworkDesktop != "net10.0-windows" || m.TargetFrameworkBackend != "net10.0" ||
                 m.SourceCommit is null || m.SourceCommit.Length != 40 || !m.SourceCommit.All(Uri.IsHexDigit) ||
                 m.DesktopRelativePath != "Arbitrage.Desktop.exe" || m.BackendRelativePath != "backend/Arbitrage.Backend.exe" ||
@@ -63,7 +67,23 @@ public static class DistributionPackage
             var local = config.RootElement.GetProperty("Local");
             if (local.GetProperty("DeploymentMode").GetString() != "Local" || local.GetProperty("TradingMode").GetString() != "Paper") throw new InvalidDataException();
             LocalPaths.ValidateBaseUrl(local.GetProperty("BaseUrl").GetString()!);
-            return new(true, true, "Package valid · Backend: Found · Self-contained executable", m);
+            var signingSummary = "Signing: LegacyUnsigned (D01 schema 1). Unsigned snapshot. Windows download/reputation warnings may occur.";
+            if (m.SchemaVersion == 2)
+            {
+                var s = m.Signing;
+                if (s is null || s.Mode is not ("Unsigned" or "Authenticode" or "TestEphemeral") ||
+                    m.SigningRequired != (s.Mode != "Unsigned") || s.RequireTimestamp != (s.Mode == "Authenticode") ||
+                    s.Files is null || !s.Files.ToHashSet(StringComparer.Ordinal).SetEquals(AuthenticodeVerifier.SigningFiles))
+                    return new(true, false, "Invalid signing policy.", m);
+                var evidence = s.Files.ToDictionary(p => p, p => AuthenticodeVerifier.Inspect(Inside(root, p)));
+                var desktopSignature = evidence[m.DesktopRelativePath]; var backendSignature = evidence[m.BackendRelativePath];
+                var wording = s.Mode == "Unsigned" ? "Unsigned snapshot. Windows download/reputation warnings may occur." :
+                    s.Mode == "TestEphemeral" ? "Test signature only. Not a publicly trusted production publisher." : "Authenticode signature valid.";
+                var valid = evidence.Values.All(e => AuthenticodeVerifier.MeetsPolicy(e, s.Mode, s.CertificateThumbprint, s.PublisherSubject, s.RequireTimestamp));
+                signingSummary = $"Signing mode: {s.Mode} · Required: {m.SigningRequired}\nDesktop signature: {desktopSignature.State} · Backend signature: {backendSignature.State}\nPublisher: {backendSignature.Subject ?? "None"}\nTimestamp: {(backendSignature.Timestamped ? "Present" : "Absent")}\n" + (valid ? wording : "Signature policy failed. Managed Start is unavailable.");
+                if (!valid) return new(true, false, "Signature: Invalid or does not match required policy.", m, signingSummary);
+            }
+            return new(true, true, "Package valid · Backend: Found · Self-contained executable", m, signingSummary);
         }
         catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException or KeyNotFoundException)
         { return new(true, false, "Invalid package manifest, paths, configuration, or inaccessible files."); }

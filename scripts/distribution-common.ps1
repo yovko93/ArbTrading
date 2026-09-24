@@ -1,6 +1,7 @@
-#requires -Version 7.0
+#requires -Version 7.5
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'distribution-signing.ps1')
 
 function Assert-PackagePath([string]$Root, [string]$Relative) {
     if ([string]::IsNullOrWhiteSpace($Relative) -or [IO.Path]::IsPathRooted($Relative) -or $Relative.Contains(':') -or ($Relative -split '[/\\]' | Where-Object { $_ -in @('..', '.', '') })) { throw 'Unsafe manifest path.' }
@@ -12,12 +13,12 @@ function Assert-PackagePath([string]$Root, [string]$Relative) {
 
 function Test-DistributionPackage([string]$Root) {
     $manifest = Get-Content -LiteralPath (Join-Path $Root 'distribution-manifest.json') -Raw | ConvertFrom-Json
-    if ($manifest.SchemaVersion -ne 1 -or $manifest.RuntimeIdentifier -ne 'win-x64' -or $manifest.PackageMode -ne 'PortableZip' -or $manifest.Product -ne 'ArbitrageTrading') { throw 'Unsupported distribution manifest.' }
+    if ($manifest.SchemaVersion -notin @(1,2) -or $manifest.RuntimeIdentifier -ne 'win-x64' -or $manifest.PackageMode -ne 'PortableZip' -or $manifest.Product -ne 'ArbitrageTrading') { throw 'Unsupported distribution manifest.' }
     $all = @(Get-ChildItem -LiteralPath $Root -Recurse -Force)
     foreach ($file in $all) {
         if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Package contains a link/reparse point.' }
         $relative = [IO.Path]::GetRelativePath($Root, $file.FullName).Replace('\', '/')
-        if ($relative -match '(?i)(^|/)(credentials|secrets|logs|reliability|runtime|backups)(/|$)|\.(db|sqlite|sqlite3)(-.*)?$|\.(pem|pfx|key|dpapi|log)$|(^|/)(connection\.json|managed-local\.json|preferences\.json|report\.json|appsettings\.(Development|Local)\.json|\.env)$') { throw "Runtime/secret file rejected: $relative" }
+        if ($relative -match '(?i)(^|/)(credentials|secrets|logs|reliability|runtime|backups)(/|$)|\.(db|sqlite|sqlite3)(-.*)?$|\.(pem|pfx|p12|pvk|key|dpapi|log)$|(^|/)(connection\.json|managed-local\.json|preferences\.json|report\.json|appsettings\.(Development|Local)\.json|\.env)$') { throw "Runtime/secret file rejected: $relative" }
     }
     $files = @($all | Where-Object { -not $_.PSIsContainer -and $_.Name -ne 'distribution-manifest.json' })
     if ($files.Count -ne @($manifest.Files.PSObject.Properties).Count) { throw 'Package file inventory differs from manifest.' }
@@ -39,5 +40,6 @@ function Test-DistributionPackage([string]$Root) {
     }
     $config = Get-Content -LiteralPath (Join-Path $Root $manifest.BackendConfigRelativePath) -Raw | ConvertFrom-Json
     if ($config.Local.DeploymentMode -ne 'Local' -or $config.Local.TradingMode -ne 'Paper' -or $config.Local.BaseUrl -ne 'http://127.0.0.1:5274' -or @($config.Local.PSObject.Properties).Count -ne 3) { throw 'Packaged configuration differs from safe non-secret defaults.' }
+    Test-DistributionSignatures $Root $manifest
     return $manifest
 }

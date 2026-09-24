@@ -1,0 +1,48 @@
+# Distribution D02 verification
+
+## Baseline and scope
+
+Repository: `C:\Users\Yovko\source\repos\ArbTrading`, attached `main`; starting HEAD `d10cbaaeb1869fe76a5b199f012b55f24da48ab2`, initially clean, existing origin retained. Read-only GitHub API checks confirmed exact D01 [run 36024477462](https://github.com/yovko93/ArbTrading/actions/runs/36024477462) completed/success for this SHA, with Windows and Linux backend jobs successful, before edits. D01's 855-test and extracted-smoke evidence was inspected.
+
+No certificate was purchased/enrolled, no real publicly trusted signing certificate was used, and no normal user database was migrated. No installer/updater/arm64, EF migration, financial algorithm, trading capability or trust-store mutation was added. Changes remain uncommitted. No push, GitHub Release or BurnIn-01.
+
+## Implementation and trust boundary
+
+[Architecture](../Architecture/Distribution.md) documents the exact 12-file signing allowlist, schema-2 policy, provider boundary, offline verification, CI controls and signing order. [Operations](../Operations/PortableWindowsDistribution.md) documents inspection, production inputs, certificate provisioning and unsigned/test/signed limitations.
+
+`publish.ps1` owns publish → remove development files → explicit sign/verify → final hashes/manifest → validate → temporary extracted smoke archive → final ZIP promotion → external checksum. Default Unsigned is labeled in filename/metadata/readme. Production Authenticode requires clean source, CurrentUser/My certificate/private key and mandatory HTTPS RFC3161 timestamping. SignTool comes from the Microsoft SDK or a validated explicit Microsoft-signed path; no SignTool binary was downloaded or bundled. The local environment did not expose a discoverable SDK SignTool, so real production SignTool execution is not claimed. Its configuration/dirty/path guards were exercised. TestEphemeral instead uses Windows Set-AuthenticodeSignature with SHA256 to prove real PE signing without a production certificate or public timestamp network service.
+
+Native runtime/tool verification is shared in `src/Shared/AuthenticodeVerifier.cs`: Windows Authenticode trust and independent hash/content verification, native certificate identity/digest/timestamp evidence, expected identity checks. Runtime uses cache-only/no-network/no-online-revocation Windows policy; fresh revocation status and uncached issuer chain availability are not guaranteed. Test signatures are intact but untrusted, never production-valid. Manifest status cannot supply actual signature state. Required-signing policy failures prevent managed Start; optional unsigned snapshots retain D01 behavior; schema 1 remains LegacyUnsigned.
+
+Production signing uses a store thumbprint; no PFX, password, PIN or private-key path enters command arguments. Test certificates use unique TEST ONLY subjects, RSA2048/SHA256, eight-hour lifetime and non-exportable current-user keys. Finally cleanup deletes the exact certificate/private key and verifies both absent. No Root/TrustedPublisher store is modified. Embedded public chains are normal signature metadata, not private signing material.
+
+## Focused checks
+
+- 22 focused .NET distribution/signing policy tests passed, 0 failed. Coverage includes schema-1/development compatibility, optional unsigned vs required signing, invalid native evidence, SHA1 refusal, missing timestamp, wrong identity and separation of test/public trust.
+- Real Windows signing checks passed for unsigned files, 12 actual project PE targets, intact/untrusted test signatures, pre/post signing hash difference, final signed-byte hash, native byte-tamper rejection, wrong thumbprint/subject, required-but-missing timestamp, production trust refusal for a test signer, manifest spoof/missing-signature refusal and successful/failed cleanup.
+- Cleanup-on-failure was tested by locking an executable before signing. Its dynamically created certificate and CNG private key were still removed; current-user test-certificate inventory returned to its prior state.
+- Dirty production signing and relative SignTool path were rejected. Missing certificate configuration and invalid/non-HTTPS/credential-bearing timestamp URL policy are tested without timestamp network calls.
+- Private-key-looking tracked files are rejected by the test script; package scan adds P12/PVK to existing PFX/PEM/key protections. Signing operations only modify the explicit staging allowlist, and all payload bytes are hashed afterward.
+- An initial probe found a native helper export name mismatch; corrected to WTHelperGetProvSignerFromChain before the successful signing checks. The first focused script run exposed a cleanup-comparison expression issue; corrected and repeated successfully. Neither failure left a test identity/key behind.
+
+Full canonical package results and artifact identities follow after completion. Full verification includes D01 migration/backups, realtime, ownership, authorization, Paper admission/arming and reliability regressions. No clean physical/VM Windows machine has been tested; development-host self-contained smoke is a narrower boundary.
+
+## CI behavior and deferred work
+
+Windows CI runs source verification, focused ephemeral signing checks, the canonical main unsigned package (or explicitly enabled production SignedSnapshot on push to main), and a separate canonical TestEphemeral package exercise. Only artifacts/distribution ZIP/checksum files are uploaded as the main artifact; the test-signed directory is not uploaded. PRs always use windows-latest without production inputs; only protected main push plus explicit WINDOWS_SIGNING_ENABLED selects the separately provisioned signing runner/path. contents: read stays unchanged. Linux verification is unchanged. The modified workflow has not run remotely because changes are uncommitted.
+
+A publicly trusted certificate or managed signing service is a future operator prerequisite, not something D02 acquires. Authenticode binds executable content to a publisher, but the ZIP itself is not Authenticode-signed. Edge/SmartScreen/Defender reputation warnings may persist regardless of EV/standard certificate category; no warning-free claim or protection-disabling advice is made. D03 retains installer format/UX, Start Menu/uninstall, Program Files, release channels and update decisions.
+
+Additional evidence: the shared native verifier inspected the existing Microsoft-signed PowerShell host read-only and returned Valid/SHA256/TimestampPresent/ContentValid; Windows Get-AuthenticodeSignature independently agreed. This used no private key and did not sign any application with a publicly trusted identity. The final focused test certificate was `CN=ArbitrageTrading D02 TEST ONLY fd1d4b17f52a465c9de10440f217531c`, thumbprint `5204CFB5E6B1158EB05F21A86AC9F0F7A93E8011`, no timestamp; its certificate/key cleanup passed. Final artifact signer identity is recorded separately below.
+
+PowerShell 7.5+ is explicit for distribution tooling because the shared verifier uses the modern X509 loader. The local test host is PowerShell 7.6.5/.NET 10.0.11. The published [GitHub Windows 2025 image inventory](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md), inspected on 2026-09-24, lists PowerShell 7.6.6 and Windows SDK 10.0.26100.0; discovery nevertheless enumerates installed SDK versions rather than hardcoding that version. CI emits an optional safe SDK availability check, while default unsigned and ephemeral checks do not require SignTool.
+
+The first full source verification passed all 865 tests with zero build warnings/errors, but backend publish then failed with disk-full copy errors. Only known temporary staging trees created during D01/D02 verification were removed, after absolute-path/reparse checks; completed D01 ZIPs/checksums and source were retained. Canonical publishing was retried with its full default verification. No source-reset/clean/stash operation was used.
+
+## Canonical package results (storage-blocked continuation)
+
+The canonical unsigned retry completed successfully: all 865 tests passed (Domain 55, Application 277, Backend 506, Desktop 27), build zero warnings/errors, and extracted package smoke passed. Artifact: `artifacts/distribution-d02-unsigned/ArbitrageTrading-win-x64-gd10cbaae-local-dirty-unsigned.zip`; SHA256 `DD64EB13183B9D9052869770B71A7EEBDA75B14984555495181A1FDC0CD9D0F2`. ZIP 120527156 bytes, payload 270021890 bytes, 791 files. Schema 2, Unsigned, SigningRequired false. Desktop SHA256 `6D445848FA7F3C059FF05EBF682BE7CB21BAD450CAE9C9D881EA3F1912D66EAF`; backend SHA256 `728896AFF59294A85ABE1FE5880F3035812EFC6E53BB7860CFC0EF6B217EE89A`.
+
+EF pending-model check passed (no changes). Transitive NuGet vulnerability audit passed (none reported). Final focused signing checks, including confirming the generated CNG key existed before verifying its removal, passed. That test identity was `CN=ArbitrageTrading D02 TEST ONLY 04bae6caeb79433dae2a40336d6c0964`, thumbprint `F812D082D194E6BA76DB9AD38AFF9FED832AD861`, without timestamp; success and forced-failure cleanup passed.
+
+The subsequent canonical TestEphemeral attempt built with zero warnings/errors but its full test run encountered a second disk-full condition (285 backend and 5 Desktop failures, with truncated test output). The unchanged suite had passed twice earlier. No final test-signed ZIP was produced; full signed extraction smoke remains outstanding. The verified unsigned archive is retained. Further publishing waits for sufficient storage or the user's choice to authorize temporary work on D:. These resource-failed tests are not counted as a successful verification run.

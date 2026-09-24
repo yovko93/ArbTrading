@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 7.5
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$PackageZip)
 . (Join-Path $PSScriptRoot 'distribution-common.ps1')
@@ -47,7 +47,7 @@ function Start-Isolated([string]$Exe, [string[]]$Arguments = @()) {
     $start.UseShellExecute = $false; $start.CreateNoWindow = $true; $start.WindowStyle = 'Hidden'
     $start.WorkingDirectory = Split-Path $Exe -Parent
     foreach ($key in @($start.Environment.Keys)) {
-        if ($key -match '^(Local__|ARBITRAGE_|ASPNETCORE_|DOTNET_|Kestrel__)' -or $key -in @('urls','http_ports','https_ports')) { [void]$start.Environment.Remove($key) }
+        if ($key -match '^(Local__|ARBITRAGE_|ASPNETCORE_|DOTNET_|Kestrel__|SIGNING_|CERTIFICATE_|SIGNTOOL_PATH$|EXPECTED_PUBLISHER$)' -or $key -in @('urls','http_ports','https_ports')) { [void]$start.Environment.Remove($key) }
     }
     $start.Environment['PATH'] = Join-Path $env:SystemRoot 'System32'
     $start.Environment['DOTNET_ROOT'] = Join-Path $testRoot 'no-installed-runtime'
@@ -144,6 +144,27 @@ try {
         Wait-Success (Start-Isolated $desktopExe @('--validate-package')) 2
     }
     [IO.File]::WriteAllText($manifestPath, $originalManifest)
+    $actualManifest = $originalManifest | ConvertFrom-Json
+    if ($actualManifest.SchemaVersion -eq 2) {
+        $bad = $originalManifest | ConvertFrom-Json
+        $bad.Signing.Mode = 'Authenticode'; $bad.Signing.Status = 'SignedSnapshot'; $bad.SigningRequired = $true
+        $bad.Signing.RequireTimestamp = $true; $bad.Signing.CertificateThumbprint = ('F' * 40)
+        $bad | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+        Wait-Success (Start-Isolated $desktopExe @('--validate-package')) 2
+        [IO.File]::WriteAllText($manifestPath, $originalManifest)
+        if ($actualManifest.Signing.Mode -ne 'Unsigned') {
+            # Updating the hash cannot conceal a broken Authenticode signature from runtime verification.
+            $corrupt = [IO.File]::ReadAllBytes($backendExe); $corrupt[1024] = $corrupt[1024] -bxor 1
+            [IO.File]::WriteAllBytes($backendExe, $corrupt)
+            $bad = $originalManifest | ConvertFrom-Json
+            $bad.BackendSha256 = (Get-FileHash -LiteralPath $backendExe -Algorithm SHA256).Hash
+            $bad.Files.'backend/Arbitrage.Backend.exe' = $bad.BackendSha256
+            $bad | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+            Wait-Success (Start-Isolated $desktopExe @('--validate-package')) 2
+            [IO.File]::WriteAllBytes($backendExe, $originalExe)
+            [IO.File]::WriteAllText($manifestPath, $originalManifest)
+        }
+    }
     Test-DistributionPackage $package | Out-Null
     Write-Output "Distribution smoke passed outside repository, with spaces and no dotnet in child PATH. Desktop window observed: $windowObserved. Bootstrap, idempotence, restart identity, Paper safety, package immutability, tamper/missing/path rejection passed."
     $global:LASTEXITCODE = 0

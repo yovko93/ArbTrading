@@ -4,7 +4,7 @@ permissions:
   contents: read
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WINDOWS_SIGNING_ENABLED == 'true' && vars.WINDOWS_SIGNING_RUNNER || 'windows-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -13,11 +13,30 @@ jobs:
       - name: Build WPF and backend; run all tests
         shell: pwsh
         run: ./scripts/verify.ps1
-      - name: Publish and smoke-test portable Windows ZIP
+      - name: Focused signing checks (temporary untrusted identity; no production secrets)
+        shell: pwsh
+        run: ./scripts/test-distribution-signing.ps1
+      - name: Publish unsigned snapshot
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main' || vars.WINDOWS_SIGNING_ENABLED != 'true'
         shell: pwsh
         env:
           DISTRIBUTION_VERIFIED_SHA: ${{ github.sha }}
-        run: ./scripts/publish.ps1 -SkipTests
+        run: ./scripts/publish.ps1 -SkipTests -SigningMode Unsigned
+      - name: Publish explicitly enabled signed snapshot
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WINDOWS_SIGNING_ENABLED == 'true'
+        shell: pwsh
+        env:
+          DISTRIBUTION_VERIFIED_SHA: ${{ github.sha }}
+          CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+          SIGNING_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+          EXPECTED_PUBLISHER: ${{ vars.WINDOWS_EXPECTED_PUBLISHER }}
+          SIGNTOOL_PATH: ${{ vars.WINDOWS_SIGNTOOL_PATH }}
+        run: ./scripts/publish.ps1 -SkipTests -SigningMode Authenticode
+      - name: Verify test-signed canonical package (never uploaded as main artifact)
+        shell: pwsh
+        env:
+          DISTRIBUTION_VERIFIED_SHA: ${{ github.sha }}
+        run: ./scripts/publish.ps1 -SkipTests -SigningMode TestEphemeral -OutputDirectory artifacts/distribution-test-signed
       - uses: actions/upload-artifact@v4
         with:
           name: ArbitrageTrading-win-x64

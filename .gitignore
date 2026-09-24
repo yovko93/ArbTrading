@@ -460,3 +460,7 @@ alerts.[1-4].csv
 # Paper reliability exports contain local campaign evidence
 **/reliability/*/*/report.json
 **/reliability/*/*/report.pending
+
+# Private code-signing material (public chains stay embedded in Authenticode)
+*.p12
+*.pvk

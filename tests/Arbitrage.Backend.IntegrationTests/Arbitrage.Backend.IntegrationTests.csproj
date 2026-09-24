@@ -41,4 +41,5 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <Using Include="Xunit" />
   </ItemGroup>
+  <ItemGroup><Compile Include="../../src/Shared/AuthenticodeVerifier.cs" Link="Services/AuthenticodeVerifier.cs" /></ItemGroup>
 </Project>

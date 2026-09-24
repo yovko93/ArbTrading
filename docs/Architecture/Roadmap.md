@@ -25,4 +25,7 @@ Phase 04H documents the [paper burn-in operator procedure](../Operations/PaperBu
 
 Distribution D01 establishes a cross-cutting requirement: every completed application phase must remain publishable as a self-contained Windows x64 portable ZIP through `scripts/publish.ps1`. Windows CI verifies source, publishes both executables, smoke-tests an extracted copy and uploads ZIP/checksum snapshots. Packaged explicit Start validates integrity, migrates under the profile lease with private SQLite backups, and preserves all Paper safety gates. Distribution does not constitute execution approval or burn-in evidence. See [distribution architecture](Distribution.md).
 
-Installer/MSIX, code signing, automatic updates, win-arm64, Linux Desktop and official release publishing remain deferred. Unsigned snapshot integrity checks are not publisher authentication. Older application versions may reject upgraded databases; automatic downgrade is not supported.
+Installer/MSIX, production certificate provisioning, automatic updates, win-arm64, Linux Desktop and official release publishing remain deferred. Unsigned snapshot integrity checks are not publisher authentication. Older application versions may reject upgraded databases; automatic downgrade is not supported.
+
+
+Distribution D02 adds explicit Unsigned/Authenticode/TestEphemeral signing modes, schema-2 signature diagnostics, secure certificate-store provider readiness and offline Windows verification while retaining D01 packaging/migrations. Production certificates are not acquired automatically. D03 defers signed installer format selection, install/uninstall integration, release channels and updates; signing does not establish SmartScreen/download reputation.

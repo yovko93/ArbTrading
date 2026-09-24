@@ -14,4 +14,5 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <Compile Include="../Shared/LocalConnectionFile.cs" Link="Services/LocalConnectionFile.cs" />
   </ItemGroup>
+  <ItemGroup><Compile Include="../Shared/AuthenticodeVerifier.cs" Link="Services/AuthenticodeVerifier.cs" /></ItemGroup>
 </Project>

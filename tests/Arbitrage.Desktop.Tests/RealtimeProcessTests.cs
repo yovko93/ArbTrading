@@ -39,8 +39,10 @@ public sealed partial class RealtimeProcessTests
         public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
         { Interlocked.Increment(ref calls); return Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); }
     }
-    [Fact]
-    public async Task Real_managed_process_negotiates_WebSocket_synchronizes_two_clients_and_stops_safely()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Real_managed_process_negotiates_WebSocket_synchronizes_two_clients_and_stops_safely(bool packageMode)
     {
         var root = Path.Combine(Path.GetTempPath(), "ArbitrageTrading-01C-process", Guid.NewGuid().ToString("N"));
         var prefix = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "ArbitrageTrading-01C-process")) + Path.DirectorySeparatorChar;
@@ -50,7 +52,8 @@ public sealed partial class RealtimeProcessTests
         ProtectedStorage.CreatePrivateDirectory(desktop);
         var port = FreePort();
         var url = $"http://127.0.0.1:{port}";
-        var options = new LocalBackendLaunchOptions(data, runtime, url, BackendArtifact(), null);
+        var package = packageMode ? CreatePackageFixture(root) : null;
+        var options = new LocalBackendLaunchOptions(data, runtime, url, package is null ? BackendArtifact() : Path.Combine(package, "backend", "Arbitrage.Backend.exe"), null) { PackageRoot = package };
         var file = new ProtectedLocalConnectionFile(runtime);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(10) };
         var client = new BackendClient(http, file);
@@ -76,6 +79,8 @@ public sealed partial class RealtimeProcessTests
             Assert.Equal(first.Snapshot!.BackendInstanceId, simultaneous[1].Snapshot!.BackendInstanceId);
             Assert.Equal(first.ProcessId, simultaneous[1].ProcessId);
             TrackOwned(first, ownedStarts);
+            if (packageMode)
+                Assert.Contains("DatabaseCreated", controller.DistributionSummary + reattached.DistributionSummary);
             realtime.ResumeAfterStart();
             await WaitUntilAsync(() => desktopState.ConnectionStatus == "Connected");
             Assert.True(realtime.IsSynchronized);
@@ -241,6 +246,25 @@ public sealed partial class RealtimeProcessTests
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start(); var port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop(); return port;
     }
+    private static string CreatePackageFixture(string root)
+    {
+        var package = Path.Combine(root, "package");
+        var source = Path.GetDirectoryName(BackendArtifact())!;
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(package, "backend", Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination);
+        }
+        File.WriteAllText(Path.Combine(package, "Arbitrage.Desktop.exe"), "Controller test fixture; Desktop itself is running in testhost.");
+        var files = Directory.GetFiles(package, "*", SearchOption.AllDirectories).ToDictionary(p => Path.GetRelativePath(package, p).Replace('\\', '/'),
+            p => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(p))));
+        var manifest = new DistributionManifest(1, "ArbitrageTrading", "win-x64", "net10.0-windows", "net10.0", new string('a', 40), true, DateTimeOffset.UtcNow,
+            "Arbitrage.Desktop.exe", "backend/Arbitrage.Backend.exe", "backend/appsettings.json", files["Arbitrage.Desktop.exe"], files["backend/Arbitrage.Backend.exe"], files["backend/appsettings.json"], "PortableZip", files);
+        File.WriteAllText(Path.Combine(package, DistributionPackage.ManifestName), JsonSerializer.Serialize(manifest));
+        return package;
+    }
+
     private static string BackendArtifact()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

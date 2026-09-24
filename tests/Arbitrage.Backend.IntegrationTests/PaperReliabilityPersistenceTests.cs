@@ -58,7 +58,14 @@ public sealed class PaperReliabilityPersistenceTests
         (await PaperAutomationTests.Arm(c)).EnsureSuccessStatusCode(); await c.Fixture.Services.GetRequiredService<PaperAutomationCoordinator>().ProcessOnceAsync();
         await c.Fixture.WithDatabaseAsync(async db => { await db.Database.MigrateAsync("20260923191645_PaperAutomation"); return 0; });
         var before = await PaperReliabilityTests.Financial(c);
-        await c.Fixture.WithDatabaseAsync(async db => { await db.Database.MigrateAsync(); Assert.False(db.Database.HasPendingModelChanges()); return 0; });
+        await c.Fixture.WithDatabaseAsync(async db => { await new DatabaseInitializer(db, TimeProvider.System).InitializeAsync(true, true, default);
+            var path = ((Microsoft.Data.Sqlite.SqliteConnection)db.Database.GetDbConnection()).DataSource;
+            var backup = Assert.Single(Directory.GetFiles(Path.Combine(Path.GetDirectoryName(path)!, "backups", "schema"), "*.db"));
+            await using var copy = new TradingDbContext(DatabaseOptions.ForFile(backup));
+            Assert.Equal(await db.Set<PaperExecutionEntry>().CountAsync(), await copy.Set<PaperExecutionEntry>().CountAsync());
+            Assert.Equal(await db.Set<PaperLedgerEntry>().CountAsync(), await copy.Set<PaperLedgerEntry>().CountAsync());
+            Assert.Contains("20260924083029_PaperReliabilityCampaigns", await copy.Database.GetPendingMigrationsAsync());
+            Assert.False(db.Database.HasPendingModelChanges()); return 0; });
         Assert.Equal(before, await PaperReliabilityTests.Financial(c));
         Assert.Empty(await c.Fixture.WithDatabaseAsync(db => db.Set<PaperReliabilityCampaignEntry>().ToArrayAsync()));
     }    [Theory] [InlineData(false)] [InlineData(true)]

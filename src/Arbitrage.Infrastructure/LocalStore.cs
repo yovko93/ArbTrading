@@ -18,17 +18,22 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Tra
         Path.Combine(Path.GetTempPath(), "ArbitrageTrading-schema-design.db")));
 }
 
-public sealed class DatabaseInitializer(TradingDbContext db, TimeProvider clock)
+public sealed class DatabaseInitializer(TradingDbContext db, TimeProvider clock, ISchemaBackup? backup = null)
 {
-    public async Task InitializeAsync(bool existingDatabase, bool applyMigrations, CancellationToken cancellationToken)
+    public async Task InitializeAsync(bool existingDatabase, bool applyMigrations, CancellationToken cancellationToken, Action<string>? diagnostic = null)
     {
         var known = db.Database.GetMigrations().ToHashSet(StringComparer.Ordinal);
         var applied = await db.Database.GetAppliedMigrationsAsync(cancellationToken);
         if (applied.Any(migration => !known.Contains(migration)))
-            throw new InvalidOperationException("Database contains migrations unknown to this application version.");
+            throw new DatabaseStartupException("UnsupportedNewerSchema");
         var pending = (await db.Database.GetPendingMigrationsAsync(cancellationToken)).ToArray();
         if (existingDatabase && pending.Length > 0 && !applyMigrations)
             throw new InvalidOperationException("Database upgrade required. Stop the backend, back up storage, then run --migrate.");
+        if (existingDatabase && pending.Length > 0)
+        {
+            await (backup ?? new SqliteSchemaBackup()).CreateAsync(db, clock.GetUtcNow(), cancellationToken);
+            diagnostic?.Invoke("DatabaseBackupCreated");
+        }
         if (pending.Length > 0) await db.Database.MigrateAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         if (!await db.LocalProfiles.AnyAsync(cancellationToken))
@@ -45,6 +50,7 @@ public sealed class DatabaseInitializer(TradingDbContext db, TimeProvider clock)
         if (!await db.Memberships.AnyAsync(m => m.UserId == profile.UserId && m.WorkspaceId == profile.DefaultWorkspaceId && m.Role == WorkspaceRole.Owner, cancellationToken))
             throw new InvalidOperationException("Local ownership is invalid.");
         await transaction.CommitAsync(cancellationToken);
+        diagnostic?.Invoke(!existingDatabase ? "DatabaseCreated" : pending.Length > 0 ? "DatabaseMigrationApplied" : "DatabaseAlreadyCurrent");
     }
 }
 

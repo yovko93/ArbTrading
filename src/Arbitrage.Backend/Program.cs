@@ -20,6 +20,7 @@ public partial class Program
         try { await RunAsync(args); return 0; }
         catch (Exception exception)
         {
+            Console.Error.WriteLine("DATABASE_STARTUP:{0}", exception is DatabaseStartupException startup ? startup.Code : "DatabaseMigrationFailed");
             // Do not print raw configuration, paths containing secrets, or exception messages.
             Console.Error.WriteLine("Backend failed ({0}). Check local-only configuration, storage permissions, exclusive ownership, and migration requirements. The backend is stopped.", exception.GetType().Name);
             return 1;
@@ -141,7 +142,8 @@ public partial class Program
 
         await using var app = builder.Build();
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(existing, migrateOnly, CancellationToken.None);
+            await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(existing, migrateOnly, CancellationToken.None,
+                code => { logger.Information("Database startup: {Status}", code); if (migrateOnly) Console.WriteLine("DATABASE_STARTUP:" + code); });
         if (migrateOnly) { logger.Information("Database migrations and local ownership verified"); return; }
         var started = Stopwatch.StartNew();
         app.Use(async (context, next) =>

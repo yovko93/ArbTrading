@@ -1,5 +1,9 @@
 # Arbitrage Trading
 
+Windows users can run the self-contained **win-x64 portable ZIP** without .NET, an SDK, or a source checkout. Extract it, launch `Arbitrage.Desktop.exe`, then explicitly Start the local backend. See [portable first run and upgrades](docs/Operations/PortableWindowsDistribution.md). This is an unsigned CI snapshot, not a signed release. Developers produce it with `pwsh ./scripts/publish.ps1` (clean tree) or `-AllowDirty` (labeled local verification). Package creation runs verification and isolated extracted-package smoke tests. [D01 evidence](docs/Development/DistributionD01Verification.md) records the tested boundary.
+
+Packaged managed Start performs safe backup/migration automatically. References below to explicit `--migrate` apply to source/development or manually launched backends.
+
 For a real multi-hour **paper-only** reliability campaign, use the [Phase 04H operator runbook](docs/Operations/PaperBurnInRunbook.md) and [daily checklist](docs/Operations/PaperBurnInDailyChecklist.md). The [readiness verification](docs/Development/Phase04HVerification.md) records isolated rehearsals; it is not a production burn-in result.
 
 Phase 04F adds **deterministic adaptive paper sizing** alongside unchanged FixedQuantity automation. An explicitly saved adaptive profile selects the largest admissible quantity on its decimal Min/Max/Step grid using exact cached L2, fees, risk and session budgets. Search is descending, bounded at 256 quantities per opportunity and 512 exact evaluations per cycle, with no monotonicity assumption or portfolio optimization. A financial race rejects the selected quantity without a smaller fallback. Read-only sizing preview is diagnostic and never arms or authorizes execution. See [paper architecture](docs/Architecture/PaperExecution.md) and [Phase 04F verification](docs/Development/Phase04FVerification.md).

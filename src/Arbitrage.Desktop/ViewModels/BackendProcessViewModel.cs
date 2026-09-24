@@ -15,6 +15,7 @@ public partial class BackendProcessViewModel(ILocalBackendController controller,
     [ObservableProperty] private string managementStatus = "Unverified";
     [ObservableProperty] private string explanation = "Local backend has not been observed yet.";
     [ObservableProperty] private bool isBusy;
+    public string DistributionSummary => controller.DistributionSummary;
 
     public bool CanStart => !IsBusy && current.ProcessState == LocalProcessState.NotRunning &&
         !controller.ArtifactExplanation.StartsWith("Start requires", StringComparison.Ordinal);
@@ -86,6 +87,7 @@ public partial class BackendProcessViewModel(ILocalBackendController controller,
     partial void OnIsBusyChanged(bool value) => NotifyAvailability();
     private void NotifyAvailability()
     {
+        OnPropertyChanged(nameof(DistributionSummary));
         OnPropertyChanged(nameof(CanStart)); OnPropertyChanged(nameof(CanStop));
         OnPropertyChanged(nameof(StartExplanation)); OnPropertyChanged(nameof(StopExplanation));
         StartCommand.NotifyCanExecuteChanged(); StopCommand.NotifyCanExecuteChanged();

@@ -18,7 +18,8 @@ public interface IDesktopPreferencesStore
 public static class DesktopPaths
 {
     public static string Directory => Resolve("ARBITRAGE_DESKTOP_DIRECTORY", Path.Combine(LocalPaths.Root, "desktop"));
-    public static string RuntimeDirectory => Resolve("ARBITRAGE_RUNTIME_DIRECTORY", LocalPaths.Runtime);
+    public static string RuntimeDirectory => Environment.GetEnvironmentVariable("Local__RuntimeDirectory") is not null
+        ? Resolve("Local__RuntimeDirectory", LocalPaths.Runtime) : Resolve("ARBITRAGE_RUNTIME_DIRECTORY", LocalPaths.Runtime);
 
     private static string Resolve(string variable, string fallback)
     {

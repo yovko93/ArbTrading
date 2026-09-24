@@ -67,21 +67,25 @@ public sealed class OsManagedProcessInspector : IManagedProcessInspector
 }
 public sealed record LocalBackendLaunchOptions(string DataDirectory, string RuntimeDirectory, string BaseUrl, string ArtifactPath, string? DotnetHost)
 {
+    public string? PackageRoot { get; init; }
     public static LocalBackendLaunchOptions FromEnvironment()
     {
         var data = ResolveDirectory("Local__DataDirectory", Path.Combine(LocalPaths.Root, "backend"));
-        var runtime = DesktopPaths.RuntimeDirectory;
+        var runtime = Environment.GetEnvironmentVariable("Local__RuntimeDirectory") is { } runtimeOverride
+            ? ResolveDirectory("Local__RuntimeDirectory", runtimeOverride) : DesktopPaths.RuntimeDirectory;
         var url = LocalPaths.ValidateBaseUrl(Environment.GetEnvironmentVariable("Local__BaseUrl") ?? "http://127.0.0.1:5274")
             .GetLeftPart(UriPartial.Authority);
+        var packageRoot = File.Exists(Path.Combine(AppContext.BaseDirectory, DistributionPackage.ManifestName)) || Directory.Exists(Path.Combine(AppContext.BaseDirectory, DistributionPackage.ManifestName)) || Directory.Exists(Path.Combine(AppContext.BaseDirectory, "backend")) ? AppContext.BaseDirectory : null;
+        var packaged = Path.Combine(AppContext.BaseDirectory, "backend", "Arbitrage.Backend.exe");
         var artifact = Environment.GetEnvironmentVariable("ARBITRAGE_BACKEND_ARTIFACT") ??
-            Path.Combine(AppContext.BaseDirectory, "Arbitrage.Backend.exe");
+            (packageRoot is not null || File.Exists(packaged) ? packaged : Path.Combine(AppContext.BaseDirectory, "Arbitrage.Backend.exe"));
         if (!Path.IsPathFullyQualified(artifact) || Path.GetExtension(artifact).ToLowerInvariant() is not (".exe" or ".dll"))
             throw new InvalidOperationException("Backend artifact must be an absolute built .exe or .dll path.");
         var dotnetHost = Environment.GetEnvironmentVariable("ARBITRAGE_DOTNET_HOST");
         if (Path.GetExtension(artifact).Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
             (string.IsNullOrWhiteSpace(dotnetHost) || !Path.IsPathFullyQualified(dotnetHost)))
             throw new InvalidOperationException("ARBITRAGE_DOTNET_HOST must be an absolute dotnet executable path for a DLL artifact.");
-        return new(data, runtime, url, Path.GetFullPath(artifact), dotnetHost);
+        return new(data, runtime, url, Path.GetFullPath(artifact), dotnetHost) { PackageRoot = packageRoot };
     }
     private static string ResolveDirectory(string name, string fallback)
     {
@@ -94,6 +98,7 @@ public sealed record LocalBackendLaunchOptions(string DataDirectory, string Runt
 public interface ILocalBackendController
 {
     string ArtifactExplanation { get; }
+    string DistributionSummary => "Distribution: Development · Manifest: Missing";
     Task<LocalBackendObservation> ObserveAsync(CancellationToken cancellationToken);
     Task<LocalBackendObservation> StartAsync(CancellationToken cancellationToken);
     Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action<Guid> onAccepted, CancellationToken cancellationToken);
@@ -101,8 +106,14 @@ public interface ILocalBackendController
 
 // Explicitly invoked only. This service never owns the backend lifetime after launch.
 public sealed class LocalBackendController(BackendClient client, LocalBackendLaunchOptions options,
-    IManagedProcessInspector? processInspector = null, TimeSpan? stopTimeout = null) : ILocalBackendController
+    IManagedProcessInspector? processInspector = null, TimeSpan? stopTimeout = null, IBackendMigrationRunner? migrationRunner = null) : ILocalBackendController
 {
+    private readonly IBackendMigrationRunner migrations = migrationRunner ?? new BackendMigrationRunner();
+    private string databaseStartup = "Not checked";
+    private DistributionValidation packageStatus = options.PackageRoot is null ? new(false, true, "Development layout") : DistributionPackage.Validate(options.PackageRoot, options.ArtifactPath);
+    private DistributionValidation Package => packageStatus;
+    private DistributionValidation RevalidatePackage() => packageStatus = options.PackageRoot is null ? new(false, true, "Development layout") : DistributionPackage.Validate(options.PackageRoot, options.ArtifactPath);
+    public string DistributionSummary => Package.Summary + $"\nData directory: {dataDirectory}\nRuntime directory: {runtimeDirectory}\nDatabase startup: {databaseStartup}";
     private readonly IManagedProcessInspector inspector = processInspector ?? new OsManagedProcessInspector();
     private readonly TimeSpan shutdownTimeout = stopTimeout ?? TimeSpan.FromSeconds(20);
     private readonly SemaphoreSlim operationGate = new(1, 1);
@@ -114,12 +125,14 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
     private string MetadataLockPath => Path.Combine(runtimeDirectory, "managed-local.lock");
     private string LaunchLockPath => Path.Combine(runtimeDirectory, "desktop-start.lock");
 
-    public string ArtifactExplanation => !File.Exists(artifact)
+    public string ArtifactExplanation => options.PackageRoot is not null && Package is { } package && (!package.Valid || !package.IsPackage)
+        ? "Start requires a valid portable package. " + package.Status
+        : !File.Exists(artifact)
         ? "Start requires a built backend executable. Set ARBITRAGE_BACKEND_ARTIFACT to its absolute path."
         : Path.GetExtension(artifact).Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
           (string.IsNullOrWhiteSpace(options.DotnetHost) || !Path.IsPathFullyQualified(options.DotnetHost) || !File.Exists(options.DotnetHost))
             ? "Start requires an absolute ARBITRAGE_DOTNET_HOST path to an installed dotnet executable for a DLL artifact."
-            : "Start uses the configured built backend artifact.";
+            : options.PackageRoot is not null ? "Start uses the verified self-contained packaged backend; no installed dotnet host is needed." : "Start uses the configured built backend artifact.";
 
     public async Task<LocalBackendObservation> ObserveAsync(CancellationToken cancellationToken)
     {
@@ -186,6 +199,16 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
         await operationGate.WaitAsync(cancellationToken);
         try
         {
+            if (options.PackageRoot is not null)
+            {
+                var package = RevalidatePackage();
+                if (!package.IsPackage || !package.Valid)
+                    return new(LocalProcessState.Faulted, LocalManagementCapability.ExternalUnmanaged, "Managed Start rejected: " + package.Status);
+                var root = Path.GetFullPath(options.PackageRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                if (new[] { dataDirectory, runtimeDirectory, DesktopPaths.Directory }.Any(p => (Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar).StartsWith(root, StringComparison.OrdinalIgnoreCase)))
+                    return new(LocalProcessState.Faulted, LocalManagementCapability.ExternalUnmanaged, "Package mutable storage must be outside the extracted application directory.");
+                LocalPaths.ValidateBaseUrl(baseUrl);
+            }
             ProtectedStorage.CreatePrivateDirectory(runtimeDirectory);
             FileStream? launchLock = null;
             for (var retry = 0; retry < 100 && launchLock is null; retry++)
@@ -207,6 +230,18 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
                 (string.IsNullOrWhiteSpace(options.DotnetHost) || !Path.IsPathFullyQualified(options.DotnetHost) || !File.Exists(options.DotnetHost)))
                 return new(LocalProcessState.Faulted, LocalManagementCapability.ExternalUnmanaged,
                     "A DLL launch requires ARBITRAGE_DOTNET_HOST set to an absolute dotnet executable path.");
+            if (options.PackageRoot is not null)
+            {
+                ProtectedStorage.CreatePrivateDirectory(dataDirectory);
+                databaseStartup = "Migration required / checking";
+                var migration = await migrations.RunAsync(BuildLaunch(), cancellationToken);
+                databaseStartup = migration.Status;
+                if (!migration.Success)
+                    return new(LocalProcessState.Faulted, LocalManagementCapability.ExternalUnmanaged, "Backend migration failed. " + migration.Status + " Normal backend was not launched; preserve storage and backups.");
+                // Revalidate after migration: a package changed while Start was running cannot launch.
+                if (RevalidatePackage() is not { IsPackage: true, Valid: true })
+                    return new(LocalProcessState.Faulted, LocalManagementCapability.ExternalUnmanaged, "Package integrity changed during migration. Normal backend was not launched.");
+            }
             var launch = BuildLaunch();
             using var process = Process.Start(launch);
             if (process is null)

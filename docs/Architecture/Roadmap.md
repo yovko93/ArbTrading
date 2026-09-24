@@ -21,3 +21,8 @@ Phase 02A/02B provide explicit public discovery and canonical REST/realtime orde
 Phase 04G adds explicit paper reliability campaigns, bounded persistent evidence, historical proof/integrity checks and frozen local JSON reports. Campaign criteria are evidence thresholds only: CriteriaMet does not enable live orders, change arming or establish real-capital profitability. No new execution mechanism or production synthetic burn-in generator is introduced. See [Phase 04G verification](../Development/Phase04GVerification.md).
 
 Phase 04H documents the [paper burn-in operator procedure](../Operations/PaperBurnInRunbook.md), [daily evidence checklist](../Operations/PaperBurnInDailyChecklist.md), configuration freeze and isolated operational rehearsals. It adds no live-trading approval or automatic campaign management. See [Phase 04H verification](../Development/Phase04HVerification.md).
+
+
+Distribution D01 establishes a cross-cutting requirement: every completed application phase must remain publishable as a self-contained Windows x64 portable ZIP through `scripts/publish.ps1`. Windows CI verifies source, publishes both executables, smoke-tests an extracted copy and uploads ZIP/checksum snapshots. Packaged explicit Start validates integrity, migrates under the profile lease with private SQLite backups, and preserves all Paper safety gates. Distribution does not constitute execution approval or burn-in evidence. See [distribution architecture](Distribution.md).
+
+Installer/MSIX, code signing, automatic updates, win-arm64, Linux Desktop and official release publishing remain deferred. Unsigned snapshot integrity checks are not publisher authentication. Older application versions may reject upgraded databases; automatic downgrade is not supported.

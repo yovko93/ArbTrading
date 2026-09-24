@@ -20,12 +20,24 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.SequenceEqual(new[] { "--validate-package" }))
+        {
+            var package = DistributionPackage.Validate(AppContext.BaseDirectory);
+            Shutdown(package.IsPackage && package.Valid ? 0 : 2);
+            return;
+        }
         try
         {
             var desktopDirectory = DesktopPaths.Directory;
             var runtimeDirectory = DesktopPaths.RuntimeDirectory;
             if (string.Equals(desktopDirectory, runtimeDirectory, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Desktop preferences and runtime metadata need separate directories.");
+            if (File.Exists(Path.Combine(AppContext.BaseDirectory, DistributionPackage.ManifestName)) || Directory.Exists(Path.Combine(AppContext.BaseDirectory, "backend")))
+            {
+                var packageRoot = Path.GetFullPath(AppContext.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                if ((Path.GetFullPath(desktopDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar).StartsWith(packageRoot, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Desktop storage must be outside the portable package.");
+            }
             ProtectedStorage.CreatePrivateDirectory(desktopDirectory);
             logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console()
                 .WriteTo.File(Path.Combine(desktopDirectory, "logs", "desktop-.log"), rollingInterval: RollingInterval.Day,

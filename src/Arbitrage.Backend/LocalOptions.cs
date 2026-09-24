@@ -45,6 +45,14 @@ public sealed class LocalOptions
             for (var directory = new DirectoryInfo(path); directory is not null; directory = directory.Parent)
                 if (Directory.Exists(Path.Combine(directory.FullName, ".git")) || File.Exists(Path.Combine(directory.FullName, ".git")))
                     throw new InvalidOperationException("Runtime storage must be outside a Git checkout or worktree.");
+        var applicationDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+        var packageRoot = Path.GetDirectoryName(applicationDirectory);
+        if (packageRoot is not null && Path.GetFileName(applicationDirectory).Equals("backend", StringComparison.OrdinalIgnoreCase))
+        {
+            var prefix = Path.GetFullPath(packageRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (new[] { DataDirectory, RuntimeDirectory }.Any(p => (p.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Mutable storage must be outside the portable package.");
+        }
         return LocalPaths.ValidateBaseUrl(BaseUrl);
     }
 }

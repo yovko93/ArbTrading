@@ -87,8 +87,21 @@
           <TextBlock Text="Deployment: Local" Margin="0,10,0,0" />
           <TextBlock Text="Effective environment" Style="{StaticResource FieldLabel}" Margin="0,10,0,3" />
           <TextBlock Text="{Binding State.TradingMode}" />
-          <TextBlock Text="{Binding State.Execution}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
-          <TextBlock Text="Manual and Automatic operation are unavailable." Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+          <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+          <Grid Margin="0,14,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="190" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" /></Grid.RowDefinitions>
+            <TextBlock Text="Paper execution" Style="{StaticResource FieldLabel}" />
+            <TextBlock Grid.Column="1" Text="{Binding State.PaperExecutionLabel}" />
+            <TextBlock Grid.Row="1" Text="Live order submission" Style="{StaticResource FieldLabel}" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding State.LiveExecutionLabel}" />
+            <TextBlock Grid.Row="2" Text="Manual live execution" Style="{StaticResource FieldLabel}" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding State.ManualExecutionLabel}" />
+            <TextBlock Grid.Row="3" Text="Automatic live execution" Style="{StaticResource FieldLabel}" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding State.AutomaticExecutionLabel}" />
+          </Grid>
+          <TextBlock Text="Automatic Paper is an explicitly armed Paper-mode simulation controlled from Trading. It is separate from Automatic live execution."
+                     Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
         </StackPanel>
       </Border>
     </StackPanel>

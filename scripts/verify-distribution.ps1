@@ -1,10 +1,12 @@
 #requires -Version 7.5
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$PackageZip)
+param([Parameter(Mandatory)][string]$PackageZip, [string]$ScratchRoot, [switch]$KeepWorkDirectory)
 . (Join-Path $PSScriptRoot 'distribution-common.ps1')
 if (-not $IsWindows) { throw 'Distribution smoke requires Windows x64.' }
-$tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
-$testRoot = Join-Path $tempParent ('Arbitrage Trading Portable Test ' + [Guid]::NewGuid().ToString('N'))
+. (Join-Path $PSScriptRoot 'distribution-workspace.ps1')
+$smokeWork = New-DistributionWork $ScratchRoot
+$testRoot = Join-Path $smokeWork.Path 'Portable Smoke With Spaces'
+try {
 New-Item -ItemType Directory -Path $testRoot | Out-Null
 $extracted = Join-Path $testRoot 'extracted'
 $owned = [Collections.Generic.List[Diagnostics.Process]]::new()
@@ -75,6 +77,8 @@ function Wait-Success([Diagnostics.Process]$Process, [int]$Expected = 0) {
 
 try {
     [IO.Compression.ZipFile]::ExtractToDirectory([IO.Path]::GetFullPath($PackageZip), $extracted)
+    $extractedBytes = (Get-ChildItem -LiteralPath $extracted -Recurse -File | Measure-Object Length -Sum).Sum
+    Write-Output "Extracted smoke payload bytes: $extractedBytes"
     $package = Join-Path $extracted 'ArbitrageTrading'
     Test-DistributionPackage $package | Out-Null
     $desktopExe = Join-Path $package 'Arbitrage.Desktop.exe'
@@ -166,13 +170,13 @@ try {
         }
     }
     Test-DistributionPackage $package | Out-Null
-    Write-Output "Distribution smoke passed outside repository, with spaces and no dotnet in child PATH. Desktop window observed: $windowObserved. Bootstrap, idempotence, restart identity, Paper safety, package immutability, tamper/missing/path rejection passed."
+    Write-Output "Distribution smoke passed from extracted ZIP, with spaces and no dotnet in child PATH. Desktop window observed: $windowObserved. Bootstrap, idempotence, restart identity, Paper safety, package immutability, tamper/missing/path rejection passed."
     $global:LASTEXITCODE = 0
 } finally {
     foreach ($process in $owned) {
         try { if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() } } finally { $process.Dispose() }
     }
-    $resolved = [IO.Path]::GetFullPath($testRoot)
-    if (-not $resolved.StartsWith($tempParent, [StringComparison]::OrdinalIgnoreCase) -or -not ([IO.Path]::GetFileName($resolved)).StartsWith('Arbitrage Trading Portable Test ')) { throw 'Unexpected smoke cleanup path.' }
-    if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
+    $smokeBytes = (Get-ChildItem -LiteralPath $smokeWork.Path -Recurse -File | Measure-Object Length -Sum).Sum
+    Write-Output "Smoke workspace bytes before cleanup: $smokeBytes"
 }
+} finally { Remove-OwnedDistributionWork $smokeWork -KeepWorkDirectory:$KeepWorkDirectory }

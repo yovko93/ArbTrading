@@ -13,6 +13,9 @@ jobs:
       - name: Build WPF and backend; run all tests
         shell: pwsh
         run: ./scripts/verify.ps1
+      - name: Distribution workspace tests
+        shell: pwsh
+        run: ./scripts/test-distribution-workspace.ps1
       - name: Focused signing checks (temporary untrusted identity; no production secrets)
         shell: pwsh
         run: ./scripts/test-distribution-signing.ps1
@@ -21,7 +24,7 @@ jobs:
         shell: pwsh
         env:
           DISTRIBUTION_VERIFIED_SHA: ${{ github.sha }}
-        run: ./scripts/publish.ps1 -SkipTests -SigningMode Unsigned
+        run: ./scripts/publish.ps1 -WorkRoot "${{ runner.temp }}/ArbitrageDistributionWork" -SkipTests -SigningMode Unsigned
       - name: Publish explicitly enabled signed snapshot
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WINDOWS_SIGNING_ENABLED == 'true'
         shell: pwsh
@@ -31,12 +34,12 @@ jobs:
           SIGNING_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
           EXPECTED_PUBLISHER: ${{ vars.WINDOWS_EXPECTED_PUBLISHER }}
           SIGNTOOL_PATH: ${{ vars.WINDOWS_SIGNTOOL_PATH }}
-        run: ./scripts/publish.ps1 -SkipTests -SigningMode Authenticode
+        run: ./scripts/publish.ps1 -WorkRoot "${{ runner.temp }}/ArbitrageDistributionWork" -SkipTests -SigningMode Authenticode
       - name: Verify test-signed canonical package (never uploaded as main artifact)
         shell: pwsh
         env:
           DISTRIBUTION_VERIFIED_SHA: ${{ github.sha }}
-        run: ./scripts/publish.ps1 -SkipTests -SigningMode TestEphemeral -OutputDirectory artifacts/distribution-test-signed
+        run: ./scripts/publish.ps1 -WorkRoot "${{ runner.temp }}/ArbitrageDistributionWork" -SkipTests -SigningMode TestEphemeral -OutputDirectory artifacts/distribution-test-signed
       - uses: actions/upload-artifact@v4
         with:
           name: ArbitrageTrading-win-x64

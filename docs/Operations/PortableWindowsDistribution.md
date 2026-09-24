@@ -51,3 +51,31 @@ Production operator prerequisites (no sample secrets): Windows SDK SignTool; a c
 Future production CI additionally needs WINDOWS_SIGNING_ENABLED=true, a protected pre-provisioned Windows runner selected by WINDOWS_SIGNING_RUNNER, encrypted secret WINDOWS_CERTIFICATE_THUMBPRINT, and variables WINDOWS_TIMESTAMP_URL, optional WINDOWS_EXPECTED_PUBLISHER/WINDOWS_SIGNTOOL_PATH. The certificate/private key must be provisioned securely outside this repository/workflow into that runner's CurrentUser/My; hosted windows-latest does not acquire one automatically. Protect main and isolate signing runners. Only a push to main with the explicit switch selects the signing path/runner. PR jobs use windows-latest and unsigned/test-only modes, with no production signing inputs. Missing provisioning fails closed. D02 does not upload test-signed artifacts as the main package, import secret PFX files, grant OIDC/write permissions or publish releases.
 
 Runtime Authenticode inspection is offline. Fresh revocation retrieval is not performed and an uncached issuer chain may prevent a production signature from validating on a particular offline machine. A Windows-valid signature and RFC3161 timestamp remain distinct from browser/SmartScreen reputation.
+
+## Distribution work volume and cleanup
+
+Redirect large transient distribution work without moving the repository or normal application data:
+
+```powershell
+pwsh ./scripts/publish.ps1 `
+  -SigningMode TestEphemeral `
+  -AllowDirty `
+  -WorkRoot 'D:\ArbitrageTradingBuildWork' `
+  -OutputDirectory artifacts/distribution-d02-test-signed
+```
+
+D: is only an example; choose an existing local fixed volume with enough capacity. Default scratch is repository `artifacts/.work`. UNC/device paths, roots/source/system directories, package paths and reparse paths are rejected. Preflight requires 1536 MiB scratch and 256 MiB output, or 1792 MiB on a shared volume; capacity cannot be unknown. Keep sufficient space for normal source builds/tests too: their bin/obj and system TEMP are not relocated. Preflight is a check, not a space reservation.
+
+Staging, candidate ZIP and extracted smoke/private test state are removed on success/failure. Final archives/checksums are retained. `-KeepWorkDirectory` keeps debug work and prints the exact location; retained smoke can include isolated test credentials, so treat it as private test data. Standalone smoke accepts `-ScratchRoot <absolute-directory>` and the same retention switch. Neither setting changes normal application storage or weakens package immutability.
+
+After an interrupted/debug run, inspect only the chosen work root:
+
+```powershell
+pwsh ./scripts/clean-distribution-work.ps1 -WorkRoot 'D:\ArbitrageTradingBuildWork'
+# Explicitly remove marked work whose owner process has exited:
+pwsh ./scripts/clean-distribution-work.ps1 -WorkRoot 'D:\ArbitrageTradingBuildWork' -Execute
+```
+
+The first command reports only. Active owners, reparse paths, unmarked legacy staging and durable final artifacts are never automatically cleaned. The helper does not scan the disk, general TEMP, source, caches or user runtime storage. Legacy D01/D02 staging requires separate review of its exact path; it is not adopted based on its name alone.
+
+Cross-volume promotion copies to a temporary file on the output volume, verifies its hash, and renames it atomically before writing the final checksum. No incomplete copy gets the final ZIP filename. An existing final ZIP is never overwritten. A failed checksum write is a failed publish even if a complete ZIP remains; inspect it and choose a fresh output directory when retrying.

@@ -17,6 +17,8 @@ public sealed class PaperAutomationDesktopTests
     private sealed class Handler : HttpMessageHandler
     {
         public int Writes; public bool Delay; public HttpStatusCode Code = HttpStatusCode.OK; public string? LastAction; public ArmPaperAutomationRequest? LastArm;
+        public SavePaperAutomationRequest? LastSave;
+        public PaperSizingPreviewResponse Preview = new("Selected", "LargestAdmissibleGridQuantity", 10, 4, 25, 5, 5, [new("Risk:MarketCostBasisLimit", 3)], 9.1m, .26792m, 9.36792m, 10, .63208m, .063208m, null, null, DateTimeOffset.UtcNow);
         public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously), Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public PaperAutomationStatusResponse Status = new("Disarmed", "None", new(1, Guid.NewGuid(), PaperAutomationTests.Settings, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Guid.NewGuid(), new string('A', 64)),
             Guid.NewGuid(), Guid.NewGuid(), new(null, false, null, null, "", null, null), null, null, null, "Running", 0, 0, 0, 0, null, null, [], 0, new Dictionary<string, long>());
@@ -26,7 +28,14 @@ public sealed class PaperAutomationDesktopTests
             {
                 Writes++; LastAction = r.RequestUri!.Segments.Last();
                 if (LastAction == "arm") LastArm = await r.Content!.ReadFromJsonAsync<ArmPaperAutomationRequest>(ct);
+                if (LastAction == "profile") LastSave = await r.Content!.ReadFromJsonAsync<SavePaperAutomationRequest>(ct);
                 if (Code != HttpStatusCode.OK) return new(Code) { Content = JsonContent.Create(new { code = "RevisionConflict" }) };
+                if (LastAction == "sizing-preview")
+                {
+                    if (Delay) { Entered.TrySetResult(); await Release.Task; }
+                    return new(Code) { Content = JsonContent.Create(Preview) };
+                }
+                if (LastAction == "profile") return new(Code) { Content = JsonContent.Create(Status.Profile) };
                 Status = Status with { State = LastAction == "arm" ? "Armed" : LastAction == "emergency-stop" ? "KillSwitchLatched" : "Disarmed",
                     KillSwitch = Status.KillSwitch with { IsLatched = LastAction == "emergency-stop", Revision = Guid.NewGuid() } };
             }
@@ -71,5 +80,40 @@ public sealed class PaperAutomationDesktopTests
         await vm.RefreshAutomationCommand.ExecuteAsync(null); vm.Confirm = _ => true; h.Code = code;
         await vm.ArmAutomationCommand.ExecuteAsync(null); Assert.Equal(1, h.Writes); Assert.Null(vm.AutomationStatus);
         Assert.False(vm.ArmAutomationCommand.CanExecute(null)); Assert.Contains("no automatic retry", vm.AutomationNotice);
+    }
+    [Fact] public async Task Adaptive_suggestions_inactive_explicit_save_validates_grid_and_arm_describes_saved_policy()
+    {
+        var h = new Handler(); var (s, vm) = Create(h); using var state = s; using var model = vm;
+        await vm.RefreshAutomationCommand.ExecuteAsync(null); vm.AutomationSizingMode = "LargestAdmissibleGridQuantity";
+        Assert.True(vm.IsAdaptiveSizing); Assert.False(vm.IsFixedSizing); Assert.Equal("25", vm.AdaptiveMaximum); Assert.Equal(0, h.Writes);
+        vm.AdaptiveMaximum = "257"; string warning = ""; vm.Confirm = text => { warning = text; return true; };
+        await vm.SaveAutomationCommand.ExecuteAsync(null); Assert.Equal(0, h.Writes); Assert.Contains("256", vm.AutomationNotice);
+        vm.AdaptiveMaximum = "256"; await vm.SaveAutomationCommand.ExecuteAsync(null); Assert.Equal(1, h.Writes);
+        Assert.Equal(256, h.LastSave!.Settings.MaximumQuantity); Assert.Contains("Actual quantity may vary", warning);
+        h.Status = h.Status with { Profile = h.Status.Profile! with { PolicyVersion = 2, Settings = PaperSizingApiTests.Settings } };
+        await vm.RefreshAutomationCommand.ExecuteAsync(null); await vm.ArmAutomationCommand.ExecuteAsync(null);
+        Assert.Contains("5..25", warning); Assert.Contains("step 5", warning); Assert.Contains("Minimum edge/share", warning);
+        Assert.Contains(h.Status.RiskRevision!.ToString()!, warning);
+    }
+    [Theory] [InlineData("access")] [InlineData("navigation")] [InlineData("key")] [InlineData("mode")] [InlineData("invalidation")]
+    public async Task Late_sizing_preview_does_not_restore_stale_private_result(string change)
+    {
+        var h = new Handler { Delay = true }; var (s, vm) = Create(h); using var state = s; using var model = vm;
+        vm.OpportunityKey = new string('A', 64); var task = vm.PreviewSizingCommand.ExecuteAsync(null); await h.Entered.Task;
+        if (change == "access") s.SetRealtimeStatus("AuthorizationDenied", "fixture");
+        if (change == "navigation") vm.Deactivate();
+        if (change == "key") vm.OpportunityKey = new string('B', 64);
+        if (change == "mode") vm.AutomationSizingMode = "LargestAdmissibleGridQuantity";
+        if (change == "invalidation") s.NotifyPaperValuationInvalidated();
+        h.Release.TrySetResult(); await task; Assert.Null(vm.SizingPreview); Assert.Equal(1, h.Writes);
+    }
+    [Theory] [InlineData(HttpStatusCode.OK)] [InlineData(HttpStatusCode.Forbidden)] [InlineData(HttpStatusCode.Unauthorized)]
+    public async Task Sizing_preview_is_diagnostic_single_post_and_access_failure_clears_it(HttpStatusCode code)
+    {
+        var h = new Handler(); var (s, vm) = Create(h); using var state = s; using var model = vm;
+        vm.OpportunityKey = new string('A', 64); await vm.PreviewSizingCommand.ExecuteAsync(null); Assert.Equal(10, vm.SizingPreview!.SelectedQuantity);
+        h.Code = code; await vm.PreviewSizingCommand.ExecuteAsync(null); Assert.Equal(2, h.Writes); Assert.Equal("sizing-preview", h.LastAction);
+        if (code != HttpStatusCode.OK) Assert.Null(vm.SizingPreview); else Assert.Contains("Diagnostic only", vm.SizingPreviewText);
+        Assert.Null(vm.Preview); Assert.Null(vm.AutomationStatus);
     }
 }

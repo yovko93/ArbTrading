@@ -10,14 +10,43 @@ namespace Arbitrage.Backend.IntegrationTests;
 
 public sealed class PaperAutomationPersistenceTests
 {
-    [Theory] [InlineData(false)] [InlineData(true)]
-    public async Task Restart_preserves_settings_history_and_kill_but_never_armed_session(bool latch)
+    [Fact] public async Task Phase04E_raw_v1_json_preserves_hash_ids_and_financial_facts_after_adaptive_profile_save()
+    {
+        await using var c = new PaperApiTests.Case(); c.Clock.ManualTimers = true; await c.Start(); await PaperAutomationTests.Configure(c);
+        (await PaperAutomationTests.Arm(c)).EnsureSuccessStatusCode(); await c.Fixture.Services.GetRequiredService<PaperAutomationCoordinator>().ProcessOnceAsync();
+        var status = (await PaperAutomationTests.Status(c))!;
+        var before = await c.Fixture.WithDatabaseAsync(async db =>
+        {
+            var profile = await db.Set<PaperAutomationProfileEntry>().SingleAsync();
+            var legacyProfile = System.Text.Json.Nodes.JsonNode.Parse(profile.ProfileJson)!; legacyProfile.AsObject().Remove("SupportedVersion");
+            profile.ProfileJson = legacyProfile.ToJsonString();
+            var execution = await db.Set<PaperExecutionEntry>().SingleAsync();
+            var legacyProof = System.Text.Json.Nodes.JsonNode.Parse(execution.AutomationProofJson!)!; legacyProof.AsObject().Remove("Sizing");
+            execution.AutomationProofJson = legacyProof.ToJsonString(); await db.SaveChangesAsync();
+            var financial = JsonSerializer.Serialize(execution);
+            var rawProfile = profile.ProfileJson;
+            await db.Database.MigrateAsync(); db.ChangeTracker.Clear();
+            Assert.Equal(rawProfile, (await db.Set<PaperAutomationProfileEntry>().SingleAsync()).ProfileJson);
+            Assert.Equal(financial, JsonSerializer.Serialize(await db.Set<PaperExecutionEntry>().SingleAsync()));
+            Assert.False(db.Database.HasPendingModelChanges()); return financial;
+        });
+        Assert.Equal(status.Profile!.PolicyFingerprint, (await PaperAutomationTests.Status(c))!.Profile!.PolicyFingerprint);
+        Assert.Equal("Healthy", await SettlementTests.Reconcile(c, status.GenerationId!.Value));
+        var account = JsonSerializer.Serialize(await c.Account());
+        (await c.Client.PostAsync(c.Root + "/paper/automation/disarm", null)).EnsureSuccessStatusCode();
+        (await c.Client.PutAsJsonAsync(c.Root + "/paper/automation/profile", new SavePaperAutomationRequest(status.Profile.Revision, true, PaperSizingApiTests.Settings))).EnsureSuccessStatusCode();
+        Assert.Equal(before, await c.Fixture.WithDatabaseAsync(async db => JsonSerializer.Serialize(await db.Set<PaperExecutionEntry>().SingleAsync())));
+        Assert.Equal(account, JsonSerializer.Serialize(await c.Account()));
+        Assert.Equal("Healthy", await SettlementTests.Reconcile(c, status.GenerationId.Value));
+    }
+    [Theory] [InlineData(false, false)] [InlineData(true, false)] [InlineData(false, true)] [InlineData(true, true)]
+    public async Task Restart_preserves_settings_history_and_kill_but_never_armed_session(bool latch, bool adaptive)
     {
         var c = new PaperApiTests.Case(preserveStorage: true); c.Clock.ManualTimers = true;
         string root; string path; Guid profile; Guid? generation;
         try
         {
-            await c.Start(); await PaperAutomationTests.Configure(c); (await PaperAutomationTests.Arm(c)).EnsureSuccessStatusCode();
+            await c.Start(); await PaperAutomationTests.Configure(c, adaptive ? PaperSizingApiTests.Settings : null); (await PaperAutomationTests.Arm(c)).EnsureSuccessStatusCode();
             await c.Fixture.Services.GetRequiredService<PaperAutomationCoordinator>().ProcessOnceAsync();
             var s = (await PaperAutomationTests.Status(c))!; Assert.Equal(1, s.ExecutionsCommitted); profile = s.Profile!.Revision; generation = s.GenerationId;
             if (latch) await c.Fixture.Services.GetRequiredService<PaperAutomationCoordinator>().KillAsync(c.Session.UserId, c.Session.DefaultWorkspaceId, true, null, false, "Persistent emergency", default);
@@ -28,6 +57,8 @@ public sealed class PaperAutomationPersistenceTests
         var status = (await client.GetFromJsonAsync<PaperAutomationStatusResponse>(path + "/paper/automation/status"))!;
         Assert.Equal(latch ? "KillSwitchLatched" : "Disarmed", status.State); Assert.Null(status.SessionId); Assert.Equal(profile, status.Profile!.Revision);
         Assert.Equal(generation, status.GenerationId); Assert.Equal(latch, status.KillSwitch.IsLatched);
+        Assert.Equal(adaptive ? "LargestAdmissibleGridQuantity" : "FixedQuantity", status.Profile.Settings.SizingMode);
+        Assert.Null(status.LastSizingState); Assert.Empty(status.Counters);
         await restarted.Services.GetRequiredService<PaperAutomationCoordinator>().ProcessOnceAsync();
         var execution = Assert.Single(await restarted.WithDatabaseAsync(db => db.Set<PaperExecutionEntry>().ToArrayAsync())); Assert.Equal(PaperExecutionOrigin.AutomaticPaper, execution.Origin);
         Assert.Equal("Healthy", (await (await client.PostAsync(path + $"/paper/reconcile?generationId={generation}", null)).Content.ReadFromJsonAsync<PaperIntegrityResponse>())!.Integrity);

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Arbitrage.Infrastructure;
 
 public sealed record PaperFunding(string Exchange, string Currency, decimal Amount);
-public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionEntry? Execution = null, bool Duplicate = false, PaperRiskDecision? RiskDecision = null, PaperAutomationReason? AutomationReason = null);
+public sealed record PaperCommitResult(PaperRejection Rejection, PaperExecutionEntry? Execution = null, bool Duplicate = false, PaperRiskDecision? RiskDecision = null, PaperAutomationReason? AutomationReason = null, PaperSizingDecision? SizingDecision = null);
 
 // SQLite serializable transactions acquire the writer reservation before reading balances. The unique
 // request index is the durable idempotency authority, including across scopes, restart and lost replies.
@@ -98,6 +98,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
         if (reviewedRisk is null || reviewedRisk.FinancialRevision != generation.Revision)
             return new(PaperRejection.FinancialStateChanged, RiskDecision: risk with { Decision = PaperRiskOutcome.Rejected,
                 Violations = risk.Violations.Add(new(PaperRiskViolationCode.FinancialStateChanged)) });
+        if (automatic?.Sizing is { } selected && selected.FinancialRevision != risk.FinancialRevision) return new(PaperRejection.FinancialStateChanged);
         var now = clock.GetUtcNow();
         var execution = new PaperExecutionEntry { Id = plan.Id, WorkspaceId = workspace, GenerationId = generationId, ActorId = actor,
             RequestId = requestId, RequestFingerprint = fingerprint, OpportunityKey = plan.Proof.OpportunityKey, CreatedAt = now,
@@ -110,7 +111,7 @@ public sealed partial class PaperStore(TradingDbContext db, RelationshipStore me
             execution.Origin = PaperExecutionOrigin.AutomaticPaper; execution.AutomationSessionId = p.SessionId;
             execution.AutomationRelationshipId = plan.Proof.RelationshipId; execution.AutomationInputStamp = automatic.TriggerStamp;
             execution.AutomationProofJson = JsonSerializer.Serialize(new PaperAutomationProof(p.SessionId, p.Profile.PolicyVersion, p.Profile.Revision,
-                p.Profile.PolicyFingerprint, automatic.TriggerStamp, plan.Proof.RelationshipId, now, p.Profile.Settings));
+                p.Profile.PolicyFingerprint, automatic.TriggerStamp, plan.Proof.RelationshipId, now, p.Profile.Settings, automatic.Sizing));
         }
         execution.SettlementMarketsJson = JsonSerializer.Serialize(await CaptureMarketsAsync(plan, ct));
         generation.Revision = checked(generation.Revision + 1);

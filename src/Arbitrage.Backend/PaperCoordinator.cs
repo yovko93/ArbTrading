@@ -61,7 +61,7 @@ internal sealed class PaperCounters
         Interlocked.Read(ref funds), Interlocked.Read(ref stale), Interlocked.Read(ref duplicates), Interlocked.Read(ref integrity));
 }
 
-public sealed class PaperCoordinator(PaperStore store, RelationshipStore relationships, OpportunityJobs jobs, MonitoringCoordinator monitoring,
+public sealed partial class PaperCoordinator(PaperStore store, RelationshipStore relationships, OpportunityJobs jobs, MonitoringCoordinator monitoring,
     OpportunityCoordinator opportunities, OrderBookCache books, PaperPreviewCache previews, LocalOptions options, TimeProvider clock,
     PaperDiagnostics diagnostics, IHostApplicationLifetime lifetime, PaperRiskDiagnostics riskDiagnostics)
 {
@@ -136,20 +136,34 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
     }
     // Backend-internal only. Authorization is a current armed permit, never a client-supplied origin flag.
     public async Task<PaperCommitResult> ExecuteAutomaticAsync(PaperAutomationPermit permit, string key,
-        Func<Action, bool> runtimeCommit, CancellationToken ct)
+        Func<Action, bool> runtimeCommit, CancellationToken ct, PaperSizingBudget? budget = null)
     {
         relationships.PersistEvaluationStaleness = false;
         if (options.TradingMode != "Paper") return new(PaperRejection.NotPaperMode);
         if (monitoring.Status(permit.WorkspaceId).State != MonitoringState.Running) return new(PaperRejection.AutomationRejected, AutomationReason: PaperAutomationReason.MonitoringStopped);
-        var planned = await PlanAsync(permit.ActorId, permit.WorkspaceId, new(key, permit.Profile.Settings.FixedQuantity), ct, true);
+        PaperSizingDecision? sizing = null;
+        if (permit.Profile.Settings.SizingMode == PaperSizingMode.LargestAdmissibleGridQuantity)
+        {
+            sizing = await SizeAutomaticAsync(permit, key, budget ?? new(), ct);
+            if (sizing.State != PaperSizingState.Selected) return new(PaperRejection.AutomationRejected, AutomationReason:
+                sizing.State == PaperSizingState.EvaluationBudgetExceeded ? PaperAutomationReason.SizingBudgetDeferred :
+                sizing.State == PaperSizingState.NoAdmissibleQuantity ? PaperAutomationReason.NoAdmissibleAdaptiveQuantity :
+                sizing.State == PaperSizingState.ArithmeticOverflow ? PaperAutomationReason.ArithmeticOverflow : PaperAutomationReason.OpportunityUnavailable, SizingDecision: sizing);
+        }
+        var planned = sizing is null ? await PlanAsync(permit.ActorId, permit.WorkspaceId, new(key, permit.Profile.Settings.FixedQuantity), ct, true) : new PaperPlanResult(PaperRejection.None, sizing.SelectedPlan);
         if (planned.Plan is not { } plan) return new(planned.Rejection);
         var stamp = PaperAutomationPolicy.Stamp(plan.Proof, permit.Profile);
-        var request = PaperAutomationPolicy.RequestId(permit.SessionId, key, stamp, plan.Quantity);
-        var fingerprint = PaperAutomationPolicy.Hash(new { permit.SessionId, key, stamp, plan.Quantity });
+        var request = PaperAutomationPolicy.RequestId(permit.SessionId, key, stamp, plan.Quantity, sizing?.Proof);
+        var fingerprint = sizing is null ? PaperAutomationPolicy.Hash(new { permit.SessionId, key, stamp, plan.Quantity }) :
+            PaperAutomationPolicy.Hash(new { permit.SessionId, key, stamp, plan.Quantity, sizing.Proof!.DecisionFingerprint });
         var previous = await store.RequestAsync(permit.WorkspaceId, request, ct);
         if (previous is not null) return previous.RequestFingerprint == fingerprint ? new(PaperRejection.None, previous, true) : new(PaperRejection.DuplicateRequest);
-        var snapshot = await store.RiskSnapshotAsync(permit.WorkspaceId, permit.GenerationId, ct);
-        var risk = PaperRiskEvaluator.Evaluate(snapshot.Profile, snapshot.State, plan, clock.GetUtcNow());
+        var risk = sizing?.SelectedRiskDecision;
+        if (risk is null)
+        {
+            var snapshot = await store.RiskSnapshotAsync(permit.WorkspaceId, permit.GenerationId, ct);
+            risk = PaperRiskEvaluator.Evaluate(snapshot.Profile, snapshot.State, plan, clock.GetUtcNow());
+        }
         async Task<PaperRejection> Validate(CancellationToken token)
         {
             if (options.TradingMode != "Paper") return PaperRejection.NotPaperMode;
@@ -169,8 +183,8 @@ public sealed class PaperCoordinator(PaperStore store, RelationshipStore relatio
                         throw new PaperAutomationException(PaperAutomationReason.CommitConflict);
                 })) throw new PaperAutomationException(PaperAutomationReason.MonitoringStopped);
             }),
-            ct, risk, new(permit, stamp));
-        diagnostics.Record(permit.WorkspaceId, result); riskDiagnostics.Record(permit.WorkspaceId, result.RiskDecision); return result;
+            ct, risk, new(permit, stamp, sizing?.Proof));
+        diagnostics.Record(permit.WorkspaceId, result); riskDiagnostics.Record(permit.WorkspaceId, result.RiskDecision); return result with { SizingDecision = sizing };
     }
     private async Task<PaperCommitResult> ConfirmCoreAsync(Guid actor, Guid workspace, ConfirmPaperRequest request, string correlation, CancellationToken ct)
     {

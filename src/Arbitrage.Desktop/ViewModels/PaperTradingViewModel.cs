@@ -36,6 +36,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public string ExecutionText => SelectedExecution is not { } e ? "Select a historical execution." :
         $"{e.State} · {e.Origin} · {e.Id}\nActor {e.ActorId} · generation {e.GenerationId}\n{e.CreatedAt:O} · request {e.RequestId}\n" +
         (e.AutomationProof is { } auto ? $"Automatic session {auto.SessionId}; profile {auto.ProfileRevision}; trigger {auto.TriggerInputStamp}\n" : "") +
+        e.SizingText + "\n" + (e.AutomationProof?.Sizing is { } sizing ? $"Evaluated {sizing.CandidatesEvaluated}; financial revision {sizing.FinancialRevision}; risk {sizing.RiskPolicyRevision}; sizing proof {sizing.DecisionFingerprint}\n" : "") +
         $"Quantity {e.Quantity} · cost including fees {e.Cost}\nExpected payout at resolution {e.ExpectedPayoutAtResolution} · expected profit at resolution {e.ExpectedProfitAtResolution}\n" +
         (e.Settlement is { } s ? $"Realized payout to date {s.RealizedPayoutToDate}; realized P&L to date {s.RealizedPnlToDate}; remaining open cost {s.RemainingOpenCostBasis}\nExpected remaining payout at resolution {s.ExpectedRemainingPayout}; expected remaining profit {s.ExpectedRemainingPayout - s.RemainingOpenCostBasis}\nFinal realized profit {s.FinalRealizedProfit?.ToString() ?? "pending"}; return on cost {s.RealizedReturnOnCost}; expected/actual payout difference {s.ExpectedVsRealizedDifference}; settled {e.SettledAt:O}\n" : "Unresolved snapshot paper fill.\n") + string.Join("\n", e.Fills.Select(f =>
             $"{f.Exchange} {f.MarketId}/{f.InstrumentId} {f.Outcome}: BUY {f.Quantity} @ {f.Price}; fee {f.Fee} {f.Currency}; {f.LiquidityOrigin}; book {f.BookVersion}"));
@@ -45,6 +46,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         state.AccessInvalidated += AccessChanged; state.PropertyChanged += StateChanged;
         state.PaperValuationInvalidated += RiskInvalidated;
         state.PaperValuationInvalidated += AutomationInvalidated;
+        state.CatalogInvalidated += SizingInvalidated; state.OrderBookInvalidated += SizingBookInvalidated;
         state.PaperValuationInvalidated += ValuationInvalidated; state.CatalogInvalidated += ValuationInvalidated; state.OrderBookInvalidated += ValuationBookInvalidated;
     }
     public static string EligibilityReason(OpportunityResponse? r) => r is null ? "Select a current opportunity." :
@@ -82,7 +84,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     }
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
     { if (e.PropertyName == nameof(MainViewModel.BackendInstance) || e.PropertyName == nameof(MainViewModel.ConnectionStatus) && state.ConnectionStatus != "Connected") AccessChanged(sender, EventArgs.Empty); }
-    partial void OnOpportunityKeyChanged(string value) => ClearPreview();
+    partial void OnOpportunityKeyChanged(string value) { ClearPreview(); ClearSizingPreview(); }
     partial void OnQuantityChanged(decimal value) => ClearPreview();
     partial void OnAccountChanged(PaperAccountResponse? value) => OnPropertyChanged(nameof(AccountText));
     partial void OnPreviewChanged(PaperPreviewResponse? value) { OnPropertyChanged(nameof(PreviewText)); ExecuteCommand.NotifyCanExecuteChanged(); }
@@ -171,5 +173,6 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     public void Dispose() { if (disposed) return; disposed = true; active = false; lifetime.Cancel(); lifetime.Dispose(); state.AccessInvalidated -= AccessChanged; state.PropertyChanged -= StateChanged;
         state.PaperValuationInvalidated -= RiskInvalidated;
         state.PaperValuationInvalidated -= AutomationInvalidated;
-        state.PaperValuationInvalidated -= ValuationInvalidated; state.CatalogInvalidated -= ValuationInvalidated; state.OrderBookInvalidated -= ValuationBookInvalidated; }
+        state.PaperValuationInvalidated -= ValuationInvalidated; state.CatalogInvalidated -= ValuationInvalidated; state.OrderBookInvalidated -= ValuationBookInvalidated;
+        state.CatalogInvalidated -= SizingInvalidated; state.OrderBookInvalidated -= SizingBookInvalidated; }
 }

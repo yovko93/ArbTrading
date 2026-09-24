@@ -25,7 +25,12 @@ public sealed record PaperExecutionResponse(Guid Id, Guid RequestId, Guid Genera
     string OpportunityKey, decimal Quantity, decimal Cost, decimal ExpectedPayoutAtResolution, decimal ExpectedProfitAtResolution,
     PaperFillResponse[] Fills, OpportunityResponse Proof, PaperExecutionSettlementResponse? Settlement = null, DateTimeOffset? SettledAt = null,
     int? RiskPolicyVersion = null, Guid? RiskPolicyRevision = null, PaperRiskDecisionResponse? RiskDecision = null,
-    string Origin = "Manual", PaperAutomationProofResponse? AutomationProof = null);
+    string Origin = "Manual", PaperAutomationProofResponse? AutomationProof = null)
+{
+    public string SizingText => AutomationProof?.Sizing is { } s
+        ? $"Adaptive Q={Quantity} (grid {s.MinimumQuantity}..{s.MaximumQuantity} step {s.QuantityStep})"
+        : $"{(Origin == "AutomaticPaper" ? "Fixed" : "Manual")} Q={Quantity}";
+}
 public sealed record PaperCommitResponse(string State, string Rejection, bool Duplicate, PaperExecutionResponse? Execution, PaperRiskDecisionResponse? RiskDecision = null);
 public sealed record PaperIntegrityResponse(Guid GenerationId, string Integrity);
 public sealed record PaperDiagnosticsResponse(long Attempts, long Committed, long Rejected, long InsufficientFunds, long StaleInputs, long Duplicates, long IntegrityFailures);

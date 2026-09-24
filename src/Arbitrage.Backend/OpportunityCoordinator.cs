@@ -1,12 +1,22 @@
 using Arbitrage.Application;
 using Arbitrage.Domain;
 using Arbitrage.Strategies;
+using System.Collections.Immutable;
 
 namespace Arbitrage.Backend;
+
+public sealed record CapturedOpportunityFees(ImmutableArray<ResolvedFeeSchedule> Schedules, FeeProfileState Profile);
 
 // Only ResolveAsync is used: it reads the local catalog, never an exchange.
 public sealed class OpportunityCoordinator(IRelationshipProvider relationships, OrderBookService instruments, OrderBookCache cache, TimeProvider clock, IFeeStore? fees = null)
 {
+    public async Task<CapturedOpportunityFees?> CaptureFeesAsync(Guid workspace, ArbitrageOpportunitySnapshot result, CancellationToken ct)
+    {
+        if (fees is null) return null;
+        var schedules = ImmutableArray.CreateBuilder<ResolvedFeeSchedule>();
+        foreach (var leg in result.Legs) schedules.Add(FeeScheduleResolver.Resolve(await fees.ReadAsync(leg.Instrument.Exchange, leg.Instrument.NativeMarketId, ct), clock.GetUtcNow()));
+        return new(schedules.ToImmutable(), await fees.ReadProfileAsync(workspace, ct));
+    }
     public async Task<ArbitrageOpportunitySnapshot> EvaluateFeesAsync(Guid workspace, ArbitrageOpportunitySnapshot result, decimal minimumEdge, CancellationToken ct)
     {
         if (fees is null) return result;

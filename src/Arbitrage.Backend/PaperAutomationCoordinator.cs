@@ -6,7 +6,8 @@ namespace Arbitrage.Backend;
 
 public sealed record PaperAutomationRuntime(PaperAutomationState State, PaperAutomationReason StopReason, PaperAutomationPermit? Session,
     int ExecutionsCommitted, int CandidatesConsidered, int CandidatesSkipped, int ExecutionsRejected, DateTimeOffset? LastActivityAt,
-    DateTimeOffset? LastCommittedAt, PaperDebit[] SessionDebits, int QueueDepth, IReadOnlyDictionary<string, long> Counters);
+    DateTimeOffset? LastCommittedAt, PaperDebit[] SessionDebits, int QueueDepth, IReadOnlyDictionary<string, long> Counters,
+    PaperSizingState? LastSizingState = null, decimal? LastSelectedQuantity = null, int LastSizingCandidatesEvaluated = 0);
 
 // One sequential local worker. Timers reconcile safety only; no dependency can acquire exchange data.
 public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, MonitoringCoordinator monitor, LocalOptions options,
@@ -26,6 +27,9 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
         public DateTimeOffset? LastActivity, LastCommitted;
         public bool AuditPending;
         public Guid? StopActor;
+        public PaperSizingState? LastSizingState;
+        public decimal? LastSelectedQuantity;
+        public int LastSizingCandidatesEvaluated;
     }
     private readonly object gate = new();
     private readonly SemaphoreSlim process = new(1, 1), commands = new(1, 1);
@@ -35,7 +39,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
     public PaperAutomationRuntime Runtime(Guid workspace)
     {
         lock (gate) return sessions.TryGetValue(workspace, out var s) ? new(s.State, s.Reason, s.Permit, s.Committed, s.Considered, s.Skipped, s.Rejected,
-            s.LastActivity, s.LastCommitted, s.Debits.Values.ToArray(), s.Pending.Count, new Dictionary<string, long>(s.Counters)) :
+            s.LastActivity, s.LastCommitted, s.Debits.Values.ToArray(), s.Pending.Count, new Dictionary<string, long>(s.Counters), s.LastSizingState, s.LastSelectedQuantity, s.LastSizingCandidatesEvaluated) :
             new(PaperAutomationState.Disarmed, PaperAutomationReason.None, null, 0, 0, 0, 0, null, null, [], 0, new Dictionary<string, long>());
     }
     private void Stop(Session s, PaperAutomationReason reason, Guid? actor = null)
@@ -148,6 +152,7 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
         await process.WaitAsync(ct);
         try
         {
+            var sizingBudget = new PaperSizingBudget();
             Session[] current; lock (gate) current = sessions.Values.ToArray();
             foreach (var s in current)
             {
@@ -182,16 +187,23 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
                         {
                             if (!s.Pending.Remove(key)) continue;
                             if (s.Attempted.GetValueOrDefault(key) == stamp) { Count(s, "DuplicateInputsSuppressed"); continue; }
+                            if (s.Permit.Profile.Settings.SizingMode == PaperSizingMode.LargestAdmissibleGridQuantity &&
+                                PaperQuantityGrid.TryCreate(s.Permit.Profile.Settings, out var grid) && !sizingBudget.CanComplete(grid.Length))
+                            {
+                                s.Pending.Add(key); s.LastSizingState = PaperSizingState.EvaluationBudgetExceeded;
+                                s.LastSelectedQuantity = null; s.LastSizingCandidatesEvaluated = 0; Count(s, "AdaptiveBudgetDeferrals"); continue;
+                            }
                             if (s.Attempted.Count >= 1024 && !s.Attempted.ContainsKey(key)) s.Attempted.Remove(s.Attempted.Keys.First());
                             s.Attempted[key] = stamp; s.Considered++; s.LastActivity = clock.GetUtcNow(); Count(s, "CandidatesProcessed");
                         }
                         var reason = PaperAutomationPolicy.Quality(row.Result, s.Permit.Profile.Settings); PaperCommitResult? result = null;
+                        if (reason == PaperAutomationReason.InsufficientDepth && s.Permit.Profile.Settings.SizingMode == PaperSizingMode.LargestAdmissibleGridQuantity) reason = PaperAutomationReason.None;
                         if (reason == PaperAutomationReason.None)
                         {
                             using var scope = scopes.CreateScope();
                             result = await scope.ServiceProvider.GetRequiredService<PaperCoordinator>().ExecuteAutomaticAsync(s.Permit, key, commit =>
                             { lock (gate) return !stopping && s.State == PaperAutomationState.Armed && sessions.GetValueOrDefault(s.Permit.WorkspaceId) == s &&
-                                monitor.CommitIfRunning(s.Permit.WorkspaceId, () => { if (options.TradingMode != "Paper") throw new PaperAutomationException(PaperAutomationReason.NotPaperMode); commit(); }); }, token);
+                                monitor.CommitIfRunning(s.Permit.WorkspaceId, () => { if (options.TradingMode != "Paper") throw new PaperAutomationException(PaperAutomationReason.NotPaperMode); commit(); }); }, token, sizingBudget);
                             reason = result.AutomationReason ?? (result.Execution is not null ? result.Duplicate ? PaperAutomationReason.DuplicateSuppressed : PaperAutomationReason.Committed : result.Rejection switch
                             { PaperRejection.RiskLimitExceeded or PaperRejection.InsufficientPaperFunds => PaperAutomationReason.RiskRejected,
                                 PaperRejection.RiskPolicyChanged => PaperAutomationReason.RiskPolicyChanged, PaperRejection.GenerationChanged => PaperAutomationReason.PaperGenerationChanged,
@@ -200,6 +212,19 @@ public sealed class PaperAutomationCoordinator(IServiceScopeFactory scopes, Moni
                         }
                         lock (gate)
                         {
+                            if (result?.SizingDecision is { } sizing)
+                            {
+                                s.LastSizingState = sizing.State; s.LastSelectedQuantity = sizing.SelectedQuantity; s.LastSizingCandidatesEvaluated = sizing.CandidatesEvaluated;
+                                Count(s, "AdaptiveSizingAttempts");
+                                for (var i = 0; i < sizing.CandidatesEvaluated; i++) Count(s, "AdaptiveCandidatesEvaluated");
+                                Count(s, sizing.State switch { PaperSizingState.Selected => "AdaptiveSelections", PaperSizingState.NoAdmissibleQuantity => "AdaptiveNoAdmissible",
+                                    PaperSizingState.EvaluationBudgetExceeded => "AdaptiveBudgetDeferrals", _ => "AdaptiveInputChanged" });
+                                foreach (var rejection in sizing.Rejections)
+                                    for (var i = 0; i < rejection.Count; i++)
+                                        Count(s, rejection.Reason.StartsWith("Risk:", StringComparison.Ordinal) ? "AdaptiveRiskRejectedCandidates" :
+                                            rejection.Reason == "InsufficientDepth" ? "AdaptiveDepthRejectedCandidates" : "AdaptiveEconomicsRejectedCandidates");
+                                if (sizing.State == PaperSizingState.EvaluationBudgetExceeded) { s.Attempted.Remove(key); s.Pending.Add(key); }
+                            }
                             Count(s, reason.ToString());
                             if (reason == PaperAutomationReason.Committed)
                             {

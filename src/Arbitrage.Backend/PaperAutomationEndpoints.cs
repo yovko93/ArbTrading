@@ -28,6 +28,25 @@ public static class PaperAutomationEndpoints
         });
         group.MapGet("/status", Status);
         group.MapGet("/diagnostics", (Guid workspaceId, PaperAutomationCoordinator automation) => automation.Runtime(workspaceId).Counters);
+        group.MapPost("/sizing-preview", async (Guid workspaceId, PaperSizingPreviewRequest request, IRequestActor actor, PaperStore store,
+            PaperAutomationCoordinator automation, PaperCoordinator paperCoordinator, TimeProvider clock, CancellationToken ct) =>
+        {
+            if (request.OpportunityKey is not { Length: 64 } || !request.OpportunityKey.All(char.IsAsciiHexDigit)) return Results.BadRequest();
+            var profile = await store.AutomationProfileAsync(workspaceId, ct) ?? throw new PaperAutomationException(PaperAutomationReason.NotConfigured);
+            var risk = await store.RiskProfileAsync(workspaceId, ct) ?? throw new PaperAutomationException(PaperAutomationReason.RiskNotConfigured);
+            var generation = await store.ActiveAsync(workspaceId, ct) ?? throw new PaperAutomationException(PaperAutomationReason.GenerationUnavailable);
+            var kill = await store.AutomationControlAsync(workspaceId, ct);
+            // A disarmed diagnostic uses an empty prospective session, never an execution permit/ticket returned to clients.
+            var runtime = automation.Runtime(workspaceId);
+            var permit = runtime.State == PaperAutomationState.Armed && runtime.Session is { } armed ? armed with { ActorId = actor.UserId!.Value } :
+                new PaperAutomationPermit(Guid.Empty, workspaceId, actor.UserId!.Value, generation.Id, profile, risk.Revision, risk.Fingerprint, kill?.Revision, clock.GetUtcNow());
+            var d = await paperCoordinator.SizeAutomaticAsync(permit, request.OpportunityKey, new(), ct);
+            var p = d.SelectedPlan;
+            return Results.Ok(new PaperSizingPreviewResponse(d.State.ToString(), d.Mode.ToString(), d.SelectedQuantity, d.CandidatesEvaluated,
+                d.HighestConfiguredQuantity, d.LowestConfiguredQuantity, d.QuantityStep, d.Rejections.Select(PaperRiskEndpoints.Map<PaperSizingRejectionResponse>).ToArray(),
+                p?.Proof.GrossCost, p?.Proof.Fees?.TotalExchangeFees, p?.Cost, p?.ExpectedPayoutAtResolution, p?.ExpectedProfitAtResolution,
+                p?.Proof.Fees?.FeeAdjustedEdgePerShare, PaperRiskEndpoints.Decision(d.SelectedRiskDecision), d.Proof is null ? null : PaperRiskEndpoints.Map<PaperSizingProofResponse>(d.Proof), d.EvaluatedAt));
+        });
         group.MapPost("/arm", async (Guid workspaceId, ArmPaperAutomationRequest request, IRequestActor actor,
             PaperAutomationCoordinator automation, PaperStore store, MonitoringCoordinator monitor, CancellationToken ct) =>
         {
@@ -67,6 +86,7 @@ public static class PaperAutomationEndpoints
             new(kill?.Revision, kill?.IsLatched ?? false, kill?.LatchedAt, kill?.LatchedBy, kill?.Reason ?? "", kill?.ResetAt, kill?.ResetBy),
             runtime.Session?.SessionId, runtime.Session?.StartedAt, runtime.Session?.ActorId, monitor.Status(workspaceId).State.ToString(),
             runtime.ExecutionsCommitted, runtime.CandidatesConsidered, runtime.CandidatesSkipped, runtime.ExecutionsRejected,
-            runtime.LastActivityAt, runtime.LastCommittedAt, runtime.SessionDebits.Select(PaperRiskEndpoints.Map<PaperAutomationDebitResponse>).ToArray(), runtime.QueueDepth, runtime.Counters));
+            runtime.LastActivityAt, runtime.LastCommittedAt, runtime.SessionDebits.Select(PaperRiskEndpoints.Map<PaperAutomationDebitResponse>).ToArray(), runtime.QueueDepth, runtime.Counters,
+            runtime.LastSizingState?.ToString(), runtime.LastSelectedQuantity, runtime.LastSizingCandidatesEvaluated));
     }
 }

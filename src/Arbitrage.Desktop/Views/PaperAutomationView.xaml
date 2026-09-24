@@ -1,6 +1,23 @@
 <UserControl x:Class="Arbitrage.Desktop.Views.PaperAutomationView" Language="en-US"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
  <UserControl.Resources>
+  <BooleanToVisibilityConverter x:Key="SizingVisibility"/>
+  <Style x:Key="SizingModeSelector" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+    <Grid>
+     <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+      Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3"><Path Data="M 0 0 L 4 4 L 8 0" Stroke="{DynamicResource PrimaryText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10"/></Border></ControlTemplate></ToggleButton.Template>
+     </ToggleButton>
+     <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="8,5,30,5" VerticalAlignment="Center" IsHitTestVisible="False"/>
+     <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False">
+      <Border Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+       <ScrollViewer><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+      </Border>
+     </Popup>
+    </Grid>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border></ControlTemplate></Setter.Value></Setter>
    <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></Style.Triggers>
@@ -16,8 +33,22 @@
    <Button Content="EMERGENCY STOP" Command="{Binding EmergencyStopAutomationCommand}" FontWeight="Bold" BorderThickness="2" Margin="8,0"/>
    <Button Content="Reset kill switch…" Command="{Binding ResetAutomationKillCommand}"/></WrapPanel>
   <TextBlock Text="{Binding AutomationNotice}" TextWrapping="Wrap" Margin="0,8"/>
-  <TextBlock Text="FixedQuantity only · Realtime required · Kalshi Continuous. Suggested values are inactive until saved. USD and USDC budgets remain separate. No automatic exits or settlement." TextWrapping="Wrap"/>
-  <ItemsControl ItemsSource="{Binding AutomationInputs}">
+  <TextBlock Text="Realtime required · Kalshi Continuous. Suggested values are inactive until saved. USD and USDC budgets remain separate. No automatic exits or settlement." TextWrapping="Wrap"/>
+  <TextBlock Text="Sizing mode" Margin="0,8,0,0"/>
+  <ComboBox Style="{StaticResource SizingModeSelector}" SelectedValue="{Binding AutomationSizingMode}" SelectedValuePath="Tag" AutomationProperties.Name="Sizing mode" HorizontalAlignment="Left" MinWidth="340">
+   <ComboBoxItem Tag="FixedQuantity" Content="Fixed quantity"/>
+   <ComboBoxItem Tag="LargestAdmissibleGridQuantity" Content="Largest admissible grid quantity"/>
+  </ComboBox>
+  <StackPanel Width="250" HorizontalAlignment="Left" Visibility="{Binding IsFixedSizing, Converter={StaticResource SizingVisibility}}"><TextBlock Text="Fixed quantity"/><TextBox Text="{Binding AutomationInputs[0].Text, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fixed quantity"/></StackPanel>
+  <StackPanel Visibility="{Binding IsAdaptiveSizing, Converter={StaticResource SizingVisibility}}">
+   <WrapPanel>
+    <StackPanel Width="250" Margin="0,6,12,6"><TextBlock Text="Minimum quantity"/><TextBox Text="{Binding AdaptiveMinimum, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Minimum quantity"/></StackPanel>
+    <StackPanel Width="250" Margin="0,6,12,6"><TextBlock Text="Maximum quantity"/><TextBox Text="{Binding AdaptiveMaximum, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Maximum quantity"/></StackPanel>
+    <StackPanel Width="250" Margin="0,6,12,6"><TextBlock Text="Quantity step"/><TextBox Text="{Binding AdaptiveStep, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Quantity step"/></StackPanel>
+   </WrapPanel>
+   <TextBlock Text="Adaptive Paper Sizing selects the largest configured grid quantity that passes current depth, fees, automation and paper-risk checks. It does not use real funds or optimize a portfolio. Quantity step is a simulation grid step, not an exchange lot-size rule. At most 256 quantities per opportunity and 512 exact evaluations per cycle. Actual quantity may vary." TextWrapping="Wrap"/>
+  </StackPanel>
+  <ItemsControl ItemsSource="{Binding AutomationCommonInputs}">
    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
    <ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="250" Margin="0,6,12,6">
     <TextBlock Text="{Binding Name}" TextWrapping="Wrap"/><TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Name}"/>
@@ -26,5 +57,7 @@
   <CheckBox Content="Allow Polymarket BestEffort (weaker continuity; acknowledged on save and arm)" IsChecked="{Binding AllowPolymarketBestEffort}" Margin="0,8"/>
   <WrapPanel><Button Content="Load saved Auto Paper settings" Command="{Binding LoadAutomationProfileCommand}"/>
    <Button Content="Save Auto Paper profile…" Command="{Binding SaveAutomationCommand}" Margin="8,0"/></WrapPanel>
+  <Button Content="Preview saved-profile sizing" Command="{Binding PreviewSizingCommand}" HorizontalAlignment="Left" Margin="0,8"/>
+  <TextBlock Text="{Binding SizingPreviewText}" TextWrapping="Wrap"/>
  </StackPanel></Border>
 </UserControl>

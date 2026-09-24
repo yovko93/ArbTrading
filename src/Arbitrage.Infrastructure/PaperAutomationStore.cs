@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Collections.Immutable;
 using Arbitrage.Execution;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 namespace Arbitrage.Infrastructure;
 
@@ -23,10 +24,26 @@ public sealed class PaperAutomationControlEntry
 }
 public sealed class PaperAutomationException(PaperAutomationReason reason) : Exception(reason.ToString())
 { public PaperAutomationReason Reason { get; } = reason; }
-public sealed record PaperAutomaticCommit(PaperAutomationPermit Permit, string TriggerStamp);
+public sealed record PaperAutomaticCommit(PaperAutomationPermit Permit, string TriggerStamp, PaperSizingProof? Sizing = null);
+public sealed record PaperSizingSnapshot(PaperRiskSnapshot Risk, PaperAutomationHistory History);
 
 public sealed partial class PaperStore
 {
+    public async Task<PaperSizingSnapshot> SizingSnapshotAsync(PaperAutomationPermit permit, Guid relationship, string key, string stamp, CancellationToken ct)
+    {
+        await db.Database.OpenConnectionAsync(ct);
+        await using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: true);
+        await using var scope = await db.Database.UseTransactionAsync(tx, ct);
+        await membership.RequireMemberAsync(permit.ActorId, permit.WorkspaceId, false, ct);
+        var kill = await AutomationControlAsync(permit.WorkspaceId, ct);
+        if (kill?.IsLatched == true || kill?.Revision != permit.KillRevision) throw new PaperAutomationException(PaperAutomationReason.KillSwitchLatched);
+        var generation = await ActiveAsync(permit.WorkspaceId, ct);
+        if (generation?.Id != permit.GenerationId) throw new PaperAutomationException(PaperAutomationReason.PaperGenerationChanged);
+        var profile = await AutomationProfileAsync(permit.WorkspaceId, ct); var risk = await RiskProfileAsync(permit.WorkspaceId, ct);
+        if (risk?.Revision != permit.RiskRevision) throw new PaperAutomationException(PaperAutomationReason.RiskPolicyChanged);
+        if (profile?.Revision != permit.Profile.Revision || profile?.Valid(risk) != true) throw new PaperAutomationException(PaperAutomationReason.AutomationPolicyChanged);
+        return new(new(risk, await RiskStateAsync(generation, ct)), await AutomationHistoryAsync(permit, relationship, key, stamp, ct));
+    }
     public async Task<PaperAutomationProfile?> AutomationProfileAsync(Guid workspace, CancellationToken ct)
     {
         var row = await db.Set<PaperAutomationProfileEntry>().AsNoTracking().SingleOrDefaultAsync(p => p.WorkspaceId == workspace, ct);
@@ -45,7 +62,8 @@ public sealed partial class PaperStore
         if (!settings.Valid(risk)) throw new PaperAutomationException(PaperAutomationReason.InvalidProfile);
         var previous = await AutomationProfileAsync(workspace, ct);
         if (previous?.Revision != expected) throw new PaperAutomationException(PaperAutomationReason.RevisionConflict);
-        var now = clock.GetUtcNow(); var profile = new PaperAutomationProfile(1, Guid.NewGuid(), settings, previous?.CreatedAt ?? now, now, actor, PaperAutomationPolicy.Hash(settings));
+        var now = clock.GetUtcNow(); var profile = new PaperAutomationProfile(settings.SizingMode == PaperSizingMode.FixedQuantity ? 1 : PaperAutomationProfile.Version,
+            Guid.NewGuid(), settings, previous?.CreatedAt ?? now, now, actor, PaperAutomationPolicy.Hash(settings));
         var row = await db.Set<PaperAutomationProfileEntry>().SingleOrDefaultAsync(p => p.WorkspaceId == workspace, ct);
         if (row is null) { row = new() { WorkspaceId = workspace }; db.Add(row); }
         row.ProfileJson = JsonSerializer.Serialize(profile);
@@ -123,6 +141,9 @@ public sealed partial class PaperStore
         if (profile?.Revision != p.Profile.Revision || profile.PolicyFingerprint != p.Profile.PolicyFingerprint) return PaperAutomationReason.AutomationPolicyChanged;
         if (!profile.Valid(risk)) return PaperAutomationReason.IntegrityFailure;
         if (PaperAutomationPolicy.Stamp(plan.Proof, profile) != automatic.TriggerStamp) return PaperAutomationReason.CommitConflict;
+        if (profile.Settings.SizingMode == PaperSizingMode.LargestAdmissibleGridQuantity && (automatic.Sizing is not { } sizing ||
+            !PaperSizer.Healthy(sizing, profile.Settings, plan, automatic.TriggerStamp, profile.Revision, p.RiskRevision, p.GenerationId, sizing.FinancialRevision)))
+            return PaperAutomationReason.IntegrityFailure;
         return PaperAutomationPolicy.Evaluate(profile.Settings, plan, await AutomationHistoryAsync(p, plan.Proof.RelationshipId, plan.Proof.OpportunityKey, automatic.TriggerStamp, ct),
             (await RiskStateAsync(generation, ct)).Buckets, clock.GetUtcNow());
     }
@@ -131,12 +152,15 @@ public sealed partial class PaperStore
         if (e.Origin == PaperExecutionOrigin.Manual) return e.AutomationProofJson is null && e.AutomationSessionId is null && e.AutomationInputStamp is null && e.AutomationRelationshipId is null;
         if (e.Origin != PaperExecutionOrigin.AutomaticPaper || e.RiskProofJson is null || e.AutomationProofJson is null) return false;
         var p = JsonSerializer.Deserialize<PaperAutomationProof>(e.AutomationProofJson);
-        return p is not null && p.ProfileVersion == PaperAutomationProfile.Version && p.ProfileRevision != Guid.Empty && p.SessionId != Guid.Empty &&
+        return p is not null && (p.ProfileVersion == 1 && p.Settings?.SizingMode == PaperSizingMode.FixedQuantity || p.ProfileVersion == PaperAutomationProfile.Version) && p.ProfileRevision != Guid.Empty && p.SessionId != Guid.Empty &&
             p.SessionId == e.AutomationSessionId && p.RelationshipId == e.AutomationRelationshipId && p.RelationshipId == plan.Proof.RelationshipId &&
             p.TriggerInputStamp == e.AutomationInputStamp && p.TriggerInputStamp is { Length: 64 } && p.TriggerInputStamp.All(char.IsAsciiHexDigit) &&
             p.ProfileFingerprint is { Length: 64 } && p.ProfileFingerprint.All(char.IsAsciiHexDigit) && p.Settings is not null &&
-            p.Settings.FixedQuantity == plan.Quantity && p.ProfileFingerprint == PaperAutomationPolicy.Hash(p.Settings) && p.TriggeredAt == e.CreatedAt &&
+            (p.Settings.SizingMode == PaperSizingMode.FixedQuantity ? p.Settings.FixedQuantity == plan.Quantity && p.Sizing is null :
+                p.Sizing is { } sizing && PaperSizer.Healthy(sizing, p.Settings, plan, p.TriggerInputStamp, p.ProfileRevision, e.RiskPolicyRevision!.Value,
+                    e.GenerationId, JsonSerializer.Deserialize<PaperRiskProof>(e.RiskProofJson)!.Decision.FinancialRevision)) &&
+            p.ProfileFingerprint == PaperAutomationPolicy.Hash(p.Settings) && p.TriggeredAt == e.CreatedAt &&
             p.TriggerInputStamp == PaperAutomationPolicy.Stamp(plan.Proof, new(p.ProfileVersion, p.ProfileRevision, p.Settings, e.CreatedAt, e.CreatedAt, e.ActorId, p.ProfileFingerprint)) &&
-            e.RequestId == PaperAutomationPolicy.RequestId(p.SessionId, e.OpportunityKey, p.TriggerInputStamp, plan.Quantity);
+            e.RequestId == PaperAutomationPolicy.RequestId(p.SessionId, e.OpportunityKey, p.TriggerInputStamp, plan.Quantity, p.Sizing);
     }
 }

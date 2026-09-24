@@ -19,7 +19,7 @@ public static class PaperEndpoints
             try
             {
                 await context.HttpContext.RequestServices.GetRequiredService<RelationshipStore>().RequireMemberAsync(actor.Value, workspace,
-                    context.HttpContext.Request.Method != "GET", context.HttpContext.RequestAborted);
+                    context.HttpContext.Request.Method != "GET" && !context.HttpContext.Request.Path.Value!.EndsWith("/automation/sizing-preview", StringComparison.Ordinal), context.HttpContext.RequestAborted);
                 return await next(context);
             }
             catch (UnauthorizedAccessException) { return Results.StatusCode(403); }

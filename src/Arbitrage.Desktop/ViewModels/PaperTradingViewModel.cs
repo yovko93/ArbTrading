@@ -15,6 +15,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     private long revision;
     private long pollVersion;
     private bool active, disposed;
+    private PaperPage activePage;
     private ConfirmPaperRequest? pendingRequest;
     public Func<string, bool> Confirm { get; set; } = _ => false;
     public PaperReliabilityViewModel Reliability { get; }
@@ -58,7 +59,14 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         r.Fees.Breakdown.Select(f => f.Currency).Distinct().Count() != 1 ? "A verified common currency is required." : "Ready for a server-validated paper preview.";
     public static bool Eligible(OpportunityResponse? r) => EligibilityReason(r) == "Ready for a server-validated paper preview.";
     public void SelectOpportunity(OpportunityResponse value) { OpportunityKey = value.OpportunityKey; ClearPreview(); Notice = EligibilityReason(value); }
-    public void Activate() { if (active || disposed) return; active = true; _ = PollAsync(++pollVersion); }
+    public bool IsPageActive(PaperPage page) => active && activePage == page;
+    public void Activate() => Activate(PaperPage.Trading);
+    public void Activate(PaperPage page)
+    {
+        if (disposed || IsPageActive(page)) return;
+        if (active) Deactivate();
+        activePage = page; active = true; _ = PollAsync(++pollVersion);
+    }
     public void Deactivate() { active = false; pollVersion++; ClearPreview(); ClearResolutionPreview(); ClearValuation(); ClearRisk(); ClearAutomation(); }
     private (Guid Workspace, long Access, string Instance)? Context() => !disposed && state.ConnectionStatus == "Connected" && state.HasSnapshot &&
         Guid.TryParse(state.WorkspaceIdentifier, out var id) ? (id, state.AccessGeneration, state.BackendInstance) : null;
@@ -99,32 +107,38 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         try
         {
             var a = await backend.PaperAccountAsync(context.Workspace, lifetime.Token);
-            var p = await backend.PaperPositionsAsync(context.Workspace, lifetime.Token);
-            var h = await backend.PaperHistoryAsync(context.Workspace, HistoryPage, lifetime.Token);
             if (Context() != context || viewVersion != pollVersion) return;
             if (Account?.Generation?.Id != a.Generation?.Id && Account is not null) ClearPreview();
-            Account = a; Positions.Clear(); foreach (var row in p) Positions.Add(row);
-            Executions.Clear(); foreach (var row in h) Executions.Add(row);
-            if (a.Generation is null) await RefreshRiskAsync();
-            await RefreshSettlementAsync();
-            await RefreshAutomationAsync();
+            Account = a;
+            if (activePage == PaperPage.Portfolio)
+            {
+                var h = await backend.PaperHistoryAsync(context.Workspace, HistoryPage, lifetime.Token);
+                if (Context() != context || viewVersion != pollVersion) return;
+                Executions.Clear(); foreach (var row in h) Executions.Add(row);
+                await RefreshSettlementAsync();
+            }
+            else
+            {
+                await RefreshRiskAsync();
+                if (Context() == context && viewVersion == pollVersion) await RefreshAutomationAsync();
+            }
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && viewVersion == pollVersion) Failure(e); }
     }
     [RelayCommand] private async Task InitializeAsync()
     {
         if (Busy || Context() is not { } context) return;
         if (!Confirm($"SIMULATION ONLY — no real orders submitted.\n{(Account?.Generation is null ? "Initialize" : "Reset to a NEW generation; retain old history")}?\nKalshi: {KalshiStartingCash} USD\nPolymarket: {PolymarketStartingCash} USDC\nReason: {ResetReason}")) return;
-        Busy = true; ClearPreview();
+        Busy = true; ClearPreview(); var viewVersion = pollVersion;
         try
         {
             var result = await backend.InitializePaperAsync(context.Workspace, new(true, Account?.Generation?.Id, ResetReason,
                 [new("Kalshi", "USD", KalshiStartingCash), new("Polymarket", "USDC", PolymarketStartingCash)]), lifetime.Token);
-            if (Context() == context) { Account = result; Notice = "New paper generation initialized. Historical records retained."; }
+            if (Context() == context && viewVersion == pollVersion) { Account = result; Notice = "New paper generation initialized. Historical records retained."; }
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && viewVersion == pollVersion) Failure(e); }
         finally { Busy = false; }
         await RefreshAsync();
     }

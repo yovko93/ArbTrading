@@ -9,7 +9,7 @@
         <StackPanel>
           <TextBlock Text="Effective environment" Style="{StaticResource FieldLabel}" />
           <TextBlock Text="{Binding State.TradingMode}" Style="{StaticResource MetricText}" />
-          <TextBlock Text="Paper fills are not simulated in this phase." Style="{StaticResource MutedText}" Margin="0,7,0,15" />
+          <TextBlock Text="Paper desktop services are unavailable in this shell instance." Style="{StaticResource MutedText}" Margin="0,7,0,15" />
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="190" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" /><RowDefinition Height="30" /></Grid.RowDefinitions>
@@ -20,8 +20,8 @@
           </Grid>
         </StackPanel>
       </Border>
-      <controls:EmptyState Title="Trading is unavailable" Purpose="Paper, Manual, and Automatic remain planned modes."
-                           Dependency="Order submission, signing, exchange connections, and paper execution are not implemented." />
+      <controls:EmptyState Title="Paper services unavailable" Purpose="The paper entry surface could not be constructed."
+                           Dependency="Restore local paper desktop services and authenticated backend access. Live execution remains unavailable." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

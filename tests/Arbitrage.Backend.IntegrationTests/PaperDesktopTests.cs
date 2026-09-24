@@ -77,4 +77,47 @@ public sealed class PaperDesktopTests
         var fees = new OpportunityFeesResponse("FeeAdjustedDetected", "Estimated", "DirectMember", [], .1m, 9.1m, .9m, .09m, null, .001m);
         Assert.False(PaperTradingViewModel.Eligible(row with { RelationshipTrust = "Deterministic", Fees = fees, Status = "BookStale" }));
     }
+
+    private sealed class HistoryHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int HistoryReads;
+        public List<string> Paths { get; } = [];
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            var path = request.RequestUri!.AbsolutePath; Paths.Add(path);
+            if (path.EndsWith("/executions", StringComparison.Ordinal))
+            {
+                HistoryReads++; Entered.TrySetResult(); await Release.Task;
+                // Intentionally ignore cancellation: the presentation guard must reject old data too.
+                return new(HttpStatusCode.OK) { Content = JsonContent.Create(new[] {
+                    new PaperExecutionResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow,
+                        "Committed", new string('A', 64), 1, 1, 2, 1, [], OpportunityDesktopTests.Result()) }) };
+            }
+            return new(HttpStatusCode.OK) { Content = JsonContent.Create(new PaperAccountResponse("Uninitialized", null, [], [])) };
+        }
+    }
+
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public async Task Portfolio_history_rejects_late_navigation_and_access_responses(bool access)
+    {
+        var handler = new HistoryHandler(); var backend = new BackendClient(new HttpClient(handler), new Connection());
+        using var state = State(backend); using var vm = new PaperTradingViewModel(state, backend);
+        var portfolio = new PaperPortfolioViewModel(vm); var trading = new PaperTradingPageViewModel(vm);
+        // Suppress the initial poll so the explicitly awaited refresh controls the delayed response.
+        vm.Busy = true; portfolio.Activate(); vm.Busy = false;
+        var pending = vm.RefreshCommand.ExecuteAsync(null); await handler.Entered.Task;
+        portfolio.Activate(); Assert.Equal(1, handler.HistoryReads);
+        if (access) state.SetRealtimeStatus("AuthorizationDenied", "fixture");
+        else { vm.Busy = true; trading.Activate(); vm.Busy = false; }
+        handler.Release.TrySetResult(); await pending;
+        Assert.Empty(vm.Executions); Assert.Null(vm.SelectedExecution); Assert.Null(vm.Preview);
+        Assert.False(vm.ExecuteCommand.CanExecute(null));
+        Assert.DoesNotContain(handler.Paths, p => p.Contains("automation", StringComparison.Ordinal) || p.Contains("admission", StringComparison.Ordinal));
+        if (access) { Assert.Null(vm.Account); Assert.Empty(vm.PositionHistory); Assert.Null(vm.Valuation); }
+        trading.Deactivate(); portfolio.Deactivate();
+        Assert.False(trading.IsActive); Assert.False(portfolio.IsActive);
+    }
 }

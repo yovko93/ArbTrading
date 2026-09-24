@@ -64,7 +64,8 @@ public partial class ShellViewModel : ObservableObject
         };
         if (paper is not null)
         {
-            pages[PageDestination.Trading] = paper; pages[PageDestination.Portfolio] = paper;
+            pages[PageDestination.Trading] = new PaperTradingPageViewModel(paper);
+            pages[PageDestination.Portfolio] = new PaperPortfolioViewModel(paper);
             if (opportunities is not null)
             {
                 void OpenPaper(Arbitrage.Contracts.OpportunityResponse opportunity)
@@ -82,8 +83,10 @@ public partial class ShellViewModel : ObservableObject
         CurrentPage = pages[value.Destination];
         if (pages[PageDestination.PaperReliability] is PaperReliabilityViewModel reliability)
         { if (value.Destination == PageDestination.PaperReliability) reliability.Activate(); else reliability.Deactivate(); }
-        if (pages[PageDestination.Trading] is PaperTradingViewModel paper)
-        { if (value.Destination is PageDestination.Trading or PageDestination.Portfolio) paper.Activate(); else paper.Deactivate(); }
+        if (pages[PageDestination.Trading] is PaperTradingPageViewModel trading)
+        { if (value.Destination == PageDestination.Trading) trading.Activate(); else trading.Deactivate(); }
+        if (pages[PageDestination.Portfolio] is PaperPortfolioViewModel portfolio)
+        { if (value.Destination == PageDestination.Portfolio) portfolio.Activate(); else portfolio.Deactivate(); }
         if (pages[PageDestination.Opportunities] is OpportunitiesViewModel opportunities)
         {
             if (value.Destination == PageDestination.Opportunities) opportunities.Activate(); else opportunities.Deactivate();

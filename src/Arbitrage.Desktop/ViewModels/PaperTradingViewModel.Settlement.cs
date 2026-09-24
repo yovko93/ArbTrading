@@ -66,10 +66,13 @@ public partial class PaperTradingViewModel
         try
         {
             var candidates = await backend.ResolutionCandidatesAsync(context.Workspace, g, CandidatePage, lifetime.Token);
+            if (Context() != context || viewVersion != pollVersion) return;
             var history = await backend.ResolutionHistoryAsync(context.Workspace, g, SettlementPage, lifetime.Token);
+            if (Context() != context || viewVersion != pollVersion) return;
             var positions = await backend.PaperPositionHistoryAsync(context.Workspace, g, filter, PositionPage, lifetime.Token);
+            if (Context() != context || viewVersion != pollVersion) return;
             var performance = await backend.PaperPerformanceAsync(context.Workspace, g, lifetime.Token);
-            if (Context() != context || SettlementGeneration?.Id != g || captured != settlementRevision || filter != PositionFilter) return;
+            if (Context() != context || viewVersion != pollVersion || SettlementGeneration?.Id != g || captured != settlementRevision || filter != PositionFilter) return;
             // Preserve selection and a reviewed preview across periodic refetches unless its candidate vanished.
             var key = SelectedCandidate;
             if (key is not null && !candidates.Any(c => c.Exchange == key.Exchange && c.MarketId == key.MarketId)) SelectedCandidate = null;
@@ -81,23 +84,22 @@ public partial class PaperTradingViewModel
             SelectedBucket ??= performance.Buckets.FirstOrDefault();
             await RefreshCurveAsync();
             if (viewVersion == pollVersion) await RefreshValuationAsync();
-            if (viewVersion == pollVersion) await RefreshRiskAsync();
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && viewVersion == pollVersion) Failure(e); }
     }
     [RelayCommand] private async Task RefreshCurveAsync()
     {
         if (Context() is not { } context || SettlementGeneration is not { } g || SelectedBucket is not { } b) return;
-        var page = CurvePage;
+        var page = CurvePage; var viewVersion = pollVersion;
         try
         {
             var r = await backend.PaperCurveAsync(context.Workspace, g.Id, b.Exchange, b.Currency, page, lifetime.Token);
-            if (Context() != context || SettlementGeneration != g || SelectedBucket != b || CurvePage != page) return;
+            if (Context() != context || viewVersion != pollVersion || SettlementGeneration != g || SelectedBucket != b || CurvePage != page) return;
             CurvePoints.Clear(); foreach (var p in r.Points) CurvePoints.Add(p); CurveHasMore = r.HasMore;
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && viewVersion == pollVersion) Failure(e); }
     }
     [RelayCommand] private async Task PreviewResolutionAsync()
     {

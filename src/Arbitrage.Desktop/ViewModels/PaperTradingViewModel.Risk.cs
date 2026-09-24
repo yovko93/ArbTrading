@@ -39,11 +39,11 @@ public partial class PaperTradingViewModel
     [RelayCommand] private async Task RefreshRiskAsync()
     {
         if (Context() is not { } context) return;
-        var version = ++riskReadRevision; var view = pollVersion; var generation = SettlementGeneration?.Id;
+        var version = ++riskReadRevision; var view = pollVersion; var generation = Account?.Generation?.Id;
         try
         {
             var r = await backend.PaperRiskStatusAsync(context.Workspace, generation, lifetime.Token);
-            if (Context() != context || version != riskReadRevision || view != pollVersion || generation != SettlementGeneration?.Id) return;
+            if (Context() != context || version != riskReadRevision || view != pollVersion || generation != Account?.Generation?.Id) return;
             if (Preview?.RiskDecision is { } reviewed && (reviewed.PolicyRevision != r.Policy?.Revision || reviewed.FinancialRevision != r.Assessment.FinancialRevision)) ClearPreview();
             RiskStatus = r;
         }

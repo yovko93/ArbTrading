@@ -182,6 +182,37 @@ public sealed class DesktopShellTests
         Assert.Throws<ArgumentException>(() => diagnostics.Record("Information", "unsafe\ntext"));
     }
 
+    [Fact]
+    public void Paper_pages_have_distinct_identity_activation_and_opportunity_routing()
+    {
+        var diagnostics = new DesktopDiagnostics();
+        using var theme = new ThemeService(new MemoryPreferences(), new SystemTheme(), new Palette(), new Dispatcher());
+        using var selection = new ThemeSelectionViewModel(theme, diagnostics);
+        var backend = new BackendClient(new HttpClient(new Handler(_ => new(HttpStatusCode.ServiceUnavailable))), new Connection());
+        using var state = new MainViewModel(backend, NullLogger<MainViewModel>.Instance);
+        using var paper = new PaperTradingViewModel(state, backend);
+        using var opportunities = new OpportunitiesViewModel(state, backend);
+        var shell = new ShellViewModel(state, selection, diagnostics, opportunities: opportunities, paper: paper);
+        shell.SelectedItem = shell.Navigation.Single(n => n.Destination == PageDestination.Trading);
+        var trading = Assert.IsType<PaperTradingPageViewModel>(shell.CurrentPage);
+        Assert.Equal("Trading", shell.PageTitle); Assert.True(trading.IsActive);
+        shell.SelectedItem = shell.Navigation.Single(n => n.Destination == PageDestination.Portfolio);
+        var portfolio = Assert.IsType<PaperPortfolioViewModel>(shell.CurrentPage);
+        Assert.NotSame(trading, portfolio); Assert.Same(trading.State, portfolio.State);
+        Assert.Equal("Portfolio", shell.PageTitle); Assert.True(portfolio.IsActive); Assert.False(trading.IsActive);
+        opportunities.PaperRequested!(OpportunityDesktopTests.Result());
+        Assert.Same(trading, shell.CurrentPage); Assert.True(trading.IsActive); Assert.False(portfolio.IsActive);
+        Assert.Equal(OpportunityDesktopTests.Result().OpportunityKey, paper.OpportunityKey);
+        shell.SelectedItem = shell.Navigation.Single(n => n.Destination == PageDestination.Portfolio);
+        opportunities.Monitoring.PaperRequested!(OpportunityDesktopTests.Result());
+        Assert.Same(trading, shell.CurrentPage);
+        shell.SelectedItem = shell.Navigation.Single(n => n.Destination == PageDestination.PaperReliability);
+        Assert.Same(paper.Reliability, shell.CurrentPage);
+        Assert.False(trading.IsActive); Assert.False(portfolio.IsActive);
+        shell.SelectedItem = shell.Navigation[0];
+        Assert.False(trading.IsActive); Assert.False(portfolio.IsActive);
+    }
+
     private static MainViewModel StateModel(Func<HttpRequestMessage, HttpResponseMessage> send)
     {
         var http = new HttpClient(new Handler(send));

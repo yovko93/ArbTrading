@@ -18,6 +18,7 @@
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Valuation.cs" Link="Desktop/PaperTradingViewModel.Valuation.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/MainViewModel.cs" Link="Desktop/MainViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.cs" Link="Desktop/PaperTradingViewModel.cs" />
+    <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperPageViewModels.cs" Link="Desktop/PaperPageViewModels.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/PaperTradingViewModel.Settlement.cs" Link="Desktop/PaperTradingViewModel.Settlement.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ThemeSelectionViewModel.cs" Link="Desktop/ThemeSelectionViewModel.cs" />
     <Compile Include="../../src/Arbitrage.Desktop/ViewModels/ShellViewModel.cs" Link="Desktop/ShellViewModel.cs" />

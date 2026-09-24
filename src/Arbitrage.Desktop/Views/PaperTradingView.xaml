@@ -10,15 +10,15 @@
  <ScrollViewer VerticalScrollBarVisibility="Auto">
   <StackPanel>
    <TextBlock Text="Paper Trading · SIMULATION ONLY" Style="{StaticResource MetricText}"/>
-   <TextBlock Text="Mode: Paper. No real orders submitted. Snapshot fills and explicit Manual Scenario Resolution." TextWrapping="Wrap" Margin="0,8"/>
+   <TextBlock Text="Mode: Paper. No real orders submitted. Explicit snapshot entries. Review holdings and settlement in Portfolio." TextWrapping="Wrap" Margin="0,8"/>
    <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
    <views:PaperRiskView/>
    <views:PaperAutomationView/>
    <Border Style="{StaticResource CardBorder}"><StackPanel>
     <TextBlock Text="{Binding AccountText}" TextWrapping="Wrap"/>
-    <DataGrid ItemsSource="{Binding Account.Balances}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" AutomationProperties.Name="Paper venue balances">
-     <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="130"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="100"/><DataGridTextColumn Header="Initial cash" Binding="{Binding InitialCash}" Width="130"/><DataGridTextColumn Header="Available cash" Binding="{Binding AvailableCash}" Width="150"/><DataGridTextColumn Header="Reserved" Binding="{Binding ReservedCash}" Width="130"/><DataGridTextColumn Header="Total cash" Binding="{Binding TotalCash}" Width="150"/></DataGrid.Columns>
-    </DataGrid>
+    <ItemsControl ItemsSource="{Binding Account.Balances}" AutomationProperties.Name="Execution funding available">
+     <ItemsControl.ItemTemplate><DataTemplate><WrapPanel Margin="0,4"><TextBlock Text="{Binding Exchange}" Width="120"/><TextBlock Text="{Binding Currency}" Width="80"/><TextBlock Text="Available for entry: "/><TextBlock Text="{Binding AvailableCash}"/></WrapPanel></DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
     <WrapPanel Margin="0,8">
      <StackPanel Margin="0,0,12,0"><TextBlock Text="Initial Kalshi USD"/><TextBox Text="{Binding KalshiStartingCash, UpdateSourceTrigger=PropertyChanged}" Width="150" AutomationProperties.Name="Initial Kalshi USD"/></StackPanel>
      <StackPanel Margin="0,0,12,0"><TextBlock Text="Initial Polymarket USDC"/><TextBox Text="{Binding PolymarketStartingCash, UpdateSourceTrigger=PropertyChanged}" Width="150" AutomationProperties.Name="Initial Polymarket USDC"/></StackPanel>
@@ -37,18 +37,6 @@
      <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="120"/><DataGridTextColumn Header="Instrument" Binding="{Binding InstrumentId}" Width="150"/><DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="110"/><DataGridTextColumn Header="BUY quantity" Binding="{Binding Quantity}" Width="110"/><DataGridTextColumn Header="Price" Binding="{Binding Price}" Width="100"/><DataGridTextColumn Header="Modeled fee" Binding="{Binding Fee}" Width="120"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="90"/><DataGridTextColumn Header="Liquidity origin" Binding="{Binding LiquidityOrigin}" Width="180"/><DataGridTextColumn Header="Book version" Binding="{Binding BookVersion}" Width="120"/></DataGrid.Columns>
     </DataGrid>
    </StackPanel></Border>
-   <TextBlock Text="Open paper positions · fee-inclusive cost basis" Style="{StaticResource MetricText}"/>
-   <DataGrid ItemsSource="{Binding Positions}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Open paper positions" Margin="0,8">
-    <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="120"/><DataGridTextColumn Header="Market" Binding="{Binding MarketId}" Width="180"/><DataGridTextColumn Header="Instrument" Binding="{Binding InstrumentId}" Width="130"/><DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="100"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="90"/><DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="100"/><DataGridTextColumn Header="Cost basis" Binding="{Binding CostBasis}" Width="120"/><DataGridTextColumn Header="Modeled fees" Binding="{Binding Fees}" Width="130"/><DataGridTextColumn Header="Average entry" Binding="{Binding AverageEntry}" Width="140"/></DataGrid.Columns>
-   </DataGrid>
-   <TextBlock Text="Paper execution history · all retained generations" Style="{StaticResource MetricText}"/>
-   <DataGrid ItemsSource="{Binding Executions}" SelectedItem="{Binding SelectedExecution}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Paper execution history" Margin="0,8">
-    <DataGrid.Columns><DataGridTextColumn Header="UTC" Binding="{Binding CreatedAt}" Width="180"/><DataGridTextColumn Header="Origin" Binding="{Binding Origin}" Width="130"/><DataGridTextColumn Header="State" Binding="{Binding State}"/><DataGridTextColumn Header="Sizing" Binding="{Binding SizingText}" Width="320"/><DataGridTextColumn Header="Cost with fees" Binding="{Binding Cost}"/><DataGridTextColumn Header="Expected profit at resolution" Binding="{Binding ExpectedProfitAtResolution}" Width="200"/><DataGridTextColumn Header="Generation" Binding="{Binding GenerationId}" Width="240"/></DataGrid.Columns>
-   </DataGrid>
-   <WrapPanel><Button Content="Previous history" Command="{Binding PreviousHistoryCommand}"/><TextBlock Text="{Binding HistoryPage}" Margin="12,0" VerticalAlignment="Center"/><Button Content="Next history" Command="{Binding NextHistoryCommand}"/></WrapPanel>
-   <TextBlock Text="{Binding ExecutionText}" TextWrapping="Wrap" Margin="0,12"/>
-   <views:PaperSettlementView/>
-   <views:PaperValuationView Margin="0,20,0,0"/>
   </StackPanel>
  </ScrollViewer>
 </UserControl>

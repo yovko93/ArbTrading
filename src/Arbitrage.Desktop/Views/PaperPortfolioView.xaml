@@ -1,0 +1,38 @@
+<UserControl x:Class="Arbitrage.Desktop.Views.PaperPortfolioView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:views="clr-namespace:Arbitrage.Desktop.Views">
+ <UserControl.Resources>
+  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}"><Setter Property="RowHeight" Value="30"/><Setter Property="ColumnHeaderHeight" Value="32"/><Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/></Style>
+  <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="Padding" Value="8,4"/></Style>
+ </UserControl.Resources>
+ <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+  <TextBlock Text="Paper Portfolio · SIMULATION ONLY" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="Simulated holdings and accounting only. These are not exchange assets. USD and USDC remain separate." TextWrapping="Wrap" Margin="0,8"/>
+  <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8"/>
+  <Border Style="{StaticResource CardBorder}"><StackPanel>
+   <TextBlock Text="Venue balances and paper generation" Style="{StaticResource MetricText}"/>
+   <TextBlock Text="{Binding AccountText}" TextWrapping="Wrap" Margin="0,8"/>
+   <Button Content="Refresh portfolio" Command="{Binding RefreshCommand}" HorizontalAlignment="Left"/>
+    <DataGrid ItemsSource="{Binding Account.Balances}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" AutomationProperties.Name="Paper venue balances">
+     <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="130"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="100"/><DataGridTextColumn Header="Initial cash" Binding="{Binding InitialCash}" Width="130"/><DataGridTextColumn Header="Available cash" Binding="{Binding AvailableCash}" Width="150"/><DataGridTextColumn Header="Reserved" Binding="{Binding ReservedCash}" Width="130"/><DataGridTextColumn Header="Total cash" Binding="{Binding TotalCash}" Width="150"/></DataGrid.Columns>
+    </DataGrid>
+  </StackPanel></Border>
+  <Expander Header="Positions, settlement and realized performance" IsExpanded="True" Margin="0,12">
+   <views:PaperSettlementView/>
+  </Expander>
+  <Expander Header="Current executable valuation" IsExpanded="True" Margin="0,12">
+   <views:PaperValuationView/>
+  </Expander>
+  <Expander Header="Paper execution history" IsExpanded="True" Margin="0,12"><StackPanel>
+   <TextBlock Text="Paper execution history · all retained generations" Style="{StaticResource MetricText}"/>
+   <DataGrid ItemsSource="{Binding Executions}" SelectedItem="{Binding SelectedExecution}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Paper execution history" Margin="0,8">
+    <DataGrid.Columns><DataGridTextColumn Header="UTC" Binding="{Binding CreatedAt}" Width="180"/><DataGridTextColumn Header="Origin" Binding="{Binding Origin}" Width="130"/><DataGridTextColumn Header="State" Binding="{Binding State}"/><DataGridTextColumn Header="Sizing" Binding="{Binding SizingText}" Width="320"/><DataGridTextColumn Header="Cost with fees" Binding="{Binding Cost}"/><DataGridTextColumn Header="Expected profit at resolution" Binding="{Binding ExpectedProfitAtResolution}" Width="200"/><DataGridTextColumn Header="Generation" Binding="{Binding GenerationId}" Width="240"/></DataGrid.Columns>
+   </DataGrid>
+   <WrapPanel><Button Content="Previous history" Command="{Binding PreviousHistoryCommand}"/><TextBlock Text="{Binding HistoryPage}" Margin="12,0" VerticalAlignment="Center"/><Button Content="Next history" Command="{Binding NextHistoryCommand}"/></WrapPanel>
+   <TextBlock Text="{Binding ExecutionText}" TextWrapping="Wrap" Margin="0,12"/>
+
+  </StackPanel></Expander>
+ </StackPanel></ScrollViewer>
+</UserControl>

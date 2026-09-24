@@ -60,15 +60,19 @@ public sealed class PaperWpfTests(WpfFixture fixture)
                 vm.Executions.Add(execution); vm.SelectedExecution = execution;
             }
             new WpfThemePaletteApplier(Application.Current.Resources).Apply(theme == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
-            var view = new PaperTradingView { DataContext = vm }; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
+            UserControl view = scenario == "OpenPositionsHistory" ? new PaperPortfolioView { DataContext = vm } : new PaperTradingView { DataContext = vm };
+            view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
             view.Measure(new Size(1440, 1400)); view.Arrange(new Rect(0, 0, 1440, 1400)); view.UpdateLayout();
             view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             view.UpdateLayout();
             var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
             Assert.Contains(texts, t => t.Contains("SIMULATION ONLY", StringComparison.Ordinal));
-            Assert.Contains(texts, t => t.Contains("No real orders", StringComparison.Ordinal));
-            Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Confirm paper execution…"));
-            Assert.Equal(scenario == "EligiblePreview", Descendants<Button>(view).Single(b => Equals(b.Content, "Confirm paper execution…")).IsEnabled);
+            if (view is PaperTradingView)
+            {
+                Assert.Contains(texts, t => t.Contains("No real orders", StringComparison.Ordinal));
+                Assert.Contains(Descendants<Button>(view), b => Equals(b.Content, "Confirm paper execution…"));
+                Assert.Equal(scenario == "EligiblePreview", Descendants<Button>(view).Single(b => Equals(b.Content, "Confirm paper execution…")).IsEnabled);
+            }
             Assert.DoesNotContain(Descendants<Button>(view), b => b.Content is "Trade" or "Execute live" or "Buy now");
             if (scenario == "Uninitialized") Assert.Contains(texts, t => t.Contains("Uninitialized", StringComparison.Ordinal));
             if (scenario == "OpenPositionsHistory") Assert.Contains(texts, t => t.Contains("Committed", StringComparison.Ordinal));

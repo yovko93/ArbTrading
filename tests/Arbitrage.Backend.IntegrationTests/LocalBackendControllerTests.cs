@@ -33,6 +33,7 @@ public sealed class LocalBackendControllerTests
         public ManagedProcessEvidence Evidence = ManagedProcessEvidence.Running;
         public bool Alive = true;
         public int Inspections;
+        public Func<Task<bool>>? WaitForExit;
         public ManagedProcessInspection Inspect(ManagedRuntimeMetadata metadata, string expectedExecutable)
         {
             Interlocked.Increment(ref Inspections);
@@ -43,7 +44,7 @@ public sealed class LocalBackendControllerTests
         {
             public bool HasExited => !owner.Alive;
             public Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken cancellationToken)
-            { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(!owner.Alive); }
+            { cancellationToken.ThrowIfCancellationRequested(); return owner.WaitForExit?.Invoke() ?? Task.FromResult(!owner.Alive); }
             public void Dispose() { }
         }
     }
@@ -239,7 +240,11 @@ public sealed class LocalBackendControllerTests
         using var harness = new ManagedHarness();
         var current = await harness.Controller.ObserveAsync(default);
         harness.LoseAcknowledgment = loseAcknowledgment;
-        harness.OnStop = () => harness.Inspector.Alive = !exits;
+        harness.OnStop = () =>
+        {
+            Assert.True(File.Exists(harness.MetadataPath));
+            harness.Inspector.Alive = !exits;
+        };
         var accepted = 0;
         var result = await harness.Controller.StopAsync(current, _ => accepted++, default);
         Assert.Equal(expectedState, result.ProcessState);
@@ -264,6 +269,116 @@ public sealed class LocalBackendControllerTests
         Assert.True(File.Exists(harness.MetadataPath));
         Assert.Equal(replacement.BackendInstanceId,
             JsonSerializer.Deserialize<ManagedRuntimeMetadata>(File.ReadAllText(harness.MetadataPath))!.BackendInstanceId);
+    }
+
+    [Fact]
+    public async Task Metadata_remains_until_retained_process_exit_is_confirmed()
+    {
+        using var harness = new ManagedHarness();
+        var current = await harness.Controller.ObserveAsync(default);
+        var waiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exit = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        harness.Inspector.WaitForExit = () => { waiting.SetResult(); return exit.Task; };
+        var stop = harness.Controller.StopAsync(current, _ => Assert.True(File.Exists(harness.MetadataPath)), default);
+        await waiting.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(harness.Inspector.Alive);
+        Assert.True(File.Exists(harness.MetadataPath));
+        Assert.False(stop.IsCompleted);
+        harness.Inspector.Alive = false;
+        exit.SetResult(true);
+        Assert.Equal(LocalProcessState.NotRunning, (await stop).ProcessState);
+        Assert.False(File.Exists(harness.MetadataPath));
+    }
+
+    [Theory]
+    [InlineData("pid", "ManagedPidMismatch")]
+    [InlineData("instance", "ManagedBackendInstanceMismatch")]
+    [InlineData("profile", "ManagedProfileMismatch")]
+    [InlineData("workspace", "ManagedWorkspaceMismatch")]
+    [InlineData("data", "ManagedDataDirectoryMismatch")]
+    [InlineData("url", "ManagedBaseUrlMismatch")]
+    [InlineData("artifact", "ManagedArtifactMismatch")]
+    public async Task Changed_metadata_rejects_Stop_with_specific_reason_and_preserves_record(string field, string code)
+    {
+        using var harness = new ManagedHarness();
+        var current = await harness.Controller.ObserveAsync(default);
+        var changed = field switch
+        {
+            "pid" => harness.Metadata with { ProcessId = 424243 },
+            "instance" => harness.Metadata with { BackendInstanceId = Guid.NewGuid() },
+            "profile" => harness.Metadata with { LocalProfileId = Guid.NewGuid() },
+            "workspace" => harness.Metadata with { WorkspaceId = Guid.NewGuid() },
+            "data" => harness.Metadata with { DataDirectory = Path.Combine(harness.Root, "other") },
+            "url" => harness.Metadata with { BaseUrl = "http://127.0.0.1:5275" },
+            _ => harness.Metadata with { ArtifactPath = Path.Combine(harness.Root, "other.exe") }
+        };
+        harness.WriteMetadata(changed);
+        var result = await harness.Controller.StopAsync(current, _ => Assert.Fail("Stop must not be accepted."), default);
+        Assert.Contains(code, result.Explanation);
+        Assert.Equal(LocalManagementCapability.ExternalUnmanaged, result.Capability);
+        Assert.Equal(0, harness.StopPosts);
+        Assert.True(File.Exists(harness.MetadataPath));
+        if (field != "pid") Assert.Contains(code, (await harness.Controller.ObserveAsync(default)).Explanation);
+    }
+
+    [Theory]
+    [InlineData(false, "ManagedMetadataMissing")]
+    [InlineData(true, "ManagedMetadataInvalid")]
+    public async Task Missing_or_invalid_metadata_is_not_recreated_from_reachable_endpoint(bool invalid, string code)
+    {
+        using var harness = new ManagedHarness();
+        var current = await harness.Controller.ObserveAsync(default);
+        if (invalid) File.WriteAllText(harness.MetadataPath, "not json");
+        else File.Delete(harness.MetadataPath);
+        var observation = await harness.Controller.ObserveAsync(default);
+        Assert.Equal(LocalManagementCapability.ExternalUnmanaged, observation.Capability);
+        Assert.Contains(code, observation.Explanation);
+        Assert.Contains(code, (await harness.Controller.StopAsync(current, _ => Assert.Fail("Stop forbidden."), default)).Explanation);
+        Assert.Equal(0, harness.StopPosts);
+        Assert.Equal(invalid, File.Exists(harness.MetadataPath));
+    }
+
+    [Fact]
+    public async Task Exited_metadata_never_claims_replacement_endpoint_and_can_be_removed_safely()
+    {
+        using var harness = new ManagedHarness();
+        var current = await harness.Controller.ObserveAsync(default);
+        harness.Inspector.Evidence = ManagedProcessEvidence.Exited;
+        var observation = await harness.Controller.ObserveAsync(default);
+        Assert.Equal(LocalManagementCapability.ExternalUnmanaged, observation.Capability);
+        Assert.Contains("ManagedProcessExited", observation.Explanation);
+        Assert.True(File.Exists(harness.MetadataPath));
+        Assert.Equal(LocalProcessState.NotRunning, (await harness.Controller.StopAsync(current, _ => Assert.Fail("No request expected."), default)).ProcessState);
+        Assert.Equal(0, harness.StopPosts);
+        Assert.False(File.Exists(harness.MetadataPath));
+    }
+
+    [Fact]
+    public async Task Cleanup_preserves_changed_record_even_when_instance_id_is_unchanged()
+    {
+        using var harness = new ManagedHarness();
+        var current = await harness.Controller.ObserveAsync(default);
+        var replacement = harness.Metadata with { ProcessId = harness.Metadata.ProcessId + 1 };
+        harness.OnStop = () => { harness.Inspector.Alive = false; harness.WriteMetadata(replacement); };
+        Assert.Equal(LocalProcessState.NotRunning, (await harness.Controller.StopAsync(current, _ => { }, default)).ProcessState);
+        Assert.Equal(replacement, JsonSerializer.Deserialize<ManagedRuntimeMetadata>(File.ReadAllText(harness.MetadataPath)));
+    }
+
+    [Theory]
+    [InlineData(true, "ManagedProcessStartMismatch")]
+    [InlineData(false, "ManagedArtifactMismatch")]
+    public void Os_inspector_rejects_real_process_with_mismatched_stored_identity(bool startMismatch, string code)
+    {
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        var executable = process.MainModule!.FileName!;
+        var metadata = new ManagedRuntimeMetadata(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), process.Id,
+            process.StartTime.ToUniversalTime().AddMinutes(startMismatch ? -1 : 0), executable, Path.GetTempPath(), "http://127.0.0.1:5274");
+        var inspection = new OsManagedProcessInspector().Inspect(metadata,
+            startMismatch ? executable : Path.Combine(Path.GetTempPath(), "unrelated.exe"));
+        Assert.Equal(ManagedProcessEvidence.Unverified, inspection.Evidence);
+        Assert.Equal(code, inspection.FailureCode);
+        Assert.Null(inspection.Handle);
+        Assert.False(process.HasExited);
     }
 
     private static string UniqueRoot()

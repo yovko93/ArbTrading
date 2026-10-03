@@ -20,9 +20,10 @@ namespace Arbitrage.Desktop.Tests;
 public sealed class BackendLifecycleWpfTests(WpfFixture fixture)
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Real_buttons_launch_synchronize_refresh_and_stop_real_backend(bool packageMode)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Real_buttons_launch_synchronize_refresh_and_stop_real_backend(bool packageMode, bool delayedReadiness)
     {
         var root = Path.Combine(Path.GetTempPath(), "ArbitrageTrading-04H5", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -35,7 +36,8 @@ public sealed class BackendLifecycleWpfTests(WpfFixture fixture)
         }
         var options = new LocalBackendLaunchOptions(Path.Combine(root, "data"), Path.Combine(root, "runtime"),
             $"http://127.0.0.1:{RealtimeProcessTests.FreePort()}", package is null ? artifact : Path.Combine(package, "backend", "Arbitrage.Backend.exe"), null) { PackageRoot = package };
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false });
+        var transport = new DelayedReadinessHandler { InnerHandler = new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false } };
+        using var http = new HttpClient(transport);
         var client = new BackendClient(http, new ProtectedLocalConnectionFile(options.RuntimeDirectory));
         var controller = new LocalBackendController(client, options);
         Harness? ui = null;
@@ -61,19 +63,25 @@ public sealed class BackendLifecycleWpfTests(WpfFixture fixture)
             Task? startAction = null;
             await fixture.RunAsync(() =>
             {
+                if (delayedReadiness) transport.NotBefore = DateTimeOffset.UtcNow.AddSeconds(25);
                 ui!.Click("Start local backend"); ui.Click("Start local backend");
                 startAction = ui.Process.StartCommand.ExecutionTask;
             });
             Assert.NotNull(startAction);
             // Await the command invoked by the real button, including the existing two-minute
-            // migration and 20-second readiness budgets. Synchronization has its own wait below.
-            await startAction.WaitAsync(TimeSpan.FromMinutes(3));
+            // migration and bounded two-minute readiness budgets. Synchronization has its own wait.
+            await startAction.WaitAsync(TimeSpan.FromMinutes(5));
             await fixture.RunAsync(() => Assert.True(ui!.Process.ProcessStatus == "Running", ui.Process.Explanation));
+            if (delayedReadiness) Assert.True(DateTimeOffset.UtcNow >= transport.NotBefore);
             await Wait(() => ui!.State.ConnectionStatus == "Connected");
             var running = await controller.ObserveAsync(default);
             Assert.Equal(LocalManagementCapability.ManagedLocal, running.Capability);
             owned = Process.GetProcessById(running.ProcessId!.Value);
             _ = owned.SafeHandle; // Retain the kernel process identity before subsequent awaits.
+            var metadataPath = Path.Combine(options.RuntimeDirectory, "managed-local.json");
+            Assert.True(File.Exists(metadataPath));
+            ProtectedStorage.VerifyPrivateFile(metadataPath);
+            var metadataBeforeRefresh = await File.ReadAllTextAsync(metadataPath);
             await fixture.RunAsync(() =>
             {
                 ui!.AssertButtons(false, true, true);
@@ -93,22 +101,40 @@ public sealed class BackendLifecycleWpfTests(WpfFixture fixture)
             var refreshed = await controller.ObserveAsync(default);
             Assert.Equal(running.ProcessId, refreshed.ProcessId);
             Assert.Equal(running.Snapshot!.BackendInstanceId, refreshed.Snapshot!.BackendInstanceId);
+            Assert.Equal(LocalManagementCapability.ManagedLocal, refreshed.Capability);
+            Assert.Equal(metadataBeforeRefresh, await File.ReadAllTextAsync(metadataPath));
             if (packageMode) Assert.Contains("DatabaseCreated", controller.DistributionSummary);
-            // Closing the real shell does not own backend lifetime. Reopen to explicitly stop it.
-            await fixture.RunAsync(() => { ui!.Window.Close(); ui.OpenWindow(); });
+            // Recreate all lifecycle/realtime view models and the controller, as on Desktop restart.
+            // Reattachment must come from protected metadata, never a retained ViewModel observation.
+            await ui!.Realtime.StopAsync();
+            await fixture.RunAsync(ui.Dispose);
             Assert.False(owned.HasExited);
+            Assert.True(File.Exists(metadataPath));
+            var reopened = new LocalBackendController(client, options);
             await fixture.RunAsync(() =>
             {
+                ui = new Harness(client, reopened);
+                ui.Realtime.Start(); initialize = ui.Process.InitializeAsync(default);
+            });
+            await initialize!;
+            var reattached = await reopened.ObserveAsync(default);
+            Assert.Equal(LocalManagementCapability.ManagedLocal, reattached.Capability);
+            Assert.Equal(running.ProcessId, reattached.ProcessId);
+            Assert.Equal(running.Snapshot.BackendInstanceId, reattached.Snapshot!.BackendInstanceId);
+            Assert.Equal(reattached.ProcessId, (await controller.ObserveAsync(default)).ProcessId);
+            await fixture.RunAsync(() =>
+            {
+                ui!.AssertButtons(false, true, true);
                 ui!.Process.ConfirmStop = () => { confirmations++; return true; };
                 ui.Click("Stop local backend"); ui.Click("Stop local backend");
             });
             await Wait(() => ui!.Process.ProcessStatus == "NotRunning" && !ui.Process.IsBusy);
             Assert.True(owned.HasExited);
+            Assert.False(File.Exists(metadataPath));
             Assert.Equal(1, confirmations);
             await fixture.RunAsync(() =>
             {
                 ui!.AssertButtons(true, false, true);
-                Assert.Contains(ui.Diagnostics.Events, e => e.Description == "StartSucceeded");
                 Assert.Contains(ui.Diagnostics.Events, e => e.Description == "StopSucceeded");
                 ui.Click("Refresh backend state");
             });
@@ -206,6 +232,16 @@ public sealed class BackendLifecycleWpfTests(WpfFixture fixture)
         public Task<LocalBackendObservation> ObserveAsync(CancellationToken ct) => Throw ? throw new InvalidOperationException("secret credential") : Observation.Task;
         public Task<LocalBackendObservation> StartAsync(CancellationToken ct) { Starts++; return Start.Task; }
         public Task<LocalBackendObservation> StopAsync(LocalBackendObservation current, Action<Guid> accepted, CancellationToken ct) => throw new NotSupportedException();
+    }
+    private sealed class DelayedReadinessHandler : DelegatingHandler
+    {
+        public DateTimeOffset NotBefore { get; set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            DateTimeOffset.UtcNow < NotBefore &&
+            (request.RequestUri!.AbsolutePath.EndsWith("/session", StringComparison.Ordinal) ||
+             request.RequestUri.AbsolutePath.EndsWith("/snapshot", StringComparison.Ordinal))
+                ? Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable))
+                : base.SendAsync(request, cancellationToken);
     }
     private sealed class Harness : IDisposable
     {

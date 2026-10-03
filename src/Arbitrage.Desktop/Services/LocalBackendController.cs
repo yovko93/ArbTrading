@@ -76,9 +76,8 @@ public sealed record LocalBackendLaunchOptions(string DataDirectory, string Runt
         var url = LocalPaths.ValidateBaseUrl(Environment.GetEnvironmentVariable("Local__BaseUrl") ?? "http://127.0.0.1:5274")
             .GetLeftPart(UriPartial.Authority);
         var packageRoot = File.Exists(Path.Combine(AppContext.BaseDirectory, DistributionPackage.ManifestName)) || Directory.Exists(Path.Combine(AppContext.BaseDirectory, DistributionPackage.ManifestName)) || Directory.Exists(Path.Combine(AppContext.BaseDirectory, "backend")) ? AppContext.BaseDirectory : null;
-        var packaged = Path.Combine(AppContext.BaseDirectory, "backend", "Arbitrage.Backend.exe");
-        var artifact = Environment.GetEnvironmentVariable("ARBITRAGE_BACKEND_ARTIFACT") ??
-            (packageRoot is not null || File.Exists(packaged) ? packaged : Path.Combine(AppContext.BaseDirectory, "Arbitrage.Backend.exe"));
+        var artifact = BackendArtifactLocator.Resolve(AppContext.BaseDirectory, packageRoot is not null,
+            Environment.GetEnvironmentVariable("ARBITRAGE_BACKEND_ARTIFACT"));
         if (!Path.IsPathFullyQualified(artifact) || Path.GetExtension(artifact).ToLowerInvariant() is not (".exe" or ".dll"))
             throw new InvalidOperationException("Backend artifact must be an absolute built .exe or .dll path.");
         var dotnetHost = Environment.GetEnvironmentVariable("ARBITRAGE_DOTNET_HOST");
@@ -128,7 +127,7 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
     public string ArtifactExplanation => options.PackageRoot is not null && Package is { } package && (!package.Valid || !package.IsPackage)
         ? "Start requires a valid portable package. " + package.Status
         : !File.Exists(artifact)
-        ? "Start requires a built backend executable. Set ARBITRAGE_BACKEND_ARTIFACT to its absolute path."
+        ? "Start requires a built backend executable. Build the solution in the same configuration, or set ARBITRAGE_BACKEND_ARTIFACT to an absolute backend path."
         : Path.GetExtension(artifact).Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
           (string.IsNullOrWhiteSpace(options.DotnetHost) || !Path.IsPathFullyQualified(options.DotnetHost) || !File.Exists(options.DotnetHost))
             ? "Start requires an absolute ARBITRAGE_DOTNET_HOST path to an installed dotnet executable for a DLL artifact."
@@ -254,7 +253,7 @@ public sealed class LocalBackendController(BackendClient client, LocalBackendLau
                 cancellationToken.ThrowIfCancellationRequested();
                 if (process.HasExited)
                     return new(LocalProcessState.Faulted, LocalManagementCapability.ExternalUnmanaged,
-                        "Backend exited before authenticated readiness. Check isolated backend logs and configuration.");
+                        $"Backend exited before authenticated readiness (exit code {process.ExitCode}). Check Logs & Diagnostics and backend configuration.");
                 await Task.Delay(200, cancellationToken);
                 observed = await ObserveAsync(cancellationToken);
                 if (observed.Snapshot is { } ready)

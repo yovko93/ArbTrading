@@ -9,6 +9,18 @@
         FontFamily="Segoe UI" FontSize="13"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True">
   <Window.Resources>
+    <Style x:Key="LifecycleButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
@@ -60,7 +72,7 @@
     <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource SurfaceBackground}"
             BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,0,1" Padding="24,16,24,14">
       <Grid>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel>
           <TextBlock Text="ARBITRAGE TRADING" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Accent}" />
           <TextBlock Text="{Binding PageTitle}" FontSize="20" FontWeight="SemiBold" Margin="0,2,0,3" />
@@ -80,13 +92,14 @@
           <TextBlock Text="LOCAL BACKEND" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold"
                      FontSize="10" HorizontalAlignment="Right" Margin="0,0,0,4" />
           <StackPanel Orientation="Horizontal">
-            <Button Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
+            <Button Style="{StaticResource LifecycleButton}" Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
                     ToolTip="{Binding LocalBackend.StartExplanation}" AutomationProperties.Name="Start local backend" Margin="0,0,6,0" />
-            <Button Content="Stop" Command="{Binding LocalBackend.StopCommand}" IsEnabled="{Binding LocalBackend.CanStop}"
+            <Button Style="{StaticResource LifecycleButton}" Content="Stop" Command="{Binding LocalBackend.StopCommand}" IsEnabled="{Binding LocalBackend.CanStop}"
                     ToolTip="{Binding LocalBackend.StopExplanation}" AutomationProperties.Name="Stop local backend" Margin="0,0,6,0" />
-            <Button Content="Refresh" Command="{Binding State.RefreshCommand}" AutomationProperties.Name="Refresh backend state" />
+            <Button Style="{StaticResource LifecycleButton}" Content="Refresh" Command="{Binding State.RefreshCommand}" IsEnabled="{Binding LocalBackend.CanRefresh}" AutomationProperties.Name="Refresh backend state" />
           </StackPanel>
         </StackPanel>
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding LocalBackend.Explanation}" TextWrapping="Wrap" Margin="0,12,0,0" AutomationProperties.AutomationId="BackendActionResult" />
       </Grid>
     </Border>
     <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}" Margin="24,20,24,10" />

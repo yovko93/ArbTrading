@@ -32,7 +32,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     internal long AccessGeneration => Volatile.Read(ref privateStateGeneration);
 
     [ObservableProperty] private string connectionStatus = "Not loaded";
-    [ObservableProperty] private string message = "Start the local backend independently, then Refresh.";
+    [ObservableProperty] private string message = "Use Start to launch the local backend, or Refresh to reconnect.";
     [ObservableProperty] private string backendVersion = "Unavailable";
     [ObservableProperty] private string userId = "Unavailable";
     [ObservableProperty] private string workspaceIdentifier = "Unavailable";
@@ -97,8 +97,12 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     {
         if (RefreshRequested is not null)
         {
-            await RefreshRequested();
-            CatalogRefreshRequested?.Invoke(this, EventArgs.Empty);
+            try
+            {
+                await RefreshRequested();
+                CatalogRefreshRequested?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception exception) { ReportUnexpected(exception); }
             return;
         }
         if (!BeginOperation()) return;

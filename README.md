@@ -85,7 +85,7 @@ dotnet build ArbitrageTrading.sln -c Release --no-restore
 dotnet test ArbitrageTrading.sln -c Release --no-build --no-restore
 ```
 
-Build the backend artifact before using the desktop's **Start** control. For development, set `ARBITRAGE_BACKEND_ARTIFACT` to the absolute path of the Release backend executable; a published installation can place that executable beside the desktop executable. Opening Desktop never launches Backend automatically.
+Build the backend artifact before using the desktop's **Start** control. Development Desktop discovers the matching backend build in the existing repository (same configuration and optional runtime identifier); no manual copying is needed. `ARBITRAGE_BACKEND_ARTIFACT` remains an explicit absolute override. Portable packages use their verified `backend/Arbitrage.Backend.exe`. Opening Desktop never launches Backend automatically.
 
 The two applications can still be started independently in separate terminals:
 

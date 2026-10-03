@@ -5,6 +5,7 @@ using Arbitrage.Contracts;
 using Arbitrage.Domain;
 using Arbitrage.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbitrage.Backend.IntegrationTests;
 
@@ -46,23 +47,27 @@ public sealed class PaperPersistenceTests
     [Fact] public async Task Backend_restart_returns_committed_request_without_preview_or_replay()
     {
         string root; Guid workspace; ConfirmPaperRequest request; Guid execution;
-        await using (var f = new BackendFixture(preserveStorage: true))
+        // This tests durable replay across restart, not the five-second preview expiry boundary.
+        var clock = new PaperApiTests.Clock();
+        await using (var f = new BackendFixture(s => s.AddSingleton<TimeProvider>(clock), preserveStorage: true))
         {
             root = f.Root; using var client = await f.AuthenticatedClientAsync(); workspace = (await client.GetFromJsonAsync<SessionResponse>("/api/v1/session"))!.DefaultWorkspaceId;
             var relationship = await OpportunityApiTests.Seed(f, VerificationState.VerifiedDeterministic);
-            await f.WithDatabaseAsync(async db => { var fees = new FeeStore(db); await fees.SaveAsync(FeeApiTests.Schedule("Kalshi", "a"), default); await fees.SaveAsync(FeeApiTests.Schedule("Polymarket", "b"), default); await fees.SetProfileAsync(workspace, KalshiFeeAccountProfile.DirectMember, default); return 0; });
+            clock.Now = DateTimeOffset.UtcNow;
+            await f.WithDatabaseAsync(async db => { var fees = new FeeStore(db); await fees.SaveAsync(FeeApiTests.Schedule("Kalshi", "a") with { RetrievedAt = clock.Now }, default); await fees.SaveAsync(FeeApiTests.Schedule("Polymarket", "b") with { RetrievedAt = clock.Now }, default); await fees.SetProfileAsync(workspace, KalshiFeeAccountProfile.DirectMember, default); return 0; });
             var path = $"/api/v1/workspaces/{workspace}";
             (await client.PutAsJsonAsync(path + "/paper/admission-policy", new SavePaperRiskPolicyRequest(null, true, PaperRiskApiTests.Permissive))).EnsureSuccessStatusCode();
             (await client.PostAsJsonAsync(path + "/paper/account/initialize", new InitializePaperRequest(true, null, "Restart fixture", [new("Kalshi", "USD", 100), new("Polymarket", "USD", 100)]))).EnsureSuccessStatusCode();
-            OpportunityApiTests.Books(f);
+            OpportunityApiTests.Books(f, at: clock.Now);
             var job = await OpportunityApiTests.Start(client, path + "/opportunities", new(relationship, EvaluateFees: true));
             var key = Assert.Single((await client.GetFromJsonAsync<OpportunityPageResponse>($"{path}/opportunities/jobs/{job.Id}/results"))!.Items).OpportunityKey;
             var preview = (await (await client.PostAsJsonAsync(path + "/paper/preview", new PaperPreviewRequest(key, 10))).Content.ReadFromJsonAsync<PaperPreviewResponse>())!;
             Assert.True(preview.WouldExecute, preview.Rejection); request = new(Guid.NewGuid(), preview.PreviewId, key, 10, true);
             var committed = (await (await client.PostAsJsonAsync(path + "/paper/execute", request)).Content.ReadFromJsonAsync<PaperCommitResponse>())!;
-            execution = committed.Execution!.Id;
+            Assert.True(committed.State == "Committed", $"{committed.State}: {committed.Rejection}");
+            execution = Assert.IsType<PaperExecutionResponse>(committed.Execution).Id;
         }
-        await using var restarted = new BackendFixture(root: root); using var next = await restarted.AuthenticatedClientAsync();
+        await using var restarted = new BackendFixture(s => s.AddSingleton<TimeProvider>(clock), root: root); using var next = await restarted.AuthenticatedClientAsync();
         var response = (await (await next.PostAsJsonAsync($"/api/v1/workspaces/{workspace}/paper/execute", request)).Content.ReadFromJsonAsync<PaperCommitResponse>())!;
         Assert.True(response.Duplicate); Assert.Equal(execution, response.Execution!.Id);
         Assert.Equal(1, await restarted.WithDatabaseAsync(db => db.Set<PaperExecutionEntry>().CountAsync()));

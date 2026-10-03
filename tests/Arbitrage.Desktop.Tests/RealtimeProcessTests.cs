@@ -67,18 +67,31 @@ public sealed partial class RealtimeProcessTests
         var ownedStarts = new Dictionary<int, DateTime>();
         try
         {
+            // Fresh bootstrap through the actual Start button is covered by the packaged WPF fixture.
+            if (!packageMode) await PrepareDevelopmentDatabase(options);
             realtime.Start();
             await WaitUntilAsync(() => desktopState.ConnectionStatus == "Disconnected");
             Assert.Equal(LocalProcessState.NotRunning, (await controller.ObserveAsync(default)).ProcessState);
             var reattached = new LocalBackendController(client, options);
             var simultaneous = await Task.WhenAll(controller.StartAsync(default), reattached.StartAsync(default));
-            first = simultaneous[0];
+            // Migration plus readiness can outlast the competing desktop's bounded launch-lock wait.
+            // A truthful busy result is safe; observation must then find the same single process.
+            first = simultaneous.FirstOrDefault(result => result.ProcessState == LocalProcessState.Running);
+            Assert.True(first is not null, string.Join(" | ", simultaneous.Select(result => result.Explanation)));
+            TrackOwned(first, ownedStarts);
+            foreach (var result in simultaneous)
+                Assert.True(result.ProcessState == LocalProcessState.Running ||
+                    result.ProcessState == LocalProcessState.Unknown && result.Explanation.StartsWith("Another desktop may still be starting", StringComparison.Ordinal), result.Explanation);
             Assert.Equal(LocalProcessState.Running, first.ProcessState);
             Assert.Equal(LocalManagementCapability.ManagedLocal, first.Capability);
             Assert.NotNull(first.Snapshot);
-            Assert.Equal(first.Snapshot!.BackendInstanceId, simultaneous[1].Snapshot!.BackendInstanceId);
-            Assert.Equal(first.ProcessId, simultaneous[1].ProcessId);
-            TrackOwned(first, ownedStarts);
+            var observedByOther = await reattached.ObserveAsync(default);
+            Assert.Equal(LocalProcessState.Running, observedByOther.ProcessState);
+            Assert.Equal(LocalManagementCapability.ManagedLocal, observedByOther.Capability);
+            Assert.Equal(first.Snapshot!.BackendInstanceId, observedByOther.Snapshot!.BackendInstanceId);
+            Assert.Equal(first.ProcessId, observedByOther.ProcessId);
+            foreach (var result in simultaneous.Where(result => result.ProcessState == LocalProcessState.Running))
+            { Assert.Equal(first.ProcessId, result.ProcessId); Assert.Equal(first.Snapshot.BackendInstanceId, result.Snapshot!.BackendInstanceId); }
             if (packageMode)
                 Assert.Contains("DatabaseCreated", controller.DistributionSummary + reattached.DistributionSummary);
             realtime.ResumeAfterStart();
@@ -102,7 +115,10 @@ public sealed partial class RealtimeProcessTests
                 badDiagnostics.AddBackend(new(first.Snapshot.BackendInstanceId, 1, DateTimeOffset.UtcNow,
                     "Information", "Backend", "Private", "Private event.", first.Snapshot.Workspace.WorkspaceId, null));
                 badSession.Start();
-                await WaitUntilAsync(() => badState.ConnectionStatus == "AuthenticationFailed");
+                // InlineDispatcher runs on the worker thread; observe the completed invalidation,
+                // not the first property assignment partway through that dispatcher action.
+                await WaitUntilAsync(() => badState.ConnectionStatus == "AuthenticationFailed" &&
+                    !badState.HasSnapshot && badDiagnostics.BackendEvents.Count == 0 && badDiagnostics.HistoryCursor == 0);
                 Assert.False(badState.HasSnapshot);
                 Assert.Empty(badDiagnostics.BackendEvents);
                 Assert.Equal(0, badDiagnostics.HistoryCursor);
@@ -191,8 +207,10 @@ public sealed partial class RealtimeProcessTests
             third = await controller.StartAsync(default);
             Assert.Equal(LocalProcessState.Running, third.ProcessState);
             TrackOwned(third, ownedStarts);
+            // Automatic reconnect may already be in the production 30s + jitter backoff.
+            // Allow that delay plus the bounded 8s hub handshake; do not wake/refresh it here.
             await WaitUntilAsync(() => desktopState.ConnectionStatus == "Connected" &&
-                desktopState.BackendInstance == third.Snapshot!.BackendInstanceId.ToString());
+                desktopState.BackendInstance == third.Snapshot!.BackendInstanceId.ToString(), TimeSpan.FromSeconds(45));
             Assert.NotEqual(second.Snapshot.BackendInstanceId, third.Snapshot!.BackendInstanceId);
             Assert.Equal(LocalProcessState.NotRunning,
                 (await controller.StopAsync(third, realtime.SuspendAfterStopRequest, default)).ProcessState);
@@ -203,6 +221,9 @@ public sealed partial class RealtimeProcessTests
         finally
         {
             await realtime.StopAsync();
+            var remaining = await controller.ObserveAsync(default);
+            if (remaining.Capability == LocalManagementCapability.ManagedLocal)
+                await controller.StopAsync(remaining, _ => { }, default);
             // Test-only cleanup can terminate only the exact process launched by this test.
             foreach (var owned in ownedStarts)
             {
@@ -216,7 +237,17 @@ public sealed partial class RealtimeProcessTests
                 }
                 catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
             }
-            if (Directory.Exists(root)) Directory.Delete(root, true);
+            // Preserve an uncertain fixture instead of masking the lifecycle assertion with a locked-file error.
+            if ((await controller.ObserveAsync(default)).ProcessState == LocalProcessState.NotRunning && Directory.Exists(root))
+            {
+                try
+                {
+                    var leasePath = Path.Combine(runtime, "backend.lock");
+                    if (File.Exists(leasePath)) new FileStream(leasePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None).Dispose();
+                    Directory.Delete(root, true);
+                }
+                catch (IOException) { Debug.WriteLine("Preserved locked isolated backend fixture after lifecycle test."); }
+            }
         }
     }
 
@@ -235,18 +266,31 @@ public sealed partial class RealtimeProcessTests
         starts[pid] = process.StartTime.ToUniversalTime();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition)
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan? maximumWait = null)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        using var timeout = new CancellationTokenSource(maximumWait ?? TimeSpan.FromSeconds(12));
         while (!condition()) await Task.Delay(80, timeout.Token);
     }
 
-    private static int FreePort()
+    internal static async Task PrepareDevelopmentDatabase(LocalBackendLaunchOptions options)
+    {
+        var bootstrap = new ProcessStartInfo(options.ArtifactPath)
+        { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(options.ArtifactPath)! };
+        bootstrap.Environment["Local__DataDirectory"] = options.DataDirectory;
+        bootstrap.Environment["Local__RuntimeDirectory"] = options.RuntimeDirectory;
+        bootstrap.Environment["Local__BaseUrl"] = options.BaseUrl;
+        bootstrap.Environment["Local__DeploymentMode"] = "Local";
+        bootstrap.Environment["Local__TradingMode"] = "Paper";
+        var migrated = await new BackendMigrationRunner().RunAsync(bootstrap, default);
+        Assert.True(migrated.Success, migrated.Status);
+    }
+
+    internal static int FreePort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start(); var port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop(); return port;
     }
-    private static string CreatePackageFixture(string root)
+    internal static string CreatePackageFixture(string root)
     {
         var package = Path.Combine(root, "package");
         var source = Path.GetDirectoryName(BackendArtifact())!;
@@ -265,7 +309,7 @@ public sealed partial class RealtimeProcessTests
         return package;
     }
 
-    private static string BackendArtifact()
+    internal static string BackendArtifact()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "ArbitrageTrading.sln")))

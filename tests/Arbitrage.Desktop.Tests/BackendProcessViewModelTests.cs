@@ -39,6 +39,44 @@ public sealed class BackendProcessViewModelTests
     }
 
     [Fact]
+    public async Task Availability_notification_cannot_offer_Start_while_gate_is_held()
+    {
+        using var http = new HttpClient();
+        var client = new BackendClient(http, new Connection());
+        using var state = new MainViewModel(client, NullLogger<MainViewModel>.Instance);
+        var diagnostics = new DesktopDiagnostics();
+        using var realtime = new RealtimeSession(client, state, diagnostics, new InlineDispatcher(), new RealtimeDelay());
+        var controller = new Controller();
+        var vm = new BackendProcessViewModel(controller, realtime, diagnostics);
+        Task? start = null;
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(vm.IsBusy) && !vm.IsBusy && vm.CanStart && start is null)
+                start = vm.StartCommand.ExecuteAsync(null);
+        };
+        await vm.InitializeAsync(default);
+        Assert.NotNull(start);
+        await start;
+        Assert.Equal(1, controller.Starts);
+        Assert.False(vm.IsBusy);
+        Assert.Equal("Unknown", vm.ProcessStatus);
+        Assert.Contains("failed unexpectedly", vm.Explanation);
+        Assert.Contains(diagnostics.Events, e => e.Description == "StartFailed (InvalidOperationException)");
+        Assert.DoesNotContain("Refresh launched", vm.Explanation);
+    }
+
+    [Fact]
+    public async Task Main_refresh_callback_exception_is_sanitized()
+    {
+        using var http = new HttpClient();
+        using var state = new MainViewModel(new BackendClient(http, new Connection()), NullLogger<MainViewModel>.Instance);
+        state.RefreshRequested = () => throw new InvalidOperationException("secret credential");
+        await state.RefreshCommand.ExecuteAsync(null);
+        Assert.Equal("Unavailable", state.ConnectionStatus);
+        Assert.DoesNotContain("secret", state.Message);
+    }
+
+    [Fact]
     public async Task Refresh_observes_without_starting_or_stopping_a_process()
     {
         using var http = new HttpClient();

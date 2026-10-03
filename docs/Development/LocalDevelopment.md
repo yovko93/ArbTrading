@@ -31,6 +31,8 @@ Integration fixtures use unique temporary disk SQLite databases, apply the real 
 
 ## Independent startup and configuration
 
+Selecting Arbitrage.Desktop as the Visual Studio startup project (Debug/F5), or building/running its project directly, also builds Backend in the matching configuration. Desktop's Backend ProjectReference has `ReferenceOutputAssembly="false"` and `Private="false"`: it orchestrates the build without exposing implementation types or copying Backend assemblies/content into Desktop output. Debug resolves Debug, Release resolves Release, including matching RID output. The build never starts Backend; launch remains explicit through **LOCAL BACKEND → Start**. If the matching artifact is unavailable, Start stays disabled with the existing inline build guidance; there is no Release fallback for Debug.
+
 ```powershell
 dotnet run --project src/Arbitrage.Backend --no-launch-profile
 dotnet run --project src/Arbitrage.Desktop

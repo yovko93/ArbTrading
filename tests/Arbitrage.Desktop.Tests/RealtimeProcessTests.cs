@@ -311,12 +311,24 @@ public sealed partial class RealtimeProcessTests
 
     internal static string BackendArtifact()
     {
+        var artifact = Path.Combine(RepositoryRoot(), "src", "Arbitrage.Backend", "bin", BuildConfiguration, "net10.0", "Arbitrage.Backend.exe");
+        if (!File.Exists(artifact)) throw new FileNotFoundException($"Build the {BuildConfiguration} Desktop/backend before real-process verification.");
+        return artifact;
+    }
+
+    internal const string BuildConfiguration =
+#if DEBUG
+        "Debug";
+#else
+        "Release";
+#endif
+
+    internal static string RepositoryRoot()
+    {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "ArbitrageTrading.sln")))
             directory = directory.Parent;
         if (directory is null) throw new InvalidOperationException("Repository root unavailable for isolated test artifact.");
-        var artifact = Path.Combine(directory.FullName, "src", "Arbitrage.Backend", "bin", "Release", "net10.0", "Arbitrage.Backend.exe");
-        if (!File.Exists(artifact)) throw new FileNotFoundException("Build the Release backend before real-process verification.");
-        return artifact;
+        return directory.FullName;
     }
 }

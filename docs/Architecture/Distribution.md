@@ -1,6 +1,6 @@
 # Portable distribution architecture (D01 / D02)
 
-The Windows x64 ZIP contains separate self-contained Release publishes: net10.0-windows WPF Desktop at the root and net10.0 ASP.NET Backend under `backend/`. Both carry their runtime; publish explicitly disables trimming, NativeAOT and single-file bundling. Desktop still references Contracts only and reads business state through authenticated HTTP. No installer, runtime installation, updater or capability changes are involved.
+The Windows x64 ZIP contains separate self-contained Release publishes: net10.0-windows WPF Desktop at the root and net10.0 ASP.NET Backend under `backend/`. Both carry their runtime; publish explicitly disables trimming, NativeAOT and single-file bundling. Desktop compiles against Contracts only and reads business state through authenticated HTTP. Its build-only Backend ProjectReference (`ReferenceOutputAssembly=false`, `Private=false`) also builds the matching development backend without adding implementation references or copying Backend content into Desktop build/publish output. The publisher still publishes Backend separately under `backend/`. No installer, runtime installation, updater or capability changes are involved.
 
 ```
 ArbitrageTrading/

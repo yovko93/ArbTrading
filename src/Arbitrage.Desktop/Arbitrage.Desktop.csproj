@@ -6,6 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Arbitrage.Contracts/Arbitrage.Contracts.csproj" />
+    <!-- Build the matching backend for Desktop/F5; keep implementation and content out of Desktop. -->
+    <ProjectReference Include="../Arbitrage.Backend/Arbitrage.Backend.csproj" ReferenceOutputAssembly="false" Private="false" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />

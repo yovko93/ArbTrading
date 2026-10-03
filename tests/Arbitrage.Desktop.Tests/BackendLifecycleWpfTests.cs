@@ -31,8 +31,7 @@ public sealed class BackendLifecycleWpfTests(WpfFixture fixture)
         var artifact = RealtimeProcessTests.BackendArtifact();
         if (!packageMode)
         {
-            var repository = new DirectoryInfo(Path.GetDirectoryName(artifact)!).Parent!.Parent!.Parent!.Parent!.Parent!.FullName;
-            artifact = BackendArtifactLocator.Resolve(Path.Combine(repository, "src", "Arbitrage.Desktop", "bin", "Release", "net10.0-windows"), false, null);
+            artifact = BackendArtifactLocator.Resolve(Path.Combine(RealtimeProcessTests.RepositoryRoot(), "src", "Arbitrage.Desktop", "bin", RealtimeProcessTests.BuildConfiguration, "net10.0-windows"), false, null);
         }
         var options = new LocalBackendLaunchOptions(Path.Combine(root, "data"), Path.Combine(root, "runtime"),
             $"http://127.0.0.1:{RealtimeProcessTests.FreePort()}", package is null ? artifact : Path.Combine(package, "backend", "Arbitrage.Backend.exe"), null) { PackageRoot = package };

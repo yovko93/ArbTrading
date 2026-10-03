@@ -14,7 +14,9 @@ public partial class StatusBadge : UserControl
     private void UpdateTone()
     {
         if (BadgeBorder is null) return;
-        BadgeBorder.SetResourceReference(Border.BorderBrushProperty, Tone switch
-        { "Good" => "Success", "Warning" => "Warning", "Error" => "Error", _ => "DefaultBorder" });
+        var family = Tone switch { "Good" => "Success", "Info" => "Info", "Warning" => "Warning", "Error" => "Error", _ => "Neutral" };
+        BadgeBorder.SetResourceReference(Border.BackgroundProperty, $"SemanticBrush.{family}Background");
+        BadgeBorder.SetResourceReference(Border.BorderBrushProperty, $"SemanticBrush.{family}Border");
+        BadgeText.SetResourceReference(TextBlock.ForegroundProperty, $"SemanticBrush.{family}Foreground");
     }
 }

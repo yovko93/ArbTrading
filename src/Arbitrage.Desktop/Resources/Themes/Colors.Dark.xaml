@@ -17,4 +17,9 @@
   <Color x:Key="Color.SelectionText">#FFFFFF</Color>
   <Color x:Key="Color.DisabledBackground">#26313A</Color>
   <Color x:Key="Color.DisabledText">#81919C</Color>
+  <Color x:Key="Color.SuccessBackground">#213C34</Color>
+  <Color x:Key="Color.WarningBackground">#403522</Color>
+  <Color x:Key="Color.ErrorBackground">#442C30</Color>
+  <Color x:Key="Color.InfoBackground">#233F51</Color>
+  <Color x:Key="Color.InfoForeground">#8AD7ED</Color>
 </ResourceDictionary>

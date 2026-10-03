@@ -28,7 +28,7 @@ public sealed class PaperPageSplitWpfTests(WpfFixture fixture)
         state.ApplyRealtimeSnapshot(new(1, Guid.NewGuid(), Guid.NewGuid(), at, new(Guid.NewGuid(), workspace, "Local", Capabilities.Phase04A),
             new("fixture", 1, "Healthy", "Local", "Paper", "Paper", Capabilities.Phase04A), new(workspace, "Split fixture"), []), "http://127.0.0.1:5274");
         var generation = new PaperGenerationResponse(g, at, null, "Split page fixture", "Healthy");
-        vm.Account = new("Active", generation, [new("Kalshi", "USD", 100, 95.832m, 0, 95.832m, 1, at)], [generation]);
+        vm.Account = new("Active", generation, [new("Kalshi", "USD", 100, 95.832m, 0, 95.832m, 1, at), new("Polymarket", "USDC", 200, 180, 0, 180, 1, at)], [generation]);
         vm.SettlementGeneration = generation;
         var position = new PaperPositionResponse(Guid.NewGuid(), g, "Kalshi", "FIXTURE-A", "yes", "Yes", "USD", 10, 4.168m, .168m, .4m, at, at);
         vm.PositionHistory.Add(position);
@@ -61,11 +61,13 @@ public sealed class PaperPageSplitWpfTests(WpfFixture fixture)
             [new("Kalshi", "USD", 4, .168m, 4.168m, 95.832m, 91.664m)], 4, .168m, 4.168m, 10, 5.832m, null, ["Snapshot paper fixture"], decision);
         foreach (var theme in new[] { "Light", "Dark" })
         foreach (var trading in new[] { true, false })
+        foreach (var width in trading ? new[] { 1020, 560 } : new[] { 1440 })
         {
+            var height = width == 560 ? 4300 : 3200;
             new WpfThemePaletteApplier(Application.Current.Resources).Apply(theme == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
             UserControl view = trading ? new PaperTradingView() : new PaperPortfolioView();
             view.DataContext = vm; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
-            view.Measure(new Size(1440, 3200)); view.Arrange(new Rect(0, 0, 1440, 3200)); view.UpdateLayout();
+            view.Measure(new Size(width, height)); view.Arrange(new Rect(0, 0, width, height)); view.UpdateLayout();
             view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); view.UpdateLayout();
             var nodes = Descendants(view).ToArray();
             Assert.Equal(trading, nodes.OfType<PaperRiskView>().Any());
@@ -77,12 +79,22 @@ public sealed class PaperPageSplitWpfTests(WpfFixture fixture)
             foreach (var command in new object[] { vm.SaveRiskPolicyCommand, vm.ArmAutomationCommand, vm.EmergencyStopAutomationCommand, vm.PreviewCommand, vm.ExecuteCommand, vm.InitializeCommand })
                 Assert.Equal(trading, nodes.OfType<Button>().Any(b => ReferenceEquals(b.Command, command)));
             Assert.Equal(trading, nodes.Any(n => AutomationProperties.GetName(n) == "Preview snapshot fills"));
+            if (trading)
+            {
+                Assert.Contains(nodes.OfType<TextBlock>(), text => text.Text == "95.832");
+                Assert.Contains(nodes.OfType<TextBlock>(), text => text.Text == "180");
+                Assert.All(nodes.OfType<Button>().Where(button => button.IsVisible), button =>
+                {
+                    var origin = button.TranslatePoint(new Point(), view);
+                    Assert.True(origin.X >= 0 && origin.X + button.ActualWidth <= width, $"{button.Content} fits width {width}");
+                });
+            }
             if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } directory)
             {
                 Directory.CreateDirectory(directory);
-                var bitmap = new RenderTargetBitmap(1440, 3200, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
+                var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(view);
                 var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                using var stream = File.Create(Path.Combine(directory, $"split-{(trading ? "Trading" : "Portfolio")}-{theme}.png")); encoder.Save(stream);
+                using var stream = File.Create(Path.Combine(directory, $"split-{(trading ? "Trading" : "Portfolio")}-{theme}-{width}.png")); encoder.Save(stream);
             }
         }
     });

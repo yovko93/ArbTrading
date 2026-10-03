@@ -17,4 +17,19 @@
   <SolidColorBrush x:Key="SelectionText" Color="{DynamicResource Color.SelectionText}" />
   <SolidColorBrush x:Key="DisabledBackground" Color="{DynamicResource Color.DisabledBackground}" />
   <SolidColorBrush x:Key="DisabledText" Color="{DynamicResource Color.DisabledText}" />
+  <SolidColorBrush x:Key="SemanticBrush.SuccessBackground" Color="{DynamicResource Color.SuccessBackground}" />
+  <SolidColorBrush x:Key="SemanticBrush.SuccessBorder" Color="{DynamicResource Color.Success}" />
+  <SolidColorBrush x:Key="SemanticBrush.SuccessForeground" Color="{DynamicResource Color.Success}" />
+  <SolidColorBrush x:Key="SemanticBrush.WarningBackground" Color="{DynamicResource Color.WarningBackground}" />
+  <SolidColorBrush x:Key="SemanticBrush.WarningBorder" Color="{DynamicResource Color.Warning}" />
+  <SolidColorBrush x:Key="SemanticBrush.WarningForeground" Color="{DynamicResource Color.Warning}" />
+  <SolidColorBrush x:Key="SemanticBrush.ErrorBackground" Color="{DynamicResource Color.ErrorBackground}" />
+  <SolidColorBrush x:Key="SemanticBrush.ErrorBorder" Color="{DynamicResource Color.Error}" />
+  <SolidColorBrush x:Key="SemanticBrush.ErrorForeground" Color="{DynamicResource Color.Error}" />
+  <SolidColorBrush x:Key="SemanticBrush.InfoBackground" Color="{DynamicResource Color.InfoBackground}" />
+  <SolidColorBrush x:Key="SemanticBrush.InfoBorder" Color="{DynamicResource Color.InfoForeground}" />
+  <SolidColorBrush x:Key="SemanticBrush.InfoForeground" Color="{DynamicResource Color.InfoForeground}" />
+  <SolidColorBrush x:Key="SemanticBrush.NeutralBackground" Color="{DynamicResource Color.ElevatedSurfaceBackground}" />
+  <SolidColorBrush x:Key="SemanticBrush.NeutralBorder" Color="{DynamicResource Color.DefaultBorder}" />
+  <SolidColorBrush x:Key="SemanticBrush.NeutralForeground" Color="{DynamicResource Color.SecondaryText}" />
 </ResourceDictionary>

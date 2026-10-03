@@ -16,6 +16,62 @@
       <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackground}" /><Setter Property="Foreground" Value="{DynamicResource DisabledText}" /><Setter Property="Cursor" Value="Arrow" /></Trigger>
     </Style.Triggers>
   </Style>
+  <Style x:Key="SecondaryButton" TargetType="Button">
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Padding" Value="14,6" />
+    <Setter Property="Background" Value="{DynamicResource SemanticBrush.NeutralBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="4">
+        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+      </Border>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.85" /></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.7" /></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource FocusIndicator}" /></Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter TargetName="Chrome" Property="Opacity" Value="1" />
+          <Setter Property="Background" Value="{DynamicResource DisabledBackground}" />
+          <Setter Property="Foreground" Value="{DynamicResource DisabledText}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}" />
+          <Setter Property="Cursor" Value="Arrow" />
+        </Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+    <Setter Property="Background" Value="{DynamicResource SemanticBrush.SuccessBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource SemanticBrush.SuccessForeground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.SuccessBorder}" />
+  </Style>
+  <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+    <Setter Property="Background" Value="{DynamicResource SemanticBrush.ErrorBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource SemanticBrush.ErrorForeground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.ErrorBorder}" />
+  </Style>
+  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+    <Setter Property="Background" Value="{DynamicResource SemanticBrush.InfoBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource SemanticBrush.InfoForeground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.InfoBorder}" />
+  </Style>
+  <Style x:Key="StatusBanner" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource SemanticBrush.NeutralBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.NeutralBorder}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource SemanticBrush.NeutralForeground}" />
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="12,8" />
+    <Style.Triggers>
+      <Trigger Property="Tag" Value="Good"><Setter Property="Background" Value="{DynamicResource SemanticBrush.SuccessBackground}" /><Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.SuccessBorder}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource SemanticBrush.SuccessForeground}" /></Trigger>
+      <Trigger Property="Tag" Value="Warning"><Setter Property="Background" Value="{DynamicResource SemanticBrush.WarningBackground}" /><Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.WarningBorder}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource SemanticBrush.WarningForeground}" /></Trigger>
+      <Trigger Property="Tag" Value="Error"><Setter Property="Background" Value="{DynamicResource SemanticBrush.ErrorBackground}" /><Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.ErrorBorder}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource SemanticBrush.ErrorForeground}" /></Trigger>
+      <Trigger Property="Tag" Value="Info"><Setter Property="Background" Value="{DynamicResource SemanticBrush.InfoBackground}" /><Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.InfoBorder}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource SemanticBrush.InfoForeground}" /></Trigger>
+    </Style.Triggers>
+  </Style>
   <Style TargetType="TextBox">
     <Setter Property="MinHeight" Value="34" />
     <Setter Property="Padding" Value="8,5" />
@@ -40,6 +96,25 @@
       <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}" /></Trigger>
       <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledText}" /></Trigger>
     </Style.Triggers>
+  </Style>
+  <Style x:Key="ThemedComboBox" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+      <Grid>
+        <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+          <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+            <Border Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}" BorderBrush="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=ComboBox}}" BorderThickness="1" CornerRadius="4">
+              <Path Data="M 0 0 L 4 4 L 8 0" Stroke="{DynamicResource PrimaryText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10"/>
+            </Border>
+          </ControlTemplate></ToggleButton.Template>
+        </ToggleButton>
+        <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="8,5,30,5" VerticalAlignment="Center" IsHitTestVisible="False"/>
+        <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False">
+          <Border Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+            <ScrollViewer><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+          </Border>
+        </Popup>
+      </Grid>
+    </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style TargetType="ComboBoxItem">
     <Setter Property="Background" Value="{DynamicResource SurfaceBackground}" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />

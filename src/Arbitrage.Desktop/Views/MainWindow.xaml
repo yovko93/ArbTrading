@@ -9,18 +9,7 @@
         FontFamily="Segoe UI" FontSize="13"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True">
   <Window.Resources>
-    <Style x:Key="LifecycleButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
-            </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
+    <controls:StatusToneConverter x:Key="StatusTone" />
     <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}"><views:DiagnosticsView /></DataTemplate>
@@ -70,36 +59,40 @@
     </Border>
 
     <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource SurfaceBackground}"
-            BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,0,1" Padding="24,16,24,14">
+            BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,0,1" Padding="24,14,24,12">
       <Grid>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel>
           <TextBlock Text="ARBITRAGE TRADING" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Accent}" />
           <TextBlock Text="{Binding PageTitle}" FontSize="20" FontWeight="SemiBold" Margin="0,2,0,3" />
           <TextBlock Text="{Binding State.WorkspaceHeader}" Style="{StaticResource MutedText}"
                      TextTrimming="CharacterEllipsis" MaxWidth="400" HorizontalAlignment="Left" />
-          <WrapPanel Margin="0,9,0,0">
-            <controls:StatusBadge Label="Local" Tone="Neutral" Margin="0,0,7,0" />
-            <controls:StatusBadge Label="{Binding LocalBackend.ProcessStatus}" Tone="Neutral" Margin="0,0,7,0" />
-            <controls:StatusBadge Label="{Binding State.ConnectionStatus}" Tone="Neutral" Margin="0,0,7,0" />
-            <controls:StatusBadge Label="{Binding State.TradingMode}" Tone="Neutral" Margin="0,0,7,0" />
-            <controls:StatusBadge Label="{Binding State.PaperStatusLabel}" Tone="{Binding State.PaperStatusTone}" Margin="0,0,7,0" />
-            <controls:StatusBadge Label="{Binding State.LiveStatusLabel}" Tone="{Binding State.LiveStatusTone}" />
-          </WrapPanel>
         </StackPanel>
-        <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
-          <controls:ThemePicker DataContext="{Binding Theme}" HorizontalAlignment="Right" Margin="0,0,0,8" />
+          <WrapPanel Grid.Row="1" Margin="0,10,12,0" VerticalAlignment="Center">
+            <controls:StatusBadge Label="Local" Tone="Info" Margin="0,0,7,5" />
+            <controls:StatusBadge Label="{Binding LocalBackend.ProcessStatus, TargetNullValue=Unknown, FallbackValue=Unknown}" Tone="{Binding LocalBackend.ProcessStatus, Converter={StaticResource StatusTone}}" Margin="0,0,7,5" />
+            <controls:StatusBadge Label="{Binding State.ConnectionStatus}" Tone="{Binding State.ConnectionStatus, Converter={StaticResource StatusTone}}" Margin="0,0,7,5" />
+            <controls:StatusBadge Label="{Binding State.TradingMode}" Tone="{Binding State.TradingMode, Converter={StaticResource StatusTone}}" Margin="0,0,7,5" />
+            <controls:StatusBadge Label="{Binding State.PaperStatusLabel}" Tone="{Binding State.PaperStatusTone}" Margin="0,0,7,5" />
+            <controls:StatusBadge Label="{Binding State.LiveStatusLabel}" Tone="{Binding State.LiveStatusTone}" Margin="0,0,0,5" />
+          </WrapPanel>
+        <controls:ThemePicker Grid.Column="1" DataContext="{Binding Theme}" HorizontalAlignment="Right" VerticalAlignment="Top" />
+        <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,8,0,0">
           <TextBlock Text="LOCAL BACKEND" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold"
                      FontSize="10" HorizontalAlignment="Right" Margin="0,0,0,4" />
           <StackPanel Orientation="Horizontal">
-            <Button Style="{StaticResource LifecycleButton}" Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
+            <Button Style="{StaticResource SuccessButton}" Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
                     ToolTip="{Binding LocalBackend.StartExplanation}" AutomationProperties.Name="Start local backend" Margin="0,0,6,0" />
-            <Button Style="{StaticResource LifecycleButton}" Content="Stop" Command="{Binding LocalBackend.StopCommand}" IsEnabled="{Binding LocalBackend.CanStop}"
+            <Button Style="{StaticResource DangerButton}" Content="Stop" Command="{Binding LocalBackend.StopCommand}" IsEnabled="{Binding LocalBackend.CanStop}"
                     ToolTip="{Binding LocalBackend.StopExplanation}" AutomationProperties.Name="Stop local backend" Margin="0,0,6,0" />
-            <Button Style="{StaticResource LifecycleButton}" Content="Refresh" Command="{Binding State.RefreshCommand}" IsEnabled="{Binding LocalBackend.CanRefresh}" AutomationProperties.Name="Refresh backend state" />
+            <Button Style="{StaticResource PrimaryButton}" Content="Refresh" Command="{Binding State.RefreshCommand}" IsEnabled="{Binding LocalBackend.CanRefresh}" AutomationProperties.Name="Refresh backend state" />
           </StackPanel>
         </StackPanel>
-        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding LocalBackend.Explanation}" TextWrapping="Wrap" Margin="0,12,0,0" AutomationProperties.AutomationId="BackendActionResult" />
+        <Border Grid.Row="2" Grid.ColumnSpan="2" Margin="0,10,0,0">
+          <Border.Style><Style TargetType="Border" BasedOn="{StaticResource StatusBanner}"><Style.Triggers><DataTrigger Binding="{Binding LocalBackend.Explanation, FallbackValue={x:Null}}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding LocalBackend.Explanation}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+          <Border.Tag><MultiBinding Converter="{StaticResource StatusTone}"><Binding Path="LocalBackend.ProcessStatus" /><Binding Path="LocalBackend.ManagementStatus" /><Binding Path="LocalBackend.Explanation" /><Binding Path="State.ConnectionStatus" /></MultiBinding></Border.Tag>
+          <TextBlock Text="{Binding LocalBackend.Explanation}" Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Border}}" TextWrapping="Wrap" AutomationProperties.AutomationId="BackendActionResult" />
+        </Border>
       </Grid>
     </Border>
     <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding CurrentPage}" Margin="24,20,24,10" />

@@ -18,21 +18,21 @@
     </Grid>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border></ControlTemplate></Setter.Value></Setter>
-   <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></Style.Triggers>
-  </Style>
+
  </UserControl.Resources>
  <Border Style="{StaticResource CardBorder}"><StackPanel>
-  <TextBlock Text="Automatic Paper Execution · SIMULATION ONLY" Style="{StaticResource MetricText}"/>
+  <TextBlock Text="02 / Auto Paper settings and controls" Style="{StaticResource SectionTitleText}"/>
+  <TextBlock Text="SIMULATION ONLY · Session controls" FontWeight="SemiBold" Foreground="{DynamicResource SemanticBrush.InfoForeground}" Margin="0,12,0,0"/>
   <TextBlock Text="Mode remains Paper. No real orders. Explicitly arm each backend session. Closing this app or losing its connection does not disarm the backend. Disarm stops new entries; Emergency stop persists a kill switch until explicitly reset." TextWrapping="Wrap" Margin="0,8"/>
   <TextBlock Text="{Binding AutomationStatusText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-  <WrapPanel Margin="0,10"><Button Content="Refresh Auto Paper" Command="{Binding RefreshAutomationCommand}"/>
-   <Button Content="Arm Auto Paper…" Command="{Binding ArmAutomationCommand}" Margin="8,0"/>
-   <Button Content="Disarm" Command="{Binding DisarmAutomationCommand}"/>
-   <Button Content="EMERGENCY STOP" Command="{Binding EmergencyStopAutomationCommand}" FontWeight="Bold" BorderThickness="2" Margin="8,0"/>
-   <Button Content="Reset kill switch…" Command="{Binding ResetAutomationKillCommand}"/></WrapPanel>
+  <WrapPanel Margin="0,10"><Button Style="{StaticResource PrimaryButton}" Content="Refresh Auto Paper" Command="{Binding RefreshAutomationCommand}" Margin="0,0,0,6"/>
+   <Button Style="{StaticResource SuccessButton}" Content="Arm Auto Paper…" Command="{Binding ArmAutomationCommand}" Margin="8,0,8,6"/>
+   <Button Style="{StaticResource DangerButton}" Content="Disarm" Command="{Binding DisarmAutomationCommand}" Margin="0,0,0,6"/>
+   <Button Style="{StaticResource DangerButton}" Content="EMERGENCY STOP" Command="{Binding EmergencyStopAutomationCommand}" FontWeight="Bold" BorderThickness="2" Margin="8,0,8,6"/>
+   <Button Style="{StaticResource DangerButton}" Content="Reset kill switch…" Command="{Binding ResetAutomationKillCommand}" Margin="0,0,0,6"/></WrapPanel>
   <TextBlock Text="{Binding AutomationNotice}" TextWrapping="Wrap" Margin="0,8"/>
+  <Border BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,4,0,0"><StackPanel>
+  <TextBlock Text="Profile configuration and sizing diagnostics" FontWeight="SemiBold" Margin="0,0,0,6"/>
   <TextBlock Text="Realtime required · Kalshi Continuous. Suggested values are inactive until saved. USD and USDC budgets remain separate. No automatic exits or settlement." TextWrapping="Wrap"/>
   <TextBlock Text="Sizing mode" Margin="0,8,0,0"/>
   <ComboBox Style="{StaticResource SizingModeSelector}" SelectedValue="{Binding AutomationSizingMode}" SelectedValuePath="Tag" AutomationProperties.Name="Sizing mode" HorizontalAlignment="Left" MinWidth="340">
@@ -55,9 +55,11 @@
    </StackPanel></DataTemplate></ItemsControl.ItemTemplate>
   </ItemsControl>
   <CheckBox Content="Allow Polymarket BestEffort (weaker continuity; acknowledged on save and arm)" IsChecked="{Binding AllowPolymarketBestEffort}" Margin="0,8"/>
-  <WrapPanel><Button Content="Load saved Auto Paper settings" Command="{Binding LoadAutomationProfileCommand}"/>
-   <Button Content="Save Auto Paper profile…" Command="{Binding SaveAutomationCommand}" Margin="8,0"/></WrapPanel>
-  <Button Content="Preview saved-profile sizing" Command="{Binding PreviewSizingCommand}" HorizontalAlignment="Left" Margin="0,8"/>
+  <TextBlock Text="Load or save configuration, then preview sizing against the saved profile. The sizing preview does not execute a paper entry." Style="{StaticResource MutedText}" Margin="0,10,0,8"/>
+  <WrapPanel><Button Style="{StaticResource SecondaryButton}" Content="Load saved Auto Paper settings" Command="{Binding LoadAutomationProfileCommand}" Margin="0,0,8,6"/>
+   <Button Style="{StaticResource PrimaryButton}" Content="Save Auto Paper profile…" Command="{Binding SaveAutomationCommand}" Margin="0,0,8,6"/>
+   <Button Style="{StaticResource SecondaryButton}" Content="Preview saved-profile sizing" Command="{Binding PreviewSizingCommand}" Margin="0,0,0,6"/></WrapPanel>
   <TextBlock Text="{Binding SizingPreviewText}" TextWrapping="Wrap"/>
+  </StackPanel></Border>
  </StackPanel></Border>
 </UserControl>

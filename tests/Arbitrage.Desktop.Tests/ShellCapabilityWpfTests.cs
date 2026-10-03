@@ -40,7 +40,7 @@ public sealed class ShellCapabilityWpfTests(WpfFixture fixture)
                     new(workspace, "Paper workspace"), []), "http://127.0.0.1:5274");
                 if (scenario == "Stale") state.SetRealtimeStatus("Disconnected", "Fixture transport interrupted");
             }
-            var shell = new ShellViewModel(state, selection, diagnostics);
+            using var shell = new ShellViewModel(state, selection, diagnostics);
             var window = new MainWindow(shell) { ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = -20000, Top = -20000 };
             try
             {
@@ -56,12 +56,26 @@ public sealed class ShellCapabilityWpfTests(WpfFixture fixture)
                 if (scenario == "PaperOnly") { Assert.Equal("Paper: Available", state.PaperStatusLabel); Assert.Equal("Live: Unavailable", state.LiveStatusLabel); }
                 if (scenario == "Stale") Assert.Contains("stale", state.LocalModeSummary);
                 if (scenario == "FutureLive") Assert.Equal("Live: Available", state.LiveStatusLabel);
+                Assert.Contains(badges, badge => badge.Label == "Local" && badge.Tone == "Info");
+                if (scenario == "PaperOnly") Assert.Contains(badges, badge => badge.Label == "Connected" && badge.Tone == "Good");
                 if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } directory)
                 {
                     Directory.CreateDirectory(directory);
                     var bitmap = new RenderTargetBitmap(1240, 790, 96, 96, PixelFormats.Pbgra32); bitmap.Render(window);
                     var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
                     using var stream = File.Create(Path.Combine(directory, $"shell-capability-{themeName}-{scenario}.png")); encoder.Save(stream);
+                }
+                window.Width = 830; window.Height = 590; window.UpdateLayout();
+                foreach (var badge in badges)
+                {
+                    var origin = badge.TranslatePoint(new Point(), window);
+                    Assert.True(origin.X >= 220 && origin.X + badge.ActualWidth <= window.ActualWidth, $"{badge.Label} fits minimum window width");
+                }
+                if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } narrowDirectory)
+                {
+                    var bitmap = new RenderTargetBitmap(830, 590, 96, 96, PixelFormats.Pbgra32); bitmap.Render(window);
+                    var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(narrowDirectory, $"shell-capability-{themeName}-{scenario}-narrow.png")); encoder.Save(stream);
                 }
             }
             finally { window.Close(); }

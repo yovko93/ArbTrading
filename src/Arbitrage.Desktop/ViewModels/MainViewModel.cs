@@ -11,6 +11,7 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
     DesktopDiagnostics? diagnostics = null) : ObservableObject, IDisposable
 {
     private CancellationTokenSource lifetime = new();
+    private int disposed;
     private Guid? workspaceId;
     private string savedWorkspaceName = "";
     private int operationActive;
@@ -318,5 +319,9 @@ public partial class MainViewModel(BackendClient backend, ILogger<MainViewModel>
         OnPropertyChanged(nameof(PaperStatusTone)); OnPropertyChanged(nameof(LiveStatusTone));
         OnPropertyChanged(nameof(LocalModeSummary));
     }
-    public void Dispose() { lifetime.Cancel(); lifetime.Dispose(); }
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+        lifetime.Cancel(); lifetime.Dispose();
+    }
 }

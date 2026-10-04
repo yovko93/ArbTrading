@@ -14,7 +14,7 @@ namespace Arbitrage.Desktop;
 public partial class App : System.Windows.Application
 {
     private ServiceProvider? services;
-    private readonly CancellationTokenSource lifetime = new();
+    private readonly DesktopLifetime lifetime = new();
     private Serilog.Core.Logger? logger;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -42,8 +42,10 @@ public partial class App : System.Windows.Application
             logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console()
                 .WriteTo.File(Path.Combine(desktopDirectory, "logs", "desktop-.log"), rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 7, fileSizeLimitBytes: 5_000_000, rollOnFileSizeLimit: true, shared: true).CreateLogger();
+            lifetime.Logger = logger;
             var collection = new ServiceCollection();
-            collection.AddLogging(b => b.ClearProviders().AddSerilog(logger));
+            // The manually created logger stays App-owned, including failed startup.
+            collection.AddLogging(b => b.ClearProviders().AddSerilog(logger, dispose: false));
             collection.AddSingleton(new DesktopPreferencesStore(desktopDirectory));
             collection.AddSingleton<IDesktopPreferencesStore>(s => s.GetRequiredService<DesktopPreferencesStore>());
             collection.AddSingleton<ISystemThemeProvider, WindowsSystemThemeProvider>();
@@ -80,6 +82,7 @@ public partial class App : System.Windows.Application
             collection.AddSingleton<MainViewModel>();
             collection.AddSingleton<MainWindow>();
             services = collection.BuildServiceProvider();
+            lifetime.ServiceProvider = services;
             var diagnostics = services.GetRequiredService<DesktopDiagnostics>();
             await services.GetRequiredService<IThemeService>().InitializeAsync(lifetime.Token);
             diagnostics.Record("Information", "Desktop appearance preference loaded.");
@@ -113,19 +116,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        lifetime.Cancel();
-        services?.GetService<ShellViewModel>()?.Dispose();
-        services?.GetService<RealtimeSession>()?.Dispose();
-        services?.GetService<MainViewModel>()?.Dispose();
-        services?.GetService<MarketExplorerViewModel>()?.Dispose();
-        services?.GetService<RelationshipsViewModel>()?.Dispose();
-        services?.GetService<OpportunitiesViewModel>()?.Dispose();
-        services?.GetService<FeeProfileViewModel>()?.Dispose();
-        services?.GetService<PaperTradingViewModel>()?.Dispose();
-        services?.GetService<KalshiCredentialsViewModel>()?.Dispose();
-        services?.Dispose();
-        logger?.Dispose();
-        lifetime.Dispose();
-        base.OnExit(e);
+        try { lifetime.Dispose(); }
+        finally { base.OnExit(e); }
     }
 }

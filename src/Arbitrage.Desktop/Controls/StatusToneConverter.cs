@@ -22,9 +22,9 @@ public sealed class StatusToneConverter : IValueConverter, IMultiValueConverter
 
     public static string Tone(string? status) => status?.Trim().ToLowerInvariant() switch
     {
-        "running" or "runningmanagedlocal" or "connected" or "ready" or "available" or "healthy" or "withinlimits" => "Good",
+        "running" or "runningmanagedlocal" or "connected" or "ready" or "available" or "healthy" or "withinlimits" or "armed" => "Good",
         "starting" or "stopping" or "stoprequested" or "synchronizing" or "reconnecting" or "stale" or "warning" or "limited" or "partial" or "runningexternal" => "Warning",
-        "faulted" or "error" or "denied" or "authorizationdenied" or "authenticationfailed" or "invalid" or "corrupt" or "corrupted" or "killswitchlatched" => "Error",
+        "faulted" or "error" or "denied" or "authorizationdenied" or "authenticationfailed" or "invalid" or "corrupt" or "corrupted" or "killswitchlatched" or "overlimit" => "Error",
         "local" or "paper" or "refresh" or "loading" => "Info",
         _ => "Neutral"
     };

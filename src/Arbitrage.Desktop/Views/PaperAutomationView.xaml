@@ -20,8 +20,7 @@
   </Style>
 
  </UserControl.Resources>
- <Border Style="{StaticResource CardBorder}"><StackPanel>
-  <TextBlock Text="02 / Auto Paper settings and controls" Style="{StaticResource SectionTitleText}"/>
+ <Expander Style="{StaticResource DetailsExpander}" Header="Auto Paper session controls and profile" IsExpanded="True"><StackPanel>
   <TextBlock Text="SIMULATION ONLY · Session controls" FontWeight="SemiBold" Foreground="{DynamicResource SemanticBrush.InfoForeground}" Margin="0,12,0,0"/>
   <TextBlock Text="Mode remains Paper. No real orders. Explicitly arm each backend session. Closing this app or losing its connection does not disarm the backend. Disarm stops new entries; Emergency stop persists a kill switch until explicitly reset." TextWrapping="Wrap" Margin="0,8"/>
   <TextBlock Text="{Binding AutomationStatusText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
@@ -61,5 +60,5 @@
    <Button Style="{StaticResource SecondaryButton}" Content="Preview saved-profile sizing" Command="{Binding PreviewSizingCommand}" Margin="0,0,0,6"/></WrapPanel>
   <TextBlock Text="{Binding SizingPreviewText}" TextWrapping="Wrap"/>
   </StackPanel></Border>
- </StackPanel></Border>
+ </StackPanel></Expander>
 </UserControl>

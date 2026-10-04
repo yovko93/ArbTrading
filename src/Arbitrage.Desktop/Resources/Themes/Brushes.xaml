@@ -4,6 +4,7 @@
   <SolidColorBrush x:Key="ApplicationBackground" Color="{DynamicResource Color.ApplicationBackground}" />
   <SolidColorBrush x:Key="SurfaceBackground" Color="{DynamicResource Color.SurfaceBackground}" />
   <SolidColorBrush x:Key="ElevatedSurfaceBackground" Color="{DynamicResource Color.ElevatedSurfaceBackground}" />
+  <SolidColorBrush x:Key="NavigationBackground" Color="{DynamicResource Color.NavigationBackground}" />
   <SolidColorBrush x:Key="PrimaryText" Color="{DynamicResource Color.PrimaryText}" />
   <SolidColorBrush x:Key="SecondaryText" Color="{DynamicResource Color.SecondaryText}" />
   <SolidColorBrush x:Key="DefaultBorder" Color="{DynamicResource Color.DefaultBorder}" />

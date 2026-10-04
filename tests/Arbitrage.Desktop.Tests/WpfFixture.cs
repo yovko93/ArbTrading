@@ -34,7 +34,7 @@ public sealed class WpfFixture : IAsyncLifetime
                 application.Resources.Add("BooleanToVisibility", new BooleanToVisibilityConverter());
                 foreach (var source in new[]
                 {
-                    "Resources/Themes/Colors.Light.xaml", "Resources/Themes/Brushes.xaml",
+                    "Resources/Themes/Colors.Light.xaml", "Resources/Themes/Brushes.xaml", "Resources/Branding.xaml",
                     "Resources/Styles/Typography.xaml", "Resources/Styles/Layout.xaml", "Resources/Styles/Controls.xaml"
                 })
                     application.Resources.MergedDictionaries.Add(new ResourceDictionary

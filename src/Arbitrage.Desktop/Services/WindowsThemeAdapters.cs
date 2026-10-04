@@ -85,6 +85,7 @@ public sealed class WpfThemePaletteApplier(ResourceDictionary resources) : IThem
             ["Color.ApplicationBackground"] = SystemColors.WindowColor,
             ["Color.SurfaceBackground"] = SystemColors.WindowColor,
             ["Color.ElevatedSurfaceBackground"] = SystemColors.ControlColor,
+            ["Color.NavigationBackground"] = SystemColors.WindowColor,
             ["Color.PrimaryText"] = SystemColors.WindowTextColor,
             ["Color.SecondaryText"] = SystemColors.WindowTextColor,
             ["Color.DefaultBorder"] = SystemColors.WindowTextColor,

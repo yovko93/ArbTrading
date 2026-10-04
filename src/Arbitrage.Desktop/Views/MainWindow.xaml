@@ -4,7 +4,8 @@
         xmlns:vm="clr-namespace:Arbitrage.Desktop.ViewModels"
         xmlns:views="clr-namespace:Arbitrage.Desktop.Views"
         xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls"
-        Title="Arbitrage Trading" Width="1240" Height="790" MinWidth="830" MinHeight="590"
+        Title="Arbitrage Trading" Icon="/Arbitrage.Desktop;component/Assets/ArbitrageTrading.ico"
+        Width="1240" Height="790" MinWidth="830" MinHeight="590"
         Background="{DynamicResource ApplicationBackground}" Foreground="{DynamicResource PrimaryText}"
         FontFamily="Segoe UI" FontSize="13"
         TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True">
@@ -27,29 +28,35 @@
   <Grid>
     <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-    <Border Grid.RowSpan="3" Grid.Column="0" Background="{DynamicResource SurfaceBackground}"
+    <Border Grid.RowSpan="3" Grid.Column="0" Background="{DynamicResource NavigationBackground}"
             BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,1,0">
       <Grid Margin="12,16,12,12">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <StackPanel Margin="8,0,8,20">
-          <TextBlock Text="AT  /  ARBITRAGE TRADING" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Accent}" />
-          <TextBlock Text="Local workstation" Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+        <StackPanel Margin="8,4,8,16">
+          <DockPanel>
+            <Image Source="{StaticResource AppMark}" Width="38" Height="38" Margin="0,0,10,0" AutomationProperties.Name="Arbitrage Trading mark"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Arbitrage" FontSize="18" FontWeight="SemiBold"/>
+              <TextBlock Text="TRADING" Style="{StaticResource EyebrowText}" Foreground="{DynamicResource Accent}"/>
+            </StackPanel>
+          </DockPanel>
+          <TextBlock Text="Local workstation" Style="{StaticResource MutedText}" Margin="0,14,0,0" />
         </StackPanel>
         <ListBox Grid.Row="1" ItemsSource="{Binding Navigation}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                  ItemContainerStyle="{StaticResource SidebarItem}" BorderThickness="0" Background="Transparent"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Application navigation">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <DockPanel LastChildFill="True">
+              <DockPanel LastChildFill="True" MinHeight="24">
                 <Path DockPanel.Dock="Left" Data="{Binding Icon}" Width="16" Height="16" Stretch="Uniform"
-                      Stroke="{DynamicResource Accent}" StrokeThickness="1.8" Margin="0,0,12,0" VerticalAlignment="Center" />
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" StrokeThickness="1.8" Margin="0,0,12,0" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Label}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
                            VerticalAlignment="Center" />
               </DockPanel>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-        <Border Grid.Row="2" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="8,14,8,0">
+        <Border Grid.Row="2" Style="{StaticResource InsetPanel}" Margin="2,12,2,0" Padding="12">
           <StackPanel>
             <TextBlock Text="LOCAL MODE" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold" FontSize="11" />
             <TextBlock Text="{Binding State.LocalModeSummary}" Style="{StaticResource MutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
@@ -63,8 +70,8 @@
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel>
-          <TextBlock Text="ARBITRAGE TRADING" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Accent}" />
-          <TextBlock Text="{Binding PageTitle}" FontSize="20" FontWeight="SemiBold" Margin="0,2,0,3" />
+          <TextBlock Text="ARBITRAGE TRADING" Style="{StaticResource EyebrowText}" Foreground="{DynamicResource Accent}" />
+          <TextBlock Text="{Binding PageTitle}" FontSize="24" FontWeight="SemiBold" Margin="0,3,0,4" />
           <TextBlock Text="{Binding State.WorkspaceHeader}" Style="{StaticResource MutedText}"
                      TextTrimming="CharacterEllipsis" MaxWidth="400" HorizontalAlignment="Left" />
         </StackPanel>
@@ -79,7 +86,7 @@
         <controls:ThemePicker Grid.Column="1" DataContext="{Binding Theme}" HorizontalAlignment="Right" VerticalAlignment="Top" />
         <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,8,0,0">
           <TextBlock Text="LOCAL BACKEND" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold"
-                     FontSize="10" HorizontalAlignment="Right" Margin="0,0,0,4" />
+                     FontSize="11" HorizontalAlignment="Right" Margin="0,0,0,6" />
           <StackPanel Orientation="Horizontal">
             <Button Style="{StaticResource SuccessButton}" Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
                     ToolTip="{Binding LocalBackend.StartExplanation}" AutomationProperties.Name="Start local backend" Margin="0,0,6,0" />

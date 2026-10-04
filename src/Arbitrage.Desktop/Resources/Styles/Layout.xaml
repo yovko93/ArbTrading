@@ -4,9 +4,20 @@
     <Setter Property="Background" Value="{DynamicResource SurfaceBackground}" />
     <Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="20" />
+    <Setter Property="Margin" Value="0,0,0,16" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+  <Style x:Key="SummaryCard" TargetType="Border" BasedOn="{StaticResource CardBorder}">
     <Setter Property="Padding" Value="18" />
-    <Setter Property="Margin" Value="0,0,0,14" />
+    <Setter Property="Margin" Value="0" />
+  </Style>
+  <Style x:Key="InsetPanel" TargetType="Border" BasedOn="{StaticResource CardBorder}">
+    <Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBackground}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14" />
+    <Setter Property="Margin" Value="0" />
   </Style>
   <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
     <Setter Property="Foreground" Value="{DynamicResource SecondaryText}" />

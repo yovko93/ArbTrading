@@ -14,6 +14,10 @@
   <Style x:Key="WorkflowField" TargetType="StackPanel">
     <Setter Property="Margin" Value="0,0,12,8"/><Setter Property="VerticalAlignment" Value="Bottom"/>
   </Style>
+  <Style x:Key="WorkflowEmpty" TargetType="Border" BasedOn="{StaticResource InsetPanel}">
+    <Setter Property="Padding" Value="14"/><Setter Property="Margin" Value="0,8,0,0"/>
+    <Setter Property="Visibility" Value="Collapsed"/>
+  </Style>
   <Style x:Key="WorkflowNotice" TargetType="Border" BasedOn="{StaticResource StatusBanner}">
     <Setter Property="Margin" Value="0,0,0,10"/>
     <Style.Triggers>
@@ -48,7 +52,28 @@
       <Trigger Property="Label" Value="Faulted"><Setter Property="Tone" Value="Error"/></Trigger>
       <Trigger Property="Label" Value="Blocked"><Setter Property="Tone" Value="Error"/></Trigger>
       <Trigger Property="Label" Value="Gap"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Open"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="PartiallySettled"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Settled"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Corrupt"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Unreconciled"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Collecting"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="Paused"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Pending"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="InsufficientEvidence"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="NotSatisfied"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="CriteriaNotMet"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="CriteriaMet"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Satisfied"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Violated"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="InvariantViolation"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Information"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="Warning"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Error"><Setter Property="Tone" Value="Error"/></Trigger>
     </Style.Triggers>
+  </Style>
+  <Style x:Key="WorkflowEvidenceState" TargetType="controls:StatusBadge" BasedOn="{StaticResource WorkflowState}">
+    <Style.Triggers><Trigger Property="Label" Value="Unknown"><Setter Property="Tone" Value="Warning"/></Trigger></Style.Triggers>
   </Style>
   <Style x:Key="WorkflowCellText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
     <Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="VerticalAlignment" Value="Center"/>
@@ -56,6 +81,9 @@
   </Style>
   <Style x:Key="WorkflowEconomics" TargetType="TextBlock" BasedOn="{StaticResource WorkflowCellText}">
     <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style x:Key="WorkflowWrappedCellText" TargetType="TextBlock" BasedOn="{StaticResource WorkflowCellText}">
+    <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
   <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
     <Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/>

@@ -1,0 +1,1231 @@
+{
+  "PaperPortfolioView": [
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Account.Balances}",
+        "AutomationProperties.Name": "Paper venue balances"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Initial cash",
+        "ValueBinding": "{Binding InitialCash}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Available cash",
+        "ValueBinding": "{Binding AvailableCash}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Reserved",
+        "ValueBinding": "{Binding ReservedCash}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Total cash",
+        "ValueBinding": "{Binding TotalCash}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Executions}",
+        "SelectedItem": "{Binding SelectedExecution}",
+        "AutomationProperties.Name": "Paper execution history"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "UTC",
+        "ValueBinding": "{Binding CreatedAt}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Origin",
+        "ValueBinding": "{Binding Origin}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "State",
+        "ValueBinding": "{Binding State}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Sizing",
+        "ValueBinding": "{Binding SizingText}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Cost with fees",
+        "ValueBinding": "{Binding Cost}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Expected profit at resolution",
+        "ValueBinding": "{Binding ExpectedProfitAtResolution}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Generation",
+        "ValueBinding": "{Binding GenerationId}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousHistoryCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextHistoryCommand}"
+      }
+    }
+  ],
+  "PaperAnalyticsView": [
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCommand}",
+        "AutomationProperties.Name": "Refresh paper analytics summary"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Buckets}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Starting cash",
+        "ValueBinding": "{Binding StartingCash, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Current cash",
+        "ValueBinding": "{Binding CurrentCash, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Open cost",
+        "ValueBinding": "{Binding OpenCostBasis, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized P&L",
+        "ValueBinding": "{Binding RealizedPnl, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Open positions",
+        "ValueBinding": "{Binding OpenPositions}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Settled positions",
+        "ValueBinding": "{Binding SettledPositions}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Buckets}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Book value",
+        "ValueBinding": "{Binding AccountingBookValue, TargetNullValue=Unavailable, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Gross equity",
+        "ValueBinding": "{Binding GrossMarkedEquity, TargetNullValue=Unavailable, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Fee-adjusted equity",
+        "ValueBinding": "{Binding FeeAdjustedMarkedEquity, TargetNullValue=Unavailable, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Gross unrealized",
+        "ValueBinding": "{Binding GrossUnrealizedPnl, TargetNullValue=Unavailable, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Fee-adjusted unrealized",
+        "ValueBinding": "{Binding FeeAdjustedUnrealizedPnl, TargetNullValue=Unavailable, StringFormat=N2}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Coverage",
+        "ValueBinding": "{Binding Coverage}"
+      }
+    }
+  ],
+  "PaperSettlementView": [
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Account.History}",
+        "SelectedItem": "{Binding SettlementGeneration}",
+        "AutomationProperties.Name": "Settlement generation"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshSettlementCommand}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding ResolutionCandidates}",
+        "SelectedItem": "{Binding SelectedCandidate}",
+        "AutomationProperties.Name": "Unresolved paper market"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding SelectedCandidate.Outcomes}",
+        "SelectedItem": "{Binding WinningOutcome}",
+        "AutomationProperties.Name": "Simulated winning outcome"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviewResolutionCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ConfirmResolutionCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousCandidatesCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextCandidatesCommand}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding PositionFilters}",
+        "SelectedItem": "{Binding PositionFilter}",
+        "AutomationProperties.Name": "Position status filter"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshSettlementCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousPositionsCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextPositionsCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding PositionHistory}",
+        "AutomationProperties.Name": "Open and settled paper positions"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Outcome",
+        "ValueBinding": "{Binding Outcome}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "State",
+        "ValueBinding": "{Binding Status}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Quantity",
+        "ValueBinding": "{Binding Quantity}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Cost basis",
+        "ValueBinding": "{Binding CostBasis}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Payout",
+        "ValueBinding": "{Binding SettlementPayout}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized P&L",
+        "ValueBinding": "{Binding RealizedPnl}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Settled UTC",
+        "ValueBinding": "{Binding SettledAt}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Source",
+        "ValueBinding": "{Binding ResolutionSource}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Resolutions}",
+        "SelectedItem": "{Binding SelectedResolution}",
+        "AutomationProperties.Name": "Paper settlement history"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Recorded UTC",
+        "ValueBinding": "{Binding RecordedAt}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Market",
+        "ValueBinding": "{Binding MarketId}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Source",
+        "ValueBinding": "{Binding Source}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Generation",
+        "ValueBinding": "{Binding GenerationId}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousSettlementsCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextSettlementsCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Performance.Buckets}",
+        "SelectedItem": "{Binding SelectedBucket}",
+        "AutomationProperties.Name": "Performance by venue and currency"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Starting capital",
+        "ValueBinding": "{Binding StartingCash}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Current cash",
+        "ValueBinding": "{Binding CurrentCash}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Open cost",
+        "ValueBinding": "{Binding OpenCostBasis}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized P&L",
+        "ValueBinding": "{Binding CumulativeRealizedPnl}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Open executions",
+        "ValueBinding": "{Binding CommittedExecutionCount}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Partial",
+        "ValueBinding": "{Binding PartiallySettledExecutionCount}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Settled",
+        "ValueBinding": "{Binding SettledExecutionCount}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCurveCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousCurveCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextCurveCommand}"
+      }
+    },
+    {
+      "Type": "PaperPerformanceChart",
+      "Attributes": {
+        "AutomationProperties.Name": "Realized performance curve; exact values in following table"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding CurvePoints}",
+        "AutomationProperties.Name": "Realized performance and cash curve values"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "UTC",
+        "ValueBinding": "{Binding Timestamp}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Reason",
+        "ValueBinding": "{Binding Reason}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Cash",
+        "ValueBinding": "{Binding CashAvailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized delta",
+        "ValueBinding": "{Binding RealizedPnlDelta}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Cumulative P&L",
+        "ValueBinding": "{Binding CumulativeRealizedPnl}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized performance",
+        "ValueBinding": "{Binding RealizedPerformance}"
+      }
+    }
+  ],
+  "PaperValuationView": [
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshValuationCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousValuationCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextValuationCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Valuation.Buckets}",
+        "SelectedItem": "{Binding ValuationBucket}",
+        "AutomationProperties.Name": "Separate venue and currency valuation buckets"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Cash",
+        "ValueBinding": "{Binding CurrentCash}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Accounting book value",
+        "ValueBinding": "{Binding AccountingBookValue}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Gross marked equity",
+        "ValueBinding": "{Binding GrossMarkedEquity, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Fee-adjusted equity",
+        "ValueBinding": "{Binding FeeAdjustedMarkedEquity, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Coverage",
+        "ValueBinding": "{Binding ValuationCoverage, StringFormat=P0}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Marks}",
+        "SelectedItem": "{Binding SelectedMark}",
+        "AutomationProperties.Name": "Executable position marks"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Position.Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Market",
+        "ValueBinding": "{Binding Position.MarketId}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Outcome",
+        "ValueBinding": "{Binding Position.Outcome}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Quantity",
+        "ValueBinding": "{Binding Position.Quantity}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Average entry",
+        "ValueBinding": "{Binding Position.AverageEntry}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Cost basis",
+        "ValueBinding": "{Binding Position.CostBasis}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Mark status",
+        "ValueBinding": "{Binding MarkStatus}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Quality",
+        "ValueBinding": "{Binding Quality}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Liquidation VWAP",
+        "ValueBinding": "{Binding AverageLiquidationPrice, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Gross value",
+        "ValueBinding": "{Binding GrossLiquidationValue, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Gross unrealized P&L",
+        "ValueBinding": "{Binding GrossUnrealizedPnlBeforeExitFees, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Exit fee status",
+        "ValueBinding": "{Binding ExitFeeStatus}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Fee-adjusted unrealized P&L",
+        "ValueBinding": "{Binding FeeAdjustedUnrealizedPnl, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Book age (s)",
+        "ValueBinding": "{Binding BookAgeSeconds, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Settlement payout",
+        "ValueBinding": "{Binding Position.SettlementPayout, TargetNullValue=Unavailable}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized P&L",
+        "ValueBinding": "{Binding Position.RealizedPnl, TargetNullValue=Unavailable}"
+      }
+    }
+  ],
+  "PaperReliabilityView": [
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Name, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Campaign name"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Notes, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Campaign notes"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ActionCommand}",
+        "CommandParameter": "start"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ActionCommand}",
+        "CommandParameter": "pause"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ActionCommand}",
+        "CommandParameter": "resume"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ActionCommand}",
+        "CommandParameter": "evaluate"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ActionCommand}",
+        "CommandParameter": "complete"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ActionCommand}",
+        "CommandParameter": "cancel"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ExportCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousHistoryCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextHistoryCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ReadReportCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Campaigns}",
+        "SelectedItem": "{Binding Campaign}",
+        "AutomationProperties.Name": "Campaign history"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Name",
+        "ValueBinding": "{Binding Name}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "State",
+        "ValueBinding": "{Binding State}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Started UTC",
+        "ValueBinding": "{Binding StartedAt}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Criteria}",
+        "AutomationProperties.Name": "Evidence criteria"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Criterion",
+        "ValueBinding": "{Binding Code}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Observed",
+        "ValueBinding": "{Binding ObservedValue}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Required",
+        "ValueBinding": "{Binding RequiredValue}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Status",
+        "ValueBinding": "{Binding State}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Report.Invariants}",
+        "AutomationProperties.Name": "Safety invariants"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Invariant",
+        "ValueBinding": "{Binding Code}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Status",
+        "ValueBinding": "{Binding State}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Evidence",
+        "ValueBinding": "{Binding ExplanationCode}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Report.Economics}",
+        "AutomationProperties.Name": "Paper economics by generation venue currency"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Generation",
+        "ValueBinding": "{Binding GenerationId}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Venue",
+        "ValueBinding": "{Binding Exchange}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Currency",
+        "ValueBinding": "{Binding Currency}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Entry cost",
+        "ValueBinding": "{Binding EntryCost}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Expected profit allocation",
+        "ValueBinding": "{Binding ExpectedProfitAtEntry}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Settled payout",
+        "ValueBinding": "{Binding SettlementPayout}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Realized paper profit",
+        "ValueBinding": "{Binding RealizedPaperProfit}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Open cost",
+        "ValueBinding": "{Binding UnsettledCostBasis}"
+      }
+    }
+  ],
+  "DiagnosticsView": [
+    {
+      "Type": "UserControl",
+      "Attributes": {
+        "Loaded": "OnLoaded",
+        "Unloaded": "OnUnloaded"
+      }
+    },
+    {
+      "Type": "TextBlock",
+      "Attributes": {
+        "{http://schemas.microsoft.com/winfx/2006/xaml}Name": "BackendNoticeText"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "{http://schemas.microsoft.com/winfx/2006/xaml}Name": "SeverityFilter",
+        "SelectedIndex": "0",
+        "SelectionChanged": "OnFilterChanged",
+        "AutomationProperties.Name": "Backend severity filter"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "{http://schemas.microsoft.com/winfx/2006/xaml}Name": "SourceFilter",
+        "SelectedIndex": "0",
+        "SelectionChanged": "OnFilterChanged",
+        "AutomationProperties.Name": "Backend source filter"
+      }
+    },
+    {
+      "Type": "ListView",
+      "Attributes": {
+        "{http://schemas.microsoft.com/winfx/2006/xaml}Name": "BackendList",
+        "ItemsSource": "{Binding Diagnostics.BackendEvents}",
+        "AutomationProperties.Name": "Authorized backend diagnostic events"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "UTC time",
+        "ValueBinding": "{Binding OccurredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Severity",
+        "ValueBinding": "{Binding Severity}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Source",
+        "ValueBinding": "{Binding Source}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Event",
+        "ValueBinding": "{Binding Message}"
+      }
+    },
+    {
+      "Type": "ListView",
+      "Attributes": {
+        "ItemsSource": "{Binding Diagnostics.Events}",
+        "AutomationProperties.Name": "Desktop diagnostic events"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Local time",
+        "ValueBinding": "{Binding LocalTimestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Severity",
+        "ValueBinding": "{Binding Severity}"
+      }
+    },
+    {
+      "Type": "Column",
+      "Attributes": {
+        "Header": "Event",
+        "ValueBinding": "{Binding Description}"
+      }
+    }
+  ],
+  "SettingsView": [
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Profiles}",
+        "SelectedItem": "{Binding Profile}",
+        "AutomationProperties.Name": "Fee calculation profile (diagnostic assumption)"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding LoadCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding SaveCommand}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding State.WorkspaceName, UpdateSourceTrigger=PropertyChanged}",
+        "IsEnabled": "{Binding State.CanEdit}",
+        "AutomationProperties.Name": "Workspace display name"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding State.SaveCommand}",
+        "IsEnabled": "{Binding State.CanSave}",
+        "AutomationProperties.Name": "Save workspace display name"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding KeyId, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Kalshi API key ID"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding SelectPrivateKeyFileCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ImportCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RemoveCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshStatusCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding State.RefreshCommand}"
+      }
+    }
+  ]
+}

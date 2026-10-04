@@ -2,9 +2,11 @@ using System.IO;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Arbitrage.Contracts;
+using Arbitrage.Desktop.Controls;
 using Arbitrage.Desktop.Services;
 using Arbitrage.Desktop.ViewModels;
 using Arbitrage.Desktop.Views;
@@ -43,24 +45,26 @@ public sealed class SettingsCapabilityWpfTests(WpfFixture fixture)
             var view = new SettingsView { DataContext = new SettingsViewModel(state, selection) };
             view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
             view.Measure(new Size(1050, 900)); view.Arrange(new Rect(0, 0, 1050, 900)); view.UpdateLayout();
-            var grid = Descendants<Grid>(view).Single(g => g.RowDefinitions.Count == 4 && g.ColumnDefinitions.Count == 2
-                && g.Children.OfType<TextBlock>().Any(t => t.Text == "Paper execution"));
-            Assert.Equal(state.PaperExecutionLabel, Value(grid, 0));
-            Assert.Equal(state.LiveExecutionLabel, Value(grid, 1));
-            Assert.Equal(state.ManualExecutionLabel, Value(grid, 2));
-            Assert.Equal(state.AutomaticExecutionLabel, Value(grid, 3));
+            var badges = new[] { "SettingsPaperCapability", "SettingsLiveCapability", "SettingsManualLiveCapability", "SettingsAutomaticLiveCapability" }
+                .Select(id => Descendants<StatusBadge>(view).Single(b => AutomationProperties.GetAutomationId(b) == id)).ToArray();
+            Assert.Equal(state.PaperExecutionLabel, Value(badges, 0));
+            Assert.Equal(state.LiveExecutionLabel, Value(badges, 1));
+            Assert.Equal(state.ManualExecutionLabel, Value(badges, 2));
+            Assert.Equal(state.AutomaticExecutionLabel, Value(badges, 3));
             Assert.Contains(Descendants<TextBlock>(view), t => t.Text.Contains("Automatic Paper is an explicitly armed Paper-mode simulation", StringComparison.Ordinal)
                 && t.Text.Contains("separate from Automatic live execution", StringComparison.Ordinal));
             Assert.DoesNotContain(Descendants<TextBlock>(view), t => t.Text.Contains("Manual and Automatic operation are unavailable", StringComparison.Ordinal));
             if (scenario == "PaperOnly")
             {
-                Assert.Equal("Available", Value(grid, 0));
-                Assert.Equal("Unavailable", Value(grid, 1));
-                Assert.Equal("Unavailable", Value(grid, 2));
-                Assert.Equal("Unavailable", Value(grid, 3));
+                Assert.Equal("Available", Value(badges, 0));
+                Assert.Equal("Good", badges[0].Tone);
+                Assert.All(badges.Skip(1), badge => Assert.Equal("Neutral", badge.Tone));
+                Assert.Equal("Unavailable", Value(badges, 1));
+                Assert.Equal("Unavailable", Value(badges, 2));
+                Assert.Equal("Unavailable", Value(badges, 3));
             }
-            if (scenario == "FutureAutomaticLive") Assert.Equal("Available", Value(grid, 3));
-            if (scenario is "NoSnapshot" or "Denied") Assert.All(Enumerable.Range(0, 4), row => Assert.Equal("Unknown", Value(grid, row)));
+            if (scenario == "FutureAutomaticLive") { Assert.Equal("Available", Value(badges, 3)); Assert.Equal("Neutral", badges[3].Tone); }
+            if (scenario is "NoSnapshot" or "Denied") Assert.All(Enumerable.Range(0, 4), row => Assert.Equal("Unknown", Value(badges, row)));
             if (scenario == "Stale") Assert.Contains(Descendants<TextBlock>(view), t => t.Text.Contains("Last-known snapshot · stale", StringComparison.Ordinal));
 
             if ((scenario is "PaperOnly" or "NoSnapshot") && Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } directory)
@@ -74,8 +78,7 @@ public sealed class SettingsCapabilityWpfTests(WpfFixture fixture)
         }
     });
 
-    private static string Value(Grid grid, int row) => grid.Children.OfType<TextBlock>()
-        .Single(t => Grid.GetRow(t) == row && Grid.GetColumn(t) == 1).Text;
+    private static string Value(StatusBadge[] badges, int row) => badges[row].Label;
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {

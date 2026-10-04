@@ -1,19 +1,28 @@
 <UserControl x:Class="Arbitrage.Desktop.Views.PaperValuationView"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
- <UserControl.Resources>
-  <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}"><Setter Property="RowHeight" Value="30"/><Setter Property="ColumnHeaderHeight" Value="34"/><Setter Property="MinColumnWidth" Value="100"/><Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/></Style>
-  <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="Padding" Value="8,4"/></Style>
- </UserControl.Resources>
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:views="clr-namespace:Arbitrage.Desktop.Views"
+ xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+ <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml"/>
+ </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
  <StackPanel>
-  <TextBlock Text="Current Executable Mark · PAPER INVENTORY" Style="{StaticResource MetricText}"/>
-  <TextBlock Text="Executable liquidation estimate from local bid depth. Refresh Valuation does not acquire books or fees. Realized history remains settlement accounting." TextWrapping="Wrap" Margin="0,8"/>
-  <WrapPanel><Button Content="Refresh Valuation" Command="{Binding RefreshValuationCommand}"/><Button Content="Previous marks" Command="{Binding PreviousValuationCommand}" Margin="8,0"/><TextBlock Text="{Binding ValuationPage}" Margin="8,0"/><Button Content="Next marks" Command="{Binding NextValuationCommand}"/></WrapPanel>
-  <TextBlock Text="{Binding ValuationNotice}" TextWrapping="Wrap" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
-  <DataGrid ItemsSource="{Binding Valuation.Buckets}" SelectedItem="{Binding ValuationBucket}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" AutomationProperties.Name="Separate venue and currency valuation buckets">
+  <TextBlock Text="Current Executable Mark · PAPER INVENTORY" Style="{StaticResource SectionTitleText}"/>
+  <TextBlock Text="Executable liquidation estimate from local bid depth. Refresh Valuation does not acquire books or fees. Realized history remains settlement accounting." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,6,0,12"/>
+  <WrapPanel><Button Content="Refresh Valuation" Command="{Binding RefreshValuationCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,12,10"/><Button Content="Previous marks" Command="{Binding PreviousValuationCommand}" Margin="0,0,8,10"/><TextBlock Text="{Binding ValuationPage}" Margin="4,0,12,10" VerticalAlignment="Center"/><Button Content="Next marks" Command="{Binding NextValuationCommand}" Margin="0,0,0,10"/></WrapPanel>
+  <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding ValuationNotice}"><TextBlock Text="{Binding ValuationNotice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></Border>
+  <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="PortfolioValuationBuckets"><StackPanel>
+   <TextBlock Text="Valuation by venue and currency" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8"/>
+   <TextBlock Text="Accounting book value, gross marked equity and fee-adjusted marked equity are distinct. Unknown exit fees remain unavailable, never zero." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
+<DataGrid ItemsSource="{Binding Valuation.Buckets}" SelectedItem="{Binding ValuationBucket}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="160" AutomationProperties.Name="Separate venue and currency valuation buckets">
    <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="140"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="100"/><DataGridTextColumn Header="Cash" Binding="{Binding CurrentCash}" Width="130"/><DataGridTextColumn Header="Accounting book value" Binding="{Binding AccountingBookValue}" Width="180"/><DataGridTextColumn Header="Gross marked equity" Binding="{Binding GrossMarkedEquity, TargetNullValue=Unavailable}" Width="170"/><DataGridTextColumn Header="Fee-adjusted equity" Binding="{Binding FeeAdjustedMarkedEquity, TargetNullValue=Unavailable}" Width="170"/><DataGridTextColumn Header="Coverage" Binding="{Binding ValuationCoverage, StringFormat=P0}" Width="100"/></DataGrid.Columns>
-  </DataGrid>
-  <Border Style="{StaticResource CardBorder}" Margin="0,8"><TextBlock Text="{Binding ValuationSummary}" TextWrapping="Wrap"/></Border>
-  <DataGrid ItemsSource="{Binding Marks}" SelectedItem="{Binding SelectedMark}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="260" AutomationProperties.Name="Executable position marks">
+  </DataGrid><Border AutomationProperties.AutomationId="PortfolioValuationEmpty"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource WorkflowEmpty}"><Style.Triggers><DataTrigger Binding="{Binding Valuation}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="Executable valuation unavailable. The current valuation notice is shown above." TextWrapping="Wrap" Style="{StaticResource MutedText}"/></Border>
+   <Border Style="{StaticResource InsetPanel}" Padding="12" Margin="0,10,0,0"><TextBlock Text="{Binding ValuationSummary}" TextWrapping="Wrap"/></Border>
+  </StackPanel></Border>
+  <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="PortfolioExecutableMarks"><StackPanel>
+   <TextBlock Text="Position liquidation estimates" Style="{StaticResource SectionTitleText}"/>
+   <TextBlock Text="Executable bid-depth valuation. Select a position for exact source, continuity, fee status and partial-depth evidence." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,6,0,10"/>
+<DataGrid ItemsSource="{Binding Marks}" SelectedItem="{Binding SelectedMark}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="260" AutomationProperties.Name="Executable position marks">
    <DataGrid.Columns>
     <DataGridTextColumn Header="Venue" Binding="{Binding Position.Exchange}"/><DataGridTextColumn Header="Market" Binding="{Binding Position.MarketId}"/><DataGridTextColumn Header="Outcome" Binding="{Binding Position.Outcome}"/><DataGridTextColumn Header="Quantity" Binding="{Binding Position.Quantity}"/>
     <DataGridTextColumn Header="Average entry" Binding="{Binding Position.AverageEntry}"/><DataGridTextColumn Header="Cost basis" Binding="{Binding Position.CostBasis}"/>
@@ -23,9 +32,13 @@
     <DataGridTextColumn Header="Fee-adjusted unrealized P&amp;L" Binding="{Binding FeeAdjustedUnrealizedPnl, TargetNullValue=Unavailable}"/><DataGridTextColumn Header="Book age (s)" Binding="{Binding BookAgeSeconds, TargetNullValue=Unavailable}"/>
     <DataGridTextColumn Header="Settlement payout" Binding="{Binding Position.SettlementPayout, TargetNullValue=Unavailable}"/><DataGridTextColumn Header="Realized P&amp;L" Binding="{Binding Position.RealizedPnl, TargetNullValue=Unavailable}"/>
    </DataGrid.Columns>
-  </DataGrid>
-  <TextBlock Text="{Binding MarkDetail}" TextWrapping="Wrap" Margin="0,8"/>
-  <TextBlock Text="Hold-to-resolution projection · historical execution facts" Style="{StaticResource MetricText}"/>
-  <TextBlock Text="{Binding ExecutionText}" TextWrapping="Wrap" Margin="0,8"/>
+  </DataGrid><Border AutomationProperties.AutomationId="PortfolioMarksEmpty"><Border.Style><Style TargetType="Border" BasedOn="{StaticResource WorkflowEmpty}"><Style.Triggers><DataTrigger Binding="{Binding Marks.Count}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="No executable position marks are available on this page." TextWrapping="Wrap" Style="{StaticResource MutedText}"/></Border>
+   <Border Style="{StaticResource InsetPanel}" Padding="12" Margin="0,10,0,0"><TextBlock Text="{Binding MarkDetail}" TextWrapping="Wrap"/></Border>
+  </StackPanel></Border>
+  <Border Style="{StaticResource WorkflowCard}"><StackPanel>
+   <TextBlock Text="Hold-to-resolution projection" Style="{StaticResource SectionTitleText}"/>
+   <TextBlock Text="Historical execution facts" Style="{StaticResource MutedText}" Margin="0,6,0,8"/>
+   <TextBlock Text="{Binding ExecutionText}" TextWrapping="Wrap"/>
+  </StackPanel></Border>
  </StackPanel>
 </UserControl>

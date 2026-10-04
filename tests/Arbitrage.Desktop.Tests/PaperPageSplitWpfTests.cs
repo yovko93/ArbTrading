@@ -69,6 +69,12 @@ public sealed class PaperPageSplitWpfTests(WpfFixture fixture)
             view.DataContext = vm; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
             view.Measure(new Size(width, height)); view.Arrange(new Rect(0, 0, width, height)); view.UpdateLayout();
             view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); view.UpdateLayout();
+            if (!trading)
+            {
+                // Exact balances remain available beneath the new venue summary cards.
+                var balances = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Exact venue balance rows"));
+                balances.IsExpanded = true; view.UpdateLayout();
+            }
             var nodes = Descendants(view).ToArray();
             Assert.Equal(trading, nodes.OfType<PaperRiskView>().Any());
             Assert.Equal(trading, nodes.OfType<PaperAutomationView>().Any());

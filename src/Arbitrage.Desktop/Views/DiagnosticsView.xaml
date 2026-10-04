@@ -3,62 +3,125 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls"
              Loaded="OnLoaded" Unloaded="OnUnloaded">
-  <Grid>
-    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="2*" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-    <controls:SectionHeader Title="Logs &amp; Diagnostics" Subtitle="Authorized backend events and desktop-local events. This bounded recent feed is not an audit ledger." />
-    <Border Grid.Row="1" Style="{StaticResource CardBorder}">
-      <StackPanel>
-        <TextBlock Text="Backend connection and synchronization" Style="{StaticResource SectionTitleText}" />
-        <WrapPanel Margin="0,8,0,0">
-          <TextBlock Text="{Binding State.ConnectionStatus}" Margin="0,0,14,0" />
-          <TextBlock Text="{Binding State.TransportStatus}" Margin="0,0,14,0" />
-          <TextBlock Text="{Binding State.HeartbeatStatus}" />
-        </WrapPanel>
-        <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-        <TextBlock Text="{Binding State.LastRefreshLabel}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-      </StackPanel>
-    </Border>
-    <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,0,0,8">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,9">
-          <TextBlock Text="Backend events" Style="{StaticResource SectionTitleText}" />
-          <TextBlock x:Name="BackendNoticeText" Foreground="{DynamicResource Warning}" Margin="0,4,0,5" TextWrapping="Wrap" />
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Severity" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,5,0" />
-            <ComboBox x:Name="SeverityFilter" Width="120" SelectedIndex="0" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Backend severity filter">
-              <ComboBoxItem Content="All" /><ComboBoxItem Content="Information" /><ComboBoxItem Content="Warning" /><ComboBoxItem Content="Error" />
-            </ComboBox>
-            <TextBlock Text="Source" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="12,0,5,0" />
-            <ComboBox x:Name="SourceFilter" Width="120" SelectedIndex="0" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Backend source filter">
-              <ComboBoxItem Content="All" /><ComboBoxItem Content="Backend" /><ComboBoxItem Content="Workspace" /><ComboBoxItem Content="Realtime" /><ComboBoxItem Content="Runtime" />
-            </ComboBox>
-          </StackPanel>
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Resources/Styles/MarketWorkflow.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <DataTemplate x:Key="DiagnosticSeverity">
+        <controls:StatusBadge Label="{Binding Severity}" Style="{StaticResource WorkflowState}" />
+      </DataTemplate>
+    </ResourceDictionary>
+  </UserControl.Resources>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel>
+      <controls:SectionHeader Title="Logs &amp; Diagnostics" Subtitle="Authorized backend events and desktop-local events. This bounded recent feed is not an audit ledger." />
+      <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="DiagnosticsConnection">
+        <StackPanel>
+          <TextBlock Text="CONNECTION &amp; SYNCHRONIZATION" Style="{StaticResource EyebrowText}" />
+          <TextBlock Text="Backend connection and synchronization" Style="{StaticResource SectionTitleText}" Margin="0,3,0,10" />
+          <WrapPanel>
+            <Border Style="{StaticResource WorkflowMetric}" Width="250"><StackPanel>
+              <TextBlock Text="CONNECTION" Style="{StaticResource EyebrowText}" />
+              <TextBlock Text="{Binding State.ConnectionStatus}" FontWeight="SemiBold" Margin="0,5,0,0" />
+            </StackPanel></Border>
+            <Border Style="{StaticResource WorkflowMetric}" Width="250"><StackPanel>
+              <TextBlock Text="TRANSPORT" Style="{StaticResource EyebrowText}" />
+              <TextBlock Text="{Binding State.TransportStatus}" Margin="0,5,0,0" />
+            </StackPanel></Border>
+            <Border Style="{StaticResource WorkflowMetric}" Width="250"><StackPanel>
+              <TextBlock Text="HEARTBEAT" Style="{StaticResource EyebrowText}" />
+              <TextBlock Text="{Binding State.HeartbeatStatus}" Margin="0,5,0,0" />
+            </StackPanel></Border>
+          </WrapPanel>
+          <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" Margin="0,2,0,0" />
+          <TextBlock Text="{Binding State.LastRefreshLabel}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
         </StackPanel>
-        <ListView x:Name="BackendList" ItemsSource="{Binding Diagnostics.BackendEvents}" BorderThickness="0"
-                  AutomationProperties.Name="Authorized backend diagnostic events">
-          <ListView.View><GridView>
-            <GridViewColumn Header="UTC time" Width="170" DisplayMemberBinding="{Binding OccurredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
-            <GridViewColumn Header="Severity" Width="90" DisplayMemberBinding="{Binding Severity}" />
-            <GridViewColumn Header="Source" Width="90" DisplayMemberBinding="{Binding Source}" />
-            <GridViewColumn Header="Event" Width="370" DisplayMemberBinding="{Binding Message}" />
-          </GridView></ListView.View>
-        </ListView>
-      </DockPanel>
-    </Border>
-    <Border Grid.Row="3" Style="{StaticResource CardBorder}" Margin="0">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-          <TextBlock Text="Desktop-local events" Style="{StaticResource SectionTitleText}" />
-          <TextBlock Text="Current desktop run only · newest first · maximum 200 events" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+      </Border>
+
+      <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="DiagnosticsBackendStream">
+        <StackPanel>
+          <TextBlock Text="AUTHORIZED BACKEND" Style="{StaticResource EyebrowText}" />
+          <TextBlock Text="Backend events" Style="{StaticResource SectionTitleText}" Margin="0,3,0,8" />
+          <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Text, ElementName=BackendNoticeText}">
+            <TextBlock x:Name="BackendNoticeText" TextWrapping="Wrap" />
+          </Border>
+          <WrapPanel Margin="0,0,0,2">
+            <StackPanel Style="{StaticResource WorkflowField}">
+              <TextBlock Text="Severity" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+              <ComboBox x:Name="SeverityFilter" Width="160" SelectedIndex="0" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Backend severity filter">
+                <ComboBoxItem Content="All" /><ComboBoxItem Content="Information" /><ComboBoxItem Content="Warning" /><ComboBoxItem Content="Error" />
+              </ComboBox>
+            </StackPanel>
+            <StackPanel Style="{StaticResource WorkflowField}">
+              <TextBlock Text="Source" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+              <ComboBox x:Name="SourceFilter" Width="160" SelectedIndex="0" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Backend source filter">
+                <ComboBoxItem Content="All" /><ComboBoxItem Content="Backend" /><ComboBoxItem Content="Workspace" /><ComboBoxItem Content="Realtime" /><ComboBoxItem Content="Runtime" />
+              </ComboBox>
+            </StackPanel>
+          </WrapPanel>
+          <ListView x:Name="BackendList" ItemsSource="{Binding Diagnostics.BackendEvents}" BorderThickness="0" MaxHeight="320"
+                    AutomationProperties.Name="Authorized backend diagnostic events">
+            <ListView.Style>
+              <Style TargetType="ListView" BasedOn="{StaticResource {x:Type ListView}}">
+                <Setter Property="MinHeight" Value="110" />
+                <Style.Triggers><Trigger Property="HasItems" Value="False"><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers>
+              </Style>
+            </ListView.Style>
+            <ListView.View><GridView>
+              <GridViewColumn Header="UTC time" Width="172" DisplayMemberBinding="{Binding OccurredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+              <GridViewColumn Header="Severity" Width="118" CellTemplate="{StaticResource DiagnosticSeverity}" />
+              <GridViewColumn Header="Source" Width="100" DisplayMemberBinding="{Binding Source}" />
+              <GridViewColumn Header="Event" Width="450" DisplayMemberBinding="{Binding Message}" />
+            </GridView></ListView.View>
+          </ListView>
+          <Border AutomationProperties.AutomationId="DiagnosticsBackendEmpty">
+            <Border.Style>
+              <Style TargetType="Border" BasedOn="{StaticResource InsetPanel}">
+                <Setter Property="Padding" Value="14" /><Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=BackendList}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+              </Style>
+            </Border.Style>
+            <StackPanel>
+              <TextBlock Text="No backend events in this view" FontWeight="SemiBold" Margin="0,0,0,4" />
+              <TextBlock Text="The synchronization notice above describes backend history availability. Severity and source filters apply to retained events." Style="{StaticResource MutedText}" />
+            </StackPanel>
+          </Border>
         </StackPanel>
-        <ListView ItemsSource="{Binding Diagnostics.Events}" BorderThickness="0" AutomationProperties.Name="Desktop diagnostic events">
-          <ListView.View><GridView>
-            <GridViewColumn Header="Local time" Width="175" DisplayMemberBinding="{Binding LocalTimestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
-            <GridViewColumn Header="Severity" Width="100" DisplayMemberBinding="{Binding Severity}" />
-            <GridViewColumn Header="Event" Width="450" DisplayMemberBinding="{Binding Description}" />
-          </GridView></ListView.View>
-        </ListView>
-      </DockPanel>
-    </Border>
-  </Grid>
+      </Border>
+
+      <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="DiagnosticsDesktopStream">
+        <StackPanel>
+          <TextBlock Text="THIS DESKTOP SESSION" Style="{StaticResource EyebrowText}" />
+          <TextBlock Text="Desktop-local events" Style="{StaticResource SectionTitleText}" Margin="0,3,0,4" />
+          <TextBlock Text="Current desktop run only · newest first · maximum 200 events" Style="{StaticResource MutedText}" Margin="0,0,0,10" />
+          <ListView x:Name="DesktopList" ItemsSource="{Binding Diagnostics.Events}" BorderThickness="0" MaxHeight="250" AutomationProperties.Name="Desktop diagnostic events">
+            <ListView.Style>
+              <Style TargetType="ListView" BasedOn="{StaticResource {x:Type ListView}}">
+                <Setter Property="MinHeight" Value="100" />
+                <Style.Triggers><Trigger Property="HasItems" Value="False"><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers>
+              </Style>
+            </ListView.Style>
+            <ListView.View><GridView>
+              <GridViewColumn Header="Local time" Width="175" DisplayMemberBinding="{Binding LocalTimestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+              <GridViewColumn Header="Severity" Width="118" CellTemplate="{StaticResource DiagnosticSeverity}" />
+              <GridViewColumn Header="Event" Width="540" DisplayMemberBinding="{Binding Description}" />
+            </GridView></ListView.View>
+          </ListView>
+          <Border AutomationProperties.AutomationId="DiagnosticsDesktopEmpty">
+            <Border.Style>
+              <Style TargetType="Border" BasedOn="{StaticResource InsetPanel}">
+                <Setter Property="Padding" Value="14" /><Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=DesktopList}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+              </Style>
+            </Border.Style>
+            <StackPanel>
+              <TextBlock Text="No desktop events recorded" FontWeight="SemiBold" Margin="0,0,0,4" />
+              <TextBlock Text="Events from this desktop run will appear here. Backend events remain in the separate stream above." Style="{StaticResource MutedText}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>

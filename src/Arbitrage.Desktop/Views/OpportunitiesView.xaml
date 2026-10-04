@@ -1,128 +1,194 @@
-<UserControl x:Class="Arbitrage.Desktop.Views.OpportunitiesView"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:views="clr-namespace:Arbitrage.Desktop.Views">
- <UserControl.Resources>
-  <Style TargetType="TabControl">
-   <Setter Property="Background" Value="{DynamicResource ApplicationBackground}"/>
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
-    <Grid Background="{TemplateBinding Background}"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-     <TabPanel IsItemsHost="True"/>
-     <ContentPresenter Grid.Row="1" ContentSource="SelectedContent"/>
-    </Grid>
-   </ControlTemplate></Setter.Value></Setter>
-  </Style>
-  <Style TargetType="TabItem">
-   <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
-   <Setter Property="Background" Value="{DynamicResource ApplicationBackground}"/>
-   <Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}"/>
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
-    <Border Padding="14,9" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/></Border>
-    <ControlTemplate.Triggers>
-     <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/></Trigger>
-     <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger>
-    </ControlTemplate.Triggers>
-   </ControlTemplate></Setter.Value></Setter>
-  </Style>
-  <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-     <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
-    </Border>
-   </ControlTemplate></Setter.Value></Setter>
-  </Style>
-  <!-- Native ComboBox chrome can ignore dark backgrounds; keep this review page's selectors readable. -->
-  <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
-    <Grid>
-     <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
-      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"><TextBlock Text="▾" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0" Foreground="{DynamicResource PrimaryText}"/></Border></ControlTemplate></ToggleButton.Template>
-     </ToggleButton>
-     <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="8,0,25,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
-     <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
-      <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="1">
-       <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
-      </Border>
-     </Popup>
-    </Grid>
-    <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger></ControlTemplate.Triggers>
-   </ControlTemplate></Setter.Value></Setter>
-  </Style>
- </UserControl.Resources>
- <TabControl SelectedIndex="1">
- <TabItem Header="Continuous monitoring"><views:MonitoringView DataContext="{Binding Monitoring}"/></TabItem>
- <TabItem Header="Explicit evaluation">
- <Grid Margin="16">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="180"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-  <StackPanel>
-   <TextBlock Text="Gross and fee-adjusted opportunities" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}"/>
-   <TextBlock Text="PRE-FEE gross values remain independent · Net profit unknown · Live execution unavailable; paper preview is explicit" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap"/>
-   <TextBlock Text="Fee-aware results are modeled estimates. Diagnostics include gross opportunities with unknown fees and gross edges removed by fees." Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
-   <WrapPanel Margin="0,8">
-    <TextBox Text="{Binding RelationshipId, UpdateSourceTrigger=PropertyChanged}" Width="265" AutomationProperties.Name="Selected relationship ID" ToolTip="Paste a verified relationship ID from Market Matching"/>
-    <Button Content="Evaluate Selected" Command="{Binding EvaluateSelectedCommand}" Margin="6,0"/>
-    <Button Content="Evaluate Verified Relationships" Command="{Binding EvaluateVerifiedCommand}"/>
-    <Button Content="Cancel Evaluation" Command="{Binding CancelEvaluationCommand}" Margin="6,0"/>
-   </WrapPanel>
-   <WrapPanel>
-    <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding Exchange}" Width="115" AutomationProperties.Name="Source exchange"/>
-    <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding TargetExchange}" Width="115" Margin="6,0" AutomationProperties.Name="Target exchange"/>
-    <CheckBox Content="Include manually verified relationships" IsChecked="{Binding IncludeManualRelationships}" VerticalAlignment="Center" Margin="8,0"/>
-   </WrapPanel>
-   <WrapPanel Margin="0,8">
-    <TextBlock Text="Minimum pre-fee gross edge" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
-    <TextBox Text="{Binding MinimumGrossEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum pre-fee gross edge"/>
-    <TextBlock Text="Diagnostic quantity cap" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
-    <TextBox Text="{Binding MaximumEvaluationQuantity, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="80" Margin="6,0" AutomationProperties.Name="Diagnostic quantity cap"/>
-    <TextBlock Text="Max skew (ms)" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/>
-    <TextBox Text="{Binding MaximumSkewMilliseconds, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="65" Margin="6,0" AutomationProperties.Name="Maximum observation skew in milliseconds"/>
-   </WrapPanel>
-   <WrapPanel><CheckBox Content="Show diagnostics (includes blocked results)" IsChecked="{Binding ShowDiagnostics}" Margin="0,0,12,0"/><CheckBox Content="Sort by gross profit (display only)" IsChecked="{Binding SortByGrossProfit}"/></WrapPanel>
-   <WrapPanel Margin="0,8">
-    <CheckBox Content="Evaluate cached fees" IsChecked="{Binding EvaluateFees}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-    <TextBlock Text="Minimum fee-adjusted edge" VerticalAlignment="Center"/>
-    <TextBox Text="{Binding MinimumFeeAdjustedEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum fee-adjusted edge"/>
-    <Button Content="Refresh Fee Data for selected result" Command="{Binding RefreshFeeDataCommand}" Margin="6,0"/>
-    <Button Content="Cancel fee refresh" Command="{Binding CancelFeeRefreshCommand}"/>
-   </WrapPanel>
-  </StackPanel>
-  <StackPanel Grid.Row="1" Margin="0,8">
-   <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
-   <TextBlock Text="{Binding FeeJob.State, StringFormat=Fee refresh: {0}}"/>
-   <TextBlock Text="{Binding FeeJob.Notice}" TextWrapping="Wrap"/>
-   <WrapPanel><TextBlock Text="{Binding Job.State}" Foreground="{DynamicResource PrimaryText}" Margin="0,0,8,0"/><TextBlock Text="{Binding Job.Notice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"/></WrapPanel>
-  </StackPanel>
-  <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Pre-fee candidates and diagnostics">
-   <DataGrid.Columns>
-    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="125"/>
-    <DataGridTextColumn Header="Strategy" Binding="{Binding Strategy}" Width="160"/>
-    <DataGridTextColumn Header="Leg A" Binding="{Binding Legs[0].Exchange}" Width="90"/>
-    <DataGridTextColumn Header="Leg B" Binding="{Binding Legs[1].Exchange}" Width="90"/>
-    <DataGridTextColumn Header="Quantity" Binding="{Binding PairedQuantity, StringFormat=0.########}" Width="80"/>
-    <DataGridTextColumn Header="Gross cost" Binding="{Binding GrossCost, StringFormat=0.########}" Width="90"/>
-    <DataGridTextColumn Header="Gross payout" Binding="{Binding GuaranteedGrossPayout, StringFormat=0.########}" Width="95"/>
-    <DataGridTextColumn Header="Gross profit" Binding="{Binding GrossProfit, StringFormat=0.########}" Width="95"/>
-    <DataGridTextColumn Header="Exchange fees" Binding="{Binding Fees.TotalExchangeFees, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="100"/>
-    <DataGridTextColumn Header="Fee status" Binding="{Binding Fees.StateLabel, TargetNullValue=NotEvaluated}" Width="225"/>
-    <DataGridTextColumn Header="Fee-adjusted profit" Binding="{Binding Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="130"/>
-    <DataGridTextColumn Header="Fee-adjusted edge" Binding="{Binding Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="130"/>
-    <DataGridTextColumn Header="Diagnostic profile" Binding="{Binding Fees.Profile, TargetNullValue=Unknown}" Width="135"/>
-    <DataGridTextColumn Header="Gross edge" Binding="{Binding GrossEdgePerShare, StringFormat=0.########}" Width="90"/>
-    <DataGridTextColumn Header="Input quality" Binding="{Binding InputQuality}" Width="130"/>
-    <DataGridTextColumn Header="Skew ms" Binding="{Binding ObservedSkewMilliseconds, StringFormat=0.###}" Width="80"/>
-    <DataGridTextColumn Header="Trust" Binding="{Binding RelationshipTrust}" Width="95"/>
-    <DataGridTextColumn Header="Relationship" Binding="{Binding RelationshipId}" Width="240"/>
-    <DataGridTextColumn Header="Evaluated UTC" Binding="{Binding EvaluatedAt}" Width="155"/>
-   </DataGrid.Columns>
-  </DataGrid>
-  <WrapPanel Grid.Row="3" Margin="0,6"><Button Content="Previous" Command="{Binding PreviousCommand}"/><TextBlock Text="{Binding PageLabel}" Margin="12,0" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}"/><Button Content="Next" Command="{Binding NextCommand}"/></WrapPanel>
-  <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-   <StackPanel>
-    <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}"/>
-    <WrapPanel Margin="0,8"><Button Content="Paper preview…" Command="{Binding PaperPreviewCommand}"/><TextBlock Text="{Binding PaperReason}" Margin="8,0" VerticalAlignment="Center"/></WrapPanel>
-    <TextBlock Text="Consumed paired depth — exact decimal values" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}" Margin="0,12,0,4"/>
-    <DataGrid ItemsSource="{Binding Selected.Segments}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Consumed paired depth"/>
-   </StackPanel>
-  </ScrollViewer>
- </Grid>
- </TabItem>
- </TabControl>
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls" xmlns:views="clr-namespace:Arbitrage.Desktop.Views" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Arbitrage.Desktop.Views.OpportunitiesView" Background="{DynamicResource ApplicationBackground}">
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+  <TabControl SelectedIndex="1" Style="{StaticResource WorkflowTabs}">
+    <TabItem Header="Continuous monitoring">
+      <views:MonitoringView DataContext="{Binding Monitoring}" />
+    </TabItem>
+    <TabItem Header="Explicit evaluation">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="WorkflowScroll">
+        <StackPanel>
+          <TextBlock Text="Gross and fee-adjusted opportunities" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}" Style="{StaticResource PageTitleText}" Margin="0,0,0,6" />
+          <TextBlock Text="PRE-FEE gross values remain independent · Net profit unknown · Live execution unavailable; paper preview is explicit" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap" />
+          <TextBlock Text="Fee-aware results are modeled estimates. Diagnostics include gross opportunities with unknown fees and gross edges removed by fees." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+          <Border Style="{StaticResource WorkflowCard}">
+            <StackPanel>
+              <TextBlock Text="Evaluation target" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <WrapPanel Margin="0,8">
+                <StackPanel Style="{StaticResource WorkflowField}">
+                  <TextBlock Text="Relationship ID" Style="{StaticResource FieldLabel}" />
+                  <TextBox Text="{Binding RelationshipId, UpdateSourceTrigger=PropertyChanged}" Width="265" AutomationProperties.Name="Selected relationship ID" ToolTip="Paste a verified relationship ID from Market Matching" />
+                </StackPanel>
+                <Button Content="Evaluate Selected" Command="{Binding EvaluateSelectedCommand}" Margin="0,0,8,6" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" />
+                <Button Content="Evaluate Verified Relationships" Command="{Binding EvaluateVerifiedCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+                <Button Content="Cancel Evaluation" Command="{Binding CancelEvaluationCommand}" Margin="0,0,8,6" Style="{StaticResource DangerButton}" VerticalAlignment="Bottom" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource WorkflowCard}">
+            <StackPanel>
+              <TextBlock Text="Scope" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <WrapPanel>
+                <StackPanel Style="{StaticResource WorkflowField}">
+                  <TextBlock Text="Source exchange" Style="{StaticResource FieldLabel}" />
+                  <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding Exchange}" Width="115" AutomationProperties.Name="Source exchange" />
+                </StackPanel>
+                <StackPanel Style="{StaticResource WorkflowField}">
+                  <TextBlock Text="Target exchange" Style="{StaticResource FieldLabel}" />
+                  <ComboBox ItemsSource="{Binding Exchanges}" SelectedItem="{Binding TargetExchange}" Width="115" Margin="6,0" AutomationProperties.Name="Target exchange" />
+                </StackPanel>
+                <CheckBox Content="Include manually verified relationships" IsChecked="{Binding IncludeManualRelationships}" VerticalAlignment="Center" Margin="8,0" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource WorkflowCard}">
+            <StackPanel>
+              <TextBlock Text="Economics" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <WrapPanel Margin="0,8">
+                <TextBlock Text="Minimum pre-fee gross edge" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}" />
+                <TextBox Text="{Binding MinimumGrossEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum pre-fee gross edge" />
+                <TextBlock Text="Diagnostic quantity cap" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}" />
+                <TextBox Text="{Binding MaximumEvaluationQuantity, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="80" Margin="6,0" AutomationProperties.Name="Diagnostic quantity cap" />
+                <TextBlock Text="Max skew (ms)" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}" />
+                <TextBox Text="{Binding MaximumSkewMilliseconds, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="65" Margin="6,0" AutomationProperties.Name="Maximum observation skew in milliseconds" />
+              </WrapPanel>
+              <WrapPanel Margin="0,8">
+                <CheckBox Content="Evaluate cached fees" IsChecked="{Binding EvaluateFees}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <TextBlock Text="Minimum fee-adjusted edge" VerticalAlignment="Center" />
+                <TextBox Text="{Binding MinimumFeeAdjustedEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum fee-adjusted edge" />
+                <Button Content="Refresh Fee Data for selected result" Command="{Binding RefreshFeeDataCommand}" Margin="0,0,8,6" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom" />
+                <Button Content="Cancel fee refresh" Command="{Binding CancelFeeRefreshCommand}" Style="{StaticResource DangerButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource WorkflowCard}">
+            <StackPanel>
+              <TextBlock Text="Display" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <WrapPanel>
+                <CheckBox Content="Show diagnostics (includes blocked results)" IsChecked="{Binding ShowDiagnostics}" Margin="0,0,12,0" />
+                <CheckBox Content="Sort by gross profit (display only)" IsChecked="{Binding SortByGrossProfit}" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+          <StackPanel>
+            <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Notice}">
+              <TextBlock Text="{Binding Notice}" />
+            </Border>
+            <WrapPanel>
+              <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Job.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
+              <TextBlock Text="{Binding Job.Notice}" Style="{StaticResource MutedText}" />
+              <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding FeeJob.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
+              <TextBlock Text="{Binding FeeJob.Notice}" Style="{StaticResource MutedText}" />
+            </WrapPanel>
+          </StackPanel>
+          <Border Style="{StaticResource WorkflowCard}">
+            <StackPanel>
+              <TextBlock Text="Evaluation results" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Pre-fee candidates and diagnostics" MaxHeight="260" MinHeight="100">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="125" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Strategy" Binding="{Binding Strategy}" Width="160" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Leg A" Binding="{Binding Legs[0].Exchange}" Width="90" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Leg B" Binding="{Binding Legs[1].Exchange}" Width="90" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Quantity" Binding="{Binding PairedQuantity, StringFormat=0.########}" Width="80" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Gross cost" Binding="{Binding GrossCost, StringFormat=0.########}" Width="90" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Gross payout" Binding="{Binding GuaranteedGrossPayout, StringFormat=0.########}" Width="101" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Gross profit" Binding="{Binding GrossProfit, StringFormat=0.########}" Width="101" ElementStyle="{StaticResource WorkflowEconomics}" />
+                  <DataGridTextColumn Header="Exchange fees" Binding="{Binding Fees.TotalExchangeFees, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="108" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Fee status" Binding="{Binding Fees.StateLabel, TargetNullValue=NotEvaluated}" Width="225" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Fee-adjusted profit" Binding="{Binding Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="146" ElementStyle="{StaticResource WorkflowEconomics}" />
+                  <DataGridTextColumn Header="Fee-adjusted edge" Binding="{Binding Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}" Width="133" ElementStyle="{StaticResource WorkflowEconomics}" />
+                  <DataGridTextColumn Header="Diagnostic profile" Binding="{Binding Fees.Profile, TargetNullValue=Unknown}" Width="140" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Gross edge" Binding="{Binding GrossEdgePerShare, StringFormat=0.########}" Width="90" ElementStyle="{StaticResource WorkflowEconomics}" />
+                  <DataGridTextColumn Header="Input quality" Binding="{Binding InputQuality}" Width="130" ElementStyle="{StaticResource WorkflowEconomics}" />
+                  <DataGridTextColumn Header="Skew ms" Binding="{Binding ObservedSkewMilliseconds, StringFormat=0.###}" Width="80" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Trust" Binding="{Binding RelationshipTrust}" Width="95" ElementStyle="{StaticResource WorkflowEconomics}" />
+                  <DataGridTextColumn Header="Relationship" Binding="{Binding RelationshipId}" Width="240" ElementStyle="{StaticResource WorkflowCellText}" />
+                  <DataGridTextColumn Header="Evaluated UTC" Binding="{Binding EvaluatedAt}" Width="155" ElementStyle="{StaticResource WorkflowCellText}" />
+                </DataGrid.Columns>
+              </DataGrid>
+              <WrapPanel Margin="0,6">
+                <Button Content="Previous" Command="{Binding PreviousCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+                <TextBlock Text="{Binding PageLabel}" Margin="12,0" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryText}" />
+                <Button Content="Next" Command="{Binding NextCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="OpportunityInspector">
+            <StackPanel>
+              <TextBlock Text="Opportunity inspector" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <WrapPanel>
+                <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Selected.Status, TargetNullValue=Select a result, FallbackValue=Select a result}" Margin="0,0,8,6" />
+                <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Selected.InputQuality, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Margin="0,0,8,6" />
+                <TextBlock Text="{Binding Selected.RelationshipTrust, StringFormat=Trust: {0}}" />
+              </WrapPanel>
+              <TextBlock Text="{Binding Selected.Strategy}" Style="{StaticResource SectionTitleText}" />
+              <TextBlock Text="{Binding Selected.SourceTitle}" />
+              <TextBlock Text="{Binding Selected.TargetTitle}" />
+              <WrapPanel>
+                <Border Style="{StaticResource WorkflowMetric}">
+                  <StackPanel>
+                    <TextBlock Text="GROSS PROFIT" Style="{StaticResource EyebrowText}" />
+                    <TextBlock Text="{Binding Selected.GrossProfit, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource WorkflowMetric}">
+                  <StackPanel>
+                    <TextBlock Text="GROSS EDGE" Style="{StaticResource EyebrowText}" />
+                    <TextBlock Text="{Binding Selected.GrossEdgePerShare, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource WorkflowMetric}">
+                  <StackPanel>
+                    <TextBlock Text="FEE-ADJUSTED PROFIT" Style="{StaticResource EyebrowText}" />
+                    <TextBlock Text="{Binding Selected.Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown}" Style="{StaticResource MetricText}" />
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource WorkflowMetric}">
+                  <StackPanel>
+                    <TextBlock Text="FEE-ADJUSTED EDGE" Style="{StaticResource EyebrowText}" />
+                    <TextBlock Text="{Binding Selected.Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown}" Style="{StaticResource MetricText}" />
+                  </StackPanel>
+                </Border>
+              </WrapPanel>
+              <TextBlock Text="{Binding Selected.Fees.StateLabel, TargetNullValue=Fees: Not evaluated, FallbackValue=Fees: Not evaluated}" />
+              <TextBlock Text="{Binding Selected.EvaluatedAt, StringFormat=Evaluated: {0:yyyy-MM-dd HH:mm:ss} UTC}" />
+              <Border Tag="Warning" AutomationProperties.AutomationId="OpportunityBlockers">
+                <Border.Style><Style TargetType="Border" BasedOn="{StaticResource StatusBanner}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Selected}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                    <DataTrigger Binding="{Binding Selected.Blockers.Length}" Value="0"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                  </Style.Triggers>
+                </Style></Border.Style>
+                <StackPanel>
+                  <TextBlock Text="Blockers" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+                  <ItemsControl ItemsSource="{Binding Selected.Blockers}" />
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource InsetPanel}">
+                <StackPanel>
+                  <TextBlock Text="Warnings" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+                  <ItemsControl ItemsSource="{Binding Selected.Warnings}" />
+                </StackPanel>
+              </Border>
+              <Expander Header="Full evaluation diagnostics" Style="{StaticResource DetailsExpander}" Margin="0,10,0,10">
+                <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" />
+              </Expander>
+              <WrapPanel Margin="0,8">
+                <Button Content="Paper preview…" Command="{Binding PaperPreviewCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+                <TextBlock Text="{Binding PaperReason}" Margin="8,0" VerticalAlignment="Center" />
+              </WrapPanel>
+              <TextBlock Text="Consumed paired depth — exact decimal values" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}" Margin="0,12,0,4" />
+              <DataGrid ItemsSource="{Binding Selected.Segments}" AutoGenerateColumns="True" IsReadOnly="True" CanUserAddRows="False" MaxHeight="240" AutomationProperties.Name="Consumed paired depth" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+  </TabControl>
 </UserControl>

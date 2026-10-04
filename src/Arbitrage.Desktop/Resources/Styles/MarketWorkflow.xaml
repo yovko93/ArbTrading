@@ -1,0 +1,129 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:Arbitrage.Desktop.Controls">
+  <!-- Opt-in workflow resources: the existing UI-01 palette and action templates remain authoritative. -->
+  <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}" />
+  <Style TargetType="ComboBox" BasedOn="{StaticResource ThemedComboBox}" />
+  <Style x:Key="WorkflowCard" TargetType="Border" BasedOn="{StaticResource CardBorder}">
+    <Setter Property="Padding" Value="14"/><Setter Property="Margin" Value="0,0,0,12"/>
+  </Style>
+  <Style x:Key="WorkflowMetric" TargetType="Border" BasedOn="{StaticResource InsetPanel}">
+    <Setter Property="Padding" Value="12,9"/><Setter Property="Margin" Value="0,0,8,8"/><Setter Property="MinWidth" Value="132"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+  </Style>
+  <Style x:Key="WorkflowField" TargetType="StackPanel">
+    <Setter Property="Margin" Value="0,0,12,8"/><Setter Property="VerticalAlignment" Value="Bottom"/>
+  </Style>
+  <Style x:Key="WorkflowNotice" TargetType="Border" BasedOn="{StaticResource StatusBanner}">
+    <Setter Property="Margin" Value="0,0,0,10"/>
+    <Style.Triggers>
+      <Trigger Property="ToolTip" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger>
+      <Trigger Property="ToolTip" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="WorkflowState" TargetType="controls:StatusBadge">
+    <Setter Property="Tone" Value="Neutral"/><Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Style.Triggers>
+      <Trigger Property="Label" Value="Complete"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Completed"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Succeeded"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="FeeAdjusted"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="RealtimeContinuous"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Continuous"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Running"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="FreshRest"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="Fresh"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="GrossOnly"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="Partial"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Degraded"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Stale"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="NearEdge"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="RealtimeBestEffort"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="BestEffort"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Resynchronizing"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Interrupted"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="NeedsReview"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Failed"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Faulted"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Blocked"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="Gap"><Setter Property="Tone" Value="Error"/></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="WorkflowCellText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridCell}}"/>
+  </Style>
+  <Style x:Key="WorkflowEconomics" TargetType="TextBlock" BasedOn="{StaticResource WorkflowCellText}">
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+    <Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/>
+    <Setter Property="BorderThickness" Value="0"/><Setter Property="RowHeight" Value="36"/>
+    <Setter Property="ColumnHeaderHeight" Value="36"/><Setter Property="FontSize" Value="12"/>
+    <Setter Property="AlternationCount" Value="2"/><Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="EnableRowVirtualization" Value="True"/><Setter Property="EnableColumnVirtualization" Value="True"/>
+  </Style>
+  <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+    <Setter Property="Padding" Value="10,6"/><Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding}" FontWeight="SemiBold"/></DataTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/>
+    <Style.Triggers>
+      <Trigger Property="ItemsControl.AlternationIndex" Value="1"><Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBackground}"/></Trigger>
+      <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource AccentMuted}"/></Trigger>
+      <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBackground}"/><Setter Property="Foreground" Value="{DynamicResource SelectionText}"/></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+    <Setter Property="Padding" Value="10,5"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell">
+      <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+        <ContentPresenter VerticalAlignment="Center"/>
+      </Border>
+    </ControlTemplate></Setter.Value></Setter>
+    <Style.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger></Style.Triggers>
+  </Style>
+  <Style TargetType="ListView" BasedOn="{StaticResource {x:Type ListView}}">
+    <Setter Property="BorderThickness" Value="0"/><Setter Property="FontSize" Value="12"/><Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+  </Style>
+  <Style TargetType="ListViewItem">
+    <Setter Property="Padding" Value="8,7"/><Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+    <Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource AccentMuted}"/></Trigger>
+      <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBackground}"/><Setter Property="Foreground" Value="{DynamicResource SelectionText}"/></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource {x:Type GridViewColumnHeader}}">
+    <Setter Property="Padding" Value="8"/><Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="GridViewColumnHeader">
+      <Grid><Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,0,1" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+        <Thumb x:Name="PART_HeaderGripper" Width="5" HorizontalAlignment="Right" Cursor="SizeWE" Background="Transparent"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate></Thumb.Template></Thumb>
+      </Grid>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="WorkflowTabs" TargetType="TabControl">
+    <Setter Property="Background" Value="{DynamicResource ApplicationBackground}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
+      <Grid Background="{TemplateBinding Background}"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <TabPanel IsItemsHost="True" Margin="0,0,0,14" KeyboardNavigation.TabIndex="0"/>
+        <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent"/>
+      </Grid>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="TabItem">
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/><Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+      <Border Padding="16,10" Margin="0,0,6,0" CornerRadius="7" BorderThickness="1" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" TextElement.FontWeight="SemiBold"/></Border>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource AccentMuted}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBackground}"/><Setter Property="Foreground" Value="{DynamicResource SelectionText}"/><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
+        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusIndicator}"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+</ResourceDictionary>

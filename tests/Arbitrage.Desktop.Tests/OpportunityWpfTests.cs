@@ -49,6 +49,7 @@ public sealed class OpportunityWpfTests(WpfFixture fixture)
             var view = new OpportunitiesView { DataContext = vm }; ((TabControl)view.Content).SelectedIndex = 0;
             view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
             view.Measure(new Size(1400, 1100)); view.Arrange(new Rect(0, 0, 1400, 1100)); view.UpdateLayout();
+            ExpandEvaluationDiagnostics(view);
             var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
             Assert.Contains(texts, t => t.Contains(status, StringComparison.Ordinal));
             if (status == "Degraded") { Assert.Contains(texts, t => t == "Unknown"); Assert.Contains(texts, t => t.Contains("NearEdge", StringComparison.Ordinal)); }
@@ -85,6 +86,7 @@ public sealed class OpportunityWpfTests(WpfFixture fixture)
             new WpfThemePaletteApplier(Application.Current.Resources).Apply(theme == "Light" ? EffectiveTheme.Light : EffectiveTheme.Dark, false);
             var view = new OpportunitiesView { DataContext = vm }; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
             view.Measure(new Size(1400, 1100)); view.Arrange(new Rect(0, 0, 1400, 1100)); view.UpdateLayout();
+            ExpandEvaluationDiagnostics(view);
             var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
             Assert.Contains(texts, t => t.Contains("diagnostic assumption", StringComparison.Ordinal));
             Assert.Contains(texts, t => t.Contains("fee_rounding", StringComparison.Ordinal));
@@ -114,6 +116,7 @@ public sealed class OpportunityWpfTests(WpfFixture fixture)
             vm.Selected = item;
             var view = new OpportunitiesView { DataContext = vm }; view.SetResourceReference(Control.BackgroundProperty, "ApplicationBackground");
             view.Measure(new Size(1180, 1000)); view.Arrange(new Rect(0, 0, 1180, 1000)); view.UpdateLayout();
+            ExpandEvaluationDiagnostics(view);
             var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
             Assert.Contains(texts, t => t.Contains("PRE-FEE", StringComparison.Ordinal));
             Assert.Contains(texts, t => t.Contains("DerivedComplement", StringComparison.Ordinal));
@@ -129,6 +132,11 @@ public sealed class OpportunityWpfTests(WpfFixture fixture)
             }
         }
     });
+    private static void ExpandEvaluationDiagnostics(FrameworkElement view)
+    {
+        foreach (var expander in Descendants<Expander>(view).Where(e => Equals(e.Header, "Full evaluation diagnostics"))) expander.IsExpanded = true;
+        view.UpdateLayout();
+    }
     internal static OpportunityResponse Result(string status)
     {
         var result = new OpportunityResponse("fixture", "CrossMarketBuyBothComplements", Guid.NewGuid(), "Manual", DateTimeOffset.UtcNow,

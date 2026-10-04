@@ -1,0 +1,1019 @@
+{
+  "MarketExplorerView": [
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Exchanges}",
+        "SelectedItem": "{Binding SelectedExchange}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Search, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Search stored market titles and identifiers"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Statuses}",
+        "SelectedItem": "{Binding SelectedStatus}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Tags}",
+        "SelectedItem": "{Binding SelectedTag}",
+        "AutomationProperties.Name": "Category or tag filter"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Sorts}",
+        "SelectedItem": "{Binding SelectedSort}",
+        "AutomationProperties.Name": "Catalog sort"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ApplyFiltersCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding SyncCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding CancelCommand}",
+        "IsEnabled": "{Binding CanCancel}"
+      }
+    },
+    {
+      "Type": "ListView",
+      "Attributes": {
+        "ItemsSource": "{Binding Markets}",
+        "SelectedItem": "{Binding SelectedMarket, Mode=TwoWay}",
+        "AutomationProperties.Name": "Locally stored public markets"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Exchange}",
+        "Header": "Exchange"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Title}",
+        "Header": "Title / question"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding NativeId}",
+        "Header": "Native ID"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Status}",
+        "Header": "Status"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Tags[0]}",
+        "Header": "Tag"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding CloseAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}",
+        "Header": "Closes (UTC)"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding RetrievedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}",
+        "Header": "Retrieved (UTC)"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextCommand}",
+        "IsEnabled": "{Binding CanNext}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousCommand}",
+        "IsEnabled": "{Binding CanPrevious}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Instruments}",
+        "SelectedItem": "{Binding SelectedInstrument}",
+        "AutomationProperties.Name": "Orderbook outcome"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding StartRealtimeCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding StopRealtimeCommand}"
+      }
+    },
+    {
+      "Type": "ListView",
+      "Attributes": {
+        "ItemsSource": "{Binding Bids}"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Price, StringFormat={}{0:G29}}",
+        "Header": "Price"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Quantity, StringFormat={}{0:G29}}",
+        "Header": "Quantity"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Origin}",
+        "Header": "Origin"
+      }
+    },
+    {
+      "Type": "ListView",
+      "Attributes": {
+        "ItemsSource": "{Binding Asks}"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Price, StringFormat={}{0:G29}}",
+        "Header": "Price"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Quantity, StringFormat={}{0:G29}}",
+        "Header": "Quantity"
+      }
+    },
+    {
+      "Type": "GridViewColumn",
+      "Attributes": {
+        "DisplayMemberBinding": "{Binding Origin}",
+        "Header": "Origin"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding DepthSides}",
+        "SelectedItem": "{Binding DepthSide}",
+        "AutomationProperties.Name": "Depth side"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding DepthQuantity, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Diagnostic depth quantity"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviewDepthCommand}"
+      }
+    }
+  ],
+  "RelationshipsView": [
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Exchanges}",
+        "SelectedItem": "{Binding Exchange}",
+        "AutomationProperties.Name": "Exchange filter"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding States}",
+        "SelectedItem": "{Binding Status}",
+        "AutomationProperties.Name": "Verification filter"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Types}",
+        "SelectedItem": "{Binding Type}",
+        "AutomationProperties.Name": "Relationship type filter"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding ApplyFiltersCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCommand}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding SelectedNativeId, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Optional selected native market ID"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding CrossExchange}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding GenerateCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding CancelJobCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Items}",
+        "SelectedItem": "{Binding Selected}",
+        "AutomationProperties.Name": "Candidate relationships"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding SourceExchange}",
+        "Header": "Exchange A"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding SourceTitle}",
+        "Header": "Market A"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding TargetExchange}",
+        "Header": "Exchange B"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding TargetTitle}",
+        "Header": "Market B"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Type}",
+        "Header": "Type"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding State}",
+        "Header": "Trust / stale"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding LastValidatedAt}",
+        "Header": "Validated UTC"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextCommand}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Detail.Summary.Id, Mode=OneWay}",
+        "AutomationProperties.Name": "Relationship ID for explicit opportunity evaluation"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RevalidateCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding EnrichCommand}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Detail.Source.SemanticDetails, Mode=OneWay}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Detail.Target.SemanticDetails, Mode=OneWay}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Targets}",
+        "SelectedItem": "{Binding Target}",
+        "AutomationProperties.Name": "Mapped target native outcome"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding DataContext.ReviewTypes, RelativeSource={RelativeSource AncestorType=UserControl}}",
+        "SelectedItem": "{Binding Type}",
+        "AutomationProperties.Name": "Mapping relationship"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding ReviewTypes}",
+        "SelectedItem": "{Binding ReviewType}",
+        "AutomationProperties.Name": "Manual relationship type"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding TruthValues}",
+        "SelectedItem": "{Binding MutuallyExclusive}",
+        "AutomationProperties.Name": "Mutually exclusive set fact"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding TruthValues}",
+        "SelectedItem": "{Binding CollectivelyExhaustive}",
+        "AutomationProperties.Name": "Collectively exhaustive set fact"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding Reason, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Required review reason"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding VerifyCommand}",
+        "IsEnabled": "{Binding CanReview}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RejectCommand}",
+        "IsEnabled": "{Binding CanReview}"
+      }
+    }
+  ],
+  "OpportunitiesView": [
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding RelationshipId, UpdateSourceTrigger=PropertyChanged}",
+        "AutomationProperties.Name": "Selected relationship ID"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding EvaluateSelectedCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding EvaluateVerifiedCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding CancelEvaluationCommand}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Exchanges}",
+        "SelectedItem": "{Binding Exchange}",
+        "AutomationProperties.Name": "Source exchange"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Exchanges}",
+        "SelectedItem": "{Binding TargetExchange}",
+        "AutomationProperties.Name": "Target exchange"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding IncludeManualRelationships}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding MinimumGrossEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}",
+        "AutomationProperties.Name": "Minimum pre-fee gross edge"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding MaximumEvaluationQuantity, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}",
+        "AutomationProperties.Name": "Diagnostic quantity cap"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding MaximumSkewMilliseconds, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}",
+        "AutomationProperties.Name": "Maximum observation skew in milliseconds"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding ShowDiagnostics}"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding SortByGrossProfit}"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding EvaluateFees}"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding MinimumFeeAdjustedEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}",
+        "AutomationProperties.Name": "Minimum fee-adjusted edge"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshFeeDataCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding CancelFeeRefreshCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Items}",
+        "SelectedItem": "{Binding Selected}",
+        "AutomationProperties.Name": "Pre-fee candidates and diagnostics"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Status}",
+        "Header": "Status"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Strategy}",
+        "Header": "Strategy"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Legs[0].Exchange}",
+        "Header": "Leg A"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Legs[1].Exchange}",
+        "Header": "Leg B"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding PairedQuantity, StringFormat=0.########}",
+        "Header": "Quantity"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding GrossCost, StringFormat=0.########}",
+        "Header": "Gross cost"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding GuaranteedGrossPayout, StringFormat=0.########}",
+        "Header": "Gross payout"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding GrossProfit, StringFormat=0.########}",
+        "Header": "Gross profit"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Fees.TotalExchangeFees, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}",
+        "Header": "Exchange fees"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Fees.StateLabel, TargetNullValue=NotEvaluated}",
+        "Header": "Fee status"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}",
+        "Header": "Fee-adjusted profit"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown, StringFormat=0.########}",
+        "Header": "Fee-adjusted edge"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Fees.Profile, TargetNullValue=Unknown}",
+        "Header": "Diagnostic profile"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding GrossEdgePerShare, StringFormat=0.########}",
+        "Header": "Gross edge"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding InputQuality}",
+        "Header": "Input quality"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding ObservedSkewMilliseconds, StringFormat=0.###}",
+        "Header": "Skew ms"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding RelationshipTrust}",
+        "Header": "Trust"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding RelationshipId}",
+        "Header": "Relationship"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding EvaluatedAt}",
+        "Header": "Evaluated UTC"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PaperPreviewCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Selected.Segments}",
+        "AutomationProperties.Name": "Consumed paired depth"
+      }
+    }
+  ],
+  "MonitoringView": [
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding StartCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding StopCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding RefreshCommand}"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding Profile.IncludeManualRelationships}"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding Profile.EnableFeeAdjustedAlerts}"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding Profile.EnableGrossOnlyAlerts}"
+      }
+    },
+    {
+      "Type": "CheckBox",
+      "Attributes": {
+        "IsChecked": "{Binding Profile.CsvEnabled}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding SaveProfileCommand}"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Lanes}",
+        "SelectedItem": "{Binding Lane}",
+        "AutomationProperties.Name": "Monitoring lane"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Sorts}",
+        "SelectedItem": "{Binding Sort}",
+        "AutomationProperties.Name": "Monitoring sort"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Strategies}",
+        "SelectedItem": "{Binding Strategy}",
+        "AutomationProperties.Name": "Monitoring strategy"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Exchanges}",
+        "SelectedItem": "{Binding Exchange}",
+        "AutomationProperties.Name": "Monitoring exchange"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Trusts}",
+        "SelectedItem": "{Binding Trust}",
+        "AutomationProperties.Name": "Monitoring relationship trust"
+      }
+    },
+    {
+      "Type": "ComboBox",
+      "Attributes": {
+        "ItemsSource": "{Binding Qualities}",
+        "SelectedItem": "{Binding Quality}",
+        "AutomationProperties.Name": "Monitoring input quality"
+      }
+    },
+    {
+      "Type": "TextBox",
+      "Attributes": {
+        "Text": "{Binding FeeStatus}",
+        "AutomationProperties.Name": "Fee status filter"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Items}",
+        "SelectedItem": "{Binding Selected}",
+        "AutomationProperties.Name": "Current monitoring rankings"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Rank}",
+        "Header": "Rank"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.SourceTitle}",
+        "Header": "Title"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.RelationshipTrust}",
+        "Header": "Trust"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding AvailableQuantity}",
+        "Header": "Quantity"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.GrossProfit, TargetNullValue=Unknown}",
+        "Header": "Gross profit"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.GrossEdgePerShare, TargetNullValue=Unknown}",
+        "Header": "Gross edge"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.Fees.FeeAdjustedGuaranteedProfit, TargetNullValue=Unknown, FallbackValue=Unknown}",
+        "Header": "Fee-adjusted profit"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.Fees.FeeAdjustedEdgePerShare, TargetNullValue=Unknown, FallbackValue=Unknown}",
+        "Header": "Fee-adjusted edge"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.Fees.StateLabel, TargetNullValue=Unknown, FallbackValue=Unknown}",
+        "Header": "Fee status"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding BestEdge, TargetNullValue=Unknown}",
+        "Header": "Best edge"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding RequiredEdge, TargetNullValue=Unknown}",
+        "Header": "Required edge"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Distance, TargetNullValue=Unknown}",
+        "Header": "Distance"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.InputQuality}",
+        "Header": "Input quality"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.ObservedSkewMilliseconds, TargetNullValue=Unknown}",
+        "Header": "Skew ms"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.EvaluatedAt}",
+        "Header": "Updated UTC"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding AlertState}",
+        "Header": "Alert state"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextCommand}"
+      }
+    },
+    {
+      "Type": "DataGrid",
+      "Attributes": {
+        "ItemsSource": "{Binding Alerts}",
+        "SelectedItem": "{Binding SelectedAlert}",
+        "AutomationProperties.Name": "Historical monitoring alerts"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding TriggeredAt}",
+        "Header": "Triggered UTC"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Reason}",
+        "Header": "Reason"
+      }
+    },
+    {
+      "Type": "DataGridTextColumn",
+      "Attributes": {
+        "Binding": "{Binding Opportunity.Opportunity.SourceTitle}",
+        "Header": "Title at trigger"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PreviousAlertsCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding NextAlertsCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding InspectAlertCommand}"
+      }
+    },
+    {
+      "Type": "Button",
+      "Attributes": {
+        "Command": "{Binding PaperPreviewCommand}"
+      }
+    }
+  ]
+}

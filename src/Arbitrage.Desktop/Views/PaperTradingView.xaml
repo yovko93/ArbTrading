@@ -33,7 +33,10 @@
      <UniformGrid Columns="2" AutomationProperties.Name="Execution funding available">
       <Border Style="{StaticResource InsetPanel}" Padding="10" Margin="0,0,5,0" BorderBrush="{DynamicResource SemanticBrush.InfoBorder}">
        <StackPanel DataContext="{Binding Account.Balances, Converter={StaticResource PaperBalance}, ConverterParameter=Kalshi/USD}" AutomationProperties.AutomationId="KalshiBalanceSummary">
-        <TextBlock Text="Kalshi / USD" FontWeight="SemiBold"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+         <Image Source="{StaticResource KalshiMark}" Width="28" Height="28" Margin="0,0,8,0" VerticalAlignment="Center" AutomationProperties.Name="Kalshi"/>
+         <TextBlock Grid.Column="1" Text="Kalshi / USD" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </Grid>
         <TextBlock Text="Available" Style="{StaticResource MutedText}" Margin="0,10,0,2"/>
         <TextBlock Text="{Binding AvailableCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}" FontSize="20" FontWeight="SemiBold" AutomationProperties.AutomationId="KalshiAvailable"/>
         <TextBlock Text="Reserved" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding ReservedCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
@@ -44,7 +47,10 @@
       </Border>
       <Border Style="{StaticResource InsetPanel}" Padding="10" Margin="5,0,0,0" BorderBrush="{DynamicResource SemanticBrush.SuccessBorder}">
        <StackPanel DataContext="{Binding Account.Balances, Converter={StaticResource PaperBalance}, ConverterParameter=Polymarket/USDC}" AutomationProperties.AutomationId="PolymarketBalanceSummary">
-        <TextBlock Text="Polymarket / USDC" FontWeight="SemiBold"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+         <Image Source="{StaticResource PolymarketMark}" Width="28" Height="28" Margin="0,0,8,0" VerticalAlignment="Center" AutomationProperties.Name="Polymarket"/>
+         <TextBlock Grid.Column="1" Text="Polymarket / USDC" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </Grid>
         <TextBlock Text="Available" Style="{StaticResource MutedText}" Margin="0,10,0,2"/>
         <TextBlock Text="{Binding AvailableCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}" FontSize="20" FontWeight="SemiBold" AutomationProperties.AutomationId="PolymarketAvailable"/>
         <TextBlock Text="Reserved" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding ReservedCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>

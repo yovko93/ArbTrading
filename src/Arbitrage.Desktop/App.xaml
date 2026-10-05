@@ -11,6 +11,7 @@
         <ResourceDictionary Source="Resources/Styles/Layout.xaml" />
         <ResourceDictionary Source="Resources/Styles/Controls.xaml" />
         <ResourceDictionary Source="Resources/Branding.xaml" />
+        <ResourceDictionary Source="Resources/ExchangeBranding.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>

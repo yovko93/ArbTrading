@@ -155,7 +155,12 @@ public sealed class Ui03WpfTests(WpfFixture fixture)
         paper.RefreshRiskCommand.ExecuteAsync(null).GetAwaiter().GetResult(); paper.RefreshAutomationCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         Assert.Empty(paper.RiskNotice); Assert.Empty(paper.AutomationNotice);
         var view = new PaperTradingView { DataContext = paper }; var window = Show(view);
-        try { Assert.Equal(Visibility.Collapsed, ById<Border>(view, "RiskNotice").Visibility); Assert.Equal(Visibility.Collapsed, ById<Border>(view, "AutomationNotice").Visibility); }
+        try
+        {
+            Ui032WpfTests.ExpandEditors(view); Flush(window);
+            Assert.Equal(Visibility.Collapsed, ById<Border>(view, "RiskNotice").Visibility);
+            Assert.Equal(Visibility.Collapsed, ById<Border>(view, "AutomationNotice").Visibility);
+        }
         finally { Close(window); }
         Assert.All(handler.Methods, method => Assert.Equal(HttpMethod.Get, method));
     });

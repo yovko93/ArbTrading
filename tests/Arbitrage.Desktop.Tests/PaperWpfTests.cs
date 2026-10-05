@@ -65,6 +65,7 @@ public sealed class PaperWpfTests(WpfFixture fixture)
             view.Measure(new Size(1440, 1400)); view.Arrange(new Rect(0, 0, 1440, 1400)); view.UpdateLayout();
             view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             view.UpdateLayout();
+            if (view is PaperTradingView) Ui032WpfTests.ExpandEditors(view);
             var texts = Descendants<TextBlock>(view).Select(t => t.Text).ToArray();
             Assert.Contains(texts, t => t.Contains("SIMULATION ONLY", StringComparison.Ordinal));
             if (view is PaperTradingView)

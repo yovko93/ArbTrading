@@ -75,6 +75,7 @@ public sealed class PaperPageSplitWpfTests(WpfFixture fixture)
                 var balances = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Exact venue balance rows"));
                 balances.IsExpanded = true; view.UpdateLayout();
             }
+            else Ui032WpfTests.ExpandEditors(view);
             var nodes = Descendants(view).ToArray();
             Assert.Equal(trading, nodes.OfType<PaperRiskView>().Any());
             Assert.Equal(trading, nodes.OfType<PaperAutomationView>().Any());

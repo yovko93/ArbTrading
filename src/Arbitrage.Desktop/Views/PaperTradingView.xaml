@@ -3,99 +3,188 @@
  <UserControl.Resources>
   <controls:StatusToneConverter x:Key="StatusTone" />
   <controls:PaperBalanceConverter x:Key="PaperBalance" />
+  <Style x:Key="TradingCard" TargetType="Border" BasedOn="{StaticResource CardBorder}"><Setter Property="Padding" Value="12"/><Setter Property="Margin" Value="0,0,0,12"/></Style>
+  <Style x:Key="TradingMetricRow" TargetType="Grid"><Setter Property="MinHeight" Value="32"/></Style>
   <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}"><Setter Property="RowHeight" Value="30"/><Setter Property="ColumnHeaderHeight" Value="32"/><Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/></Style>
   <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="Padding" Value="8,4"/></Style>
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-  <StackPanel MaxWidth="1160" HorizontalAlignment="Stretch">
-      <TextBlock Text="Paper request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
-   <DockPanel Margin="0,0,0,6">
-    <controls:StatusBadge DockPanel.Dock="Right" Label="SIMULATION ONLY" Tone="Info" VerticalAlignment="Center"/>
-    <TextBlock Text="Paper Trading" Style="{StaticResource PageTitleText}"/>
-   </DockPanel>
-   <TextBlock Text="Mode: Paper. No real orders submitted. Explicit snapshot entries. Review holdings and settlement in Portfolio." Style="{StaticResource PageSubtitleText}" Margin="0,0,0,14"/>
-   <Border Style="{StaticResource NoticeBanner}" ToolTip="{Binding Notice}" Margin="0,0,0,16"><TextBlock Text="{Binding Notice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></Border>
-   <Border Style="{StaticResource CardBorder}"><StackPanel>
-    <TextBlock Text="Paper capital" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
-    <Border Style="{StaticResource InsetPanel}" Margin="0,0,0,14">
-     <StackPanel>
-      <DockPanel><TextBlock Text="Active generation" FontWeight="SemiBold"/>
-       <controls:StatusBadge HorizontalAlignment="Right" Label="{Binding Account.Generation.Integrity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Tone="{Binding Account.Generation.Integrity, Converter={StaticResource StatusTone}}"/>
-      </DockPanel>
-      <TextBlock Text="{Binding AccountText}" Margin="0,6,0,0">
-       <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Account.Generation}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
-      </TextBlock>
-      <TextBlock Text="{Binding Account.Generation.Id, StringFormat='Generation ID: {0}', TargetNullValue=No active generation, FallbackValue=No active generation}" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
-      <WrapPanel Margin="0,6,0,0"><TextBlock Text="{Binding Account.State, StringFormat='State: {0}'}" Margin="0,0,18,0"/><TextBlock Text="{Binding Account.Generation.CreatedAt, StringFormat='Created at: {0:O}', TargetNullValue=Created at: unavailable, FallbackValue=Created at: unavailable}" Style="{StaticResource MutedText}"/></WrapPanel>
-     </StackPanel>
-    </Border>
-    <UniformGrid Columns="2" AutomationProperties.Name="Execution funding available">
-     <Border Style="{StaticResource SummaryCard}" BorderBrush="{DynamicResource SemanticBrush.InfoBorder}" Margin="0,0,7,0">
-      <StackPanel DataContext="{Binding Account.Balances, Converter={StaticResource PaperBalance}, ConverterParameter=Kalshi/USD}">
-       <TextBlock Text="Kalshi / USD" FontWeight="SemiBold"/>
-       <TextBlock Text="Available for entry" Style="{StaticResource MutedText}" Margin="0,7,0,3"/>
-       <TextBlock Text="{Binding AvailableCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource LargeMetricText}"/>
-       <TextBlock Text="USD · simulated funds" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
-      </StackPanel>
-     </Border>
-     <Border Style="{StaticResource SummaryCard}" BorderBrush="{DynamicResource SemanticBrush.SuccessBorder}" Margin="7,0,0,0">
-      <StackPanel DataContext="{Binding Account.Balances, Converter={StaticResource PaperBalance}, ConverterParameter=Polymarket/USDC}">
-       <TextBlock Text="Polymarket / USDC" FontWeight="SemiBold"/>
-       <TextBlock Text="Available for entry" Style="{StaticResource MutedText}" Margin="0,7,0,3"/>
-       <TextBlock Text="{Binding AvailableCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource LargeMetricText}"/>
-       <TextBlock Text="USDC · simulated funds" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
-      </StackPanel>
-     </Border>
-    </UniformGrid>
-   </StackPanel></Border>
-
-   <UniformGrid Columns="2" Margin="0,0,0,16">
-    <Border Style="{StaticResource SummaryCard}" Margin="0,0,7,0" AutomationProperties.AutomationId="RiskPolicySummary">
-     <StackPanel>
-      <TextBlock Text="SAVED POLICY" Style="{StaticResource EyebrowText}"/>
-      <TextBlock Text="Risk Policy" Style="{StaticResource SectionTitleText}" Margin="0,5,0,10"/>
-      <controls:StatusBadge HorizontalAlignment="Left" Label="{Binding RiskStatus.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Tone="{Binding RiskStatus.State, Converter={StaticResource StatusTone}}"/>
-      <UniformGrid Columns="2" Margin="0,16,0,14">
-       <StackPanel><TextBlock Text="Cash reserve" Style="{StaticResource FieldLabel}"/><TextBlock AutomationProperties.AutomationId="SavedCashReserve" Text="{Binding RiskStatus.Policy.Limits.MinimumCashReserveFraction, StringFormat={}{0:0.############################%}, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}"/></StackPanel>
-       <StackPanel><TextBlock Text="Max open executions" Style="{StaticResource FieldLabel}"/><TextBlock AutomationProperties.AutomationId="SavedExecutionLimit" Text="{Binding RiskStatus.Policy.Limits.MaximumOpenExecutions, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}"/></StackPanel>
-      </UniformGrid>
-      <TextBlock Text="{Binding RiskStatus.Policy.Revision, StringFormat='Revision: {0}', TargetNullValue=No saved policy, FallbackValue=No saved policy}" ToolTip="{Binding RiskStatus.Policy.Revision}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-      <TextBlock Text="Limits apply to new paper entries. Full policy and editor below." Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
-     </StackPanel>
-    </Border>
-    <Border Style="{StaticResource SummaryCard}" Margin="7,0,0,0" AutomationProperties.AutomationId="AutoPaperSummary">
-     <StackPanel>
-      <TextBlock Text="SAVED PROFILE / SESSION" Style="{StaticResource EyebrowText}"/>
-      <TextBlock Text="Auto Paper" Style="{StaticResource SectionTitleText}" Margin="0,5,0,10"/>
-      <WrapPanel>
-       <controls:StatusBadge Label="{Binding AutomationStatus.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Tone="{Binding AutomationStatus.State, Converter={StaticResource StatusTone}}" Margin="0,0,7,5"/>
-       <controls:StatusBadge Margin="0,0,0,5">
-        <controls:StatusBadge.Style><Style TargetType="controls:StatusBadge"><Setter Property="Label" Value="Kill switch: unknown"/><Setter Property="Tone" Value="Neutral"/><Style.Triggers>
-         <DataTrigger Binding="{Binding AutomationStatus.KillSwitch.IsLatched}" Value="False"><Setter Property="Label" Value="Kill switch: clear"/><Setter Property="Tone" Value="Good"/></DataTrigger>
-         <DataTrigger Binding="{Binding AutomationStatus.KillSwitch.IsLatched}" Value="True"><Setter Property="Label" Value="Kill switch: latched"/><Setter Property="Tone" Value="Error"/></DataTrigger>
-        </Style.Triggers></Style></controls:StatusBadge.Style>
-       </controls:StatusBadge>
-      </WrapPanel>
-      <UniformGrid Columns="2" Margin="0,11,0,14">
-       <StackPanel><TextBlock Text="Saved sizing mode" Style="{StaticResource FieldLabel}"/>
-        <TextBlock AutomationProperties.AutomationId="SavedSizingMode">
-         <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Text" Value="{Binding AutomationStatus.Profile.Settings.SizingMode, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/><Style.Triggers>
-          <DataTrigger Binding="{Binding AutomationStatus.Profile.Settings.SizingMode}" Value="FixedQuantity"><Setter Property="Text" Value="Fixed quantity"/></DataTrigger>
-          <DataTrigger Binding="{Binding AutomationStatus.Profile.Settings.SizingMode}" Value="LargestAdmissibleGridQuantity"><Setter Property="Text" Value="Adaptive grid"/></DataTrigger>
-         </Style.Triggers></Style></TextBlock.Style>
-        </TextBlock>
+  <StackPanel MaxWidth="1400" HorizontalAlignment="Stretch">
+   <TextBlock Text="Paper request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite"/>
+   <WrapPanel Margin="0,0,0,12">
+    <controls:StatusBadge Label="SIMULATION ONLY" Tone="Info" Margin="0,0,10,4"/>
+    <TextBlock Text="Paper · No real orders submitted · Live execution unavailable" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+   </WrapPanel>
+   <Border Style="{StaticResource NoticeBanner}" ToolTip="{Binding Notice}" Margin="0,0,0,12"><TextBlock Text="{Binding Notice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></Border>
+   <!-- Outside collapsed editors and above all cards, including at the minimum window width. -->
+   <Border AutomationProperties.AutomationId="ArmedSessionControls" Tag="Warning" Margin="0,0,0,12">
+    <Border.Style><Style TargetType="Border" BasedOn="{StaticResource StatusBanner}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding AutomationStatus.State}" Value="Armed"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+    <StackPanel><TextBlock Text="Auto Paper is armed. Closing this page does not disarm the backend." FontWeight="SemiBold"/>
+     <WrapPanel Margin="0,8,0,0"><Button Content="Disarm" Command="{Binding DisarmAutomationCommand}" Style="{StaticResource DangerButton}" Margin="0,0,8,0"/>
+      <Button Content="EMERGENCY STOP" Command="{Binding EmergencyStopAutomationCommand}" Style="{StaticResource DangerButton}" FontWeight="Bold" BorderThickness="2"/>
+     </WrapPanel>
+    </StackPanel>
+   </Border>
+   <Grid x:Name="SummaryGrid" SizeChanged="OnDashboardSizeChanged" AutomationProperties.AutomationId="TradingSummaryGrid">
+    <Border x:Name="AccountCard" Style="{StaticResource TradingCard}" AutomationProperties.AutomationId="PaperAccountSummary"><StackPanel>
+<DockPanel Margin="0,0,0,8"><controls:StatusBadge DockPanel.Dock="Right" Label="{Binding Account.Generation.Integrity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Tone="{Binding Account.Generation.Integrity, Converter={StaticResource StatusTone}}" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+      <TextBlock Text="Paper Account" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center"/></DockPanel>
+<TextBlock Text="{Binding Account.Generation.Id, StringFormat='Generation: {0}', TargetNullValue=No active generation, FallbackValue=No active generation}" ToolTip="{Binding Account.Generation.Id}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,0,10"/>
+     <UniformGrid Columns="2" AutomationProperties.Name="Execution funding available">
+      <Border Style="{StaticResource InsetPanel}" Padding="10" Margin="0,0,5,0" BorderBrush="{DynamicResource SemanticBrush.InfoBorder}">
+       <StackPanel DataContext="{Binding Account.Balances, Converter={StaticResource PaperBalance}, ConverterParameter=Kalshi/USD}" AutomationProperties.AutomationId="KalshiBalanceSummary">
+        <TextBlock Text="Kalshi / USD" FontWeight="SemiBold"/>
+        <TextBlock Text="Available" Style="{StaticResource MutedText}" Margin="0,10,0,2"/>
+        <TextBlock Text="{Binding AvailableCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}" FontSize="20" FontWeight="SemiBold" AutomationProperties.AutomationId="KalshiAvailable"/>
+        <TextBlock Text="Reserved" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding ReservedCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
+        <TextBlock Text="Total cash" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding TotalCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
+        <TextBlock Text="Initial cash" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding InitialCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
+        <TextBlock Text="USD · simulated funds" Style="{StaticResource MutedText}" Margin="0,12,0,0"/>
        </StackPanel>
-       <StackPanel><TextBlock Text="Per-session cap" Style="{StaticResource FieldLabel}"/><TextBlock AutomationProperties.AutomationId="SavedAutomationCap" Text="{Binding AutomationStatus.Profile.Settings.MaximumExecutionsPerSession, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}"/></StackPanel>
-      </UniformGrid>
-      <TextBlock Text="{Binding AutomationStatus.Profile.Revision, StringFormat='Revision: {0}', TargetNullValue=No saved profile, FallbackValue=No saved profile}" ToolTip="{Binding AutomationStatus.Profile.Revision}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-      <TextBlock Text="Explicit arming required. Session controls and profile editor below." Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
+      </Border>
+      <Border Style="{StaticResource InsetPanel}" Padding="10" Margin="5,0,0,0" BorderBrush="{DynamicResource SemanticBrush.SuccessBorder}">
+       <StackPanel DataContext="{Binding Account.Balances, Converter={StaticResource PaperBalance}, ConverterParameter=Polymarket/USDC}" AutomationProperties.AutomationId="PolymarketBalanceSummary">
+        <TextBlock Text="Polymarket / USDC" FontWeight="SemiBold"/>
+        <TextBlock Text="Available" Style="{StaticResource MutedText}" Margin="0,10,0,2"/>
+        <TextBlock Text="{Binding AvailableCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}" FontSize="20" FontWeight="SemiBold" AutomationProperties.AutomationId="PolymarketAvailable"/>
+        <TextBlock Text="Reserved" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding ReservedCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
+        <TextBlock Text="Total cash" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding TotalCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
+        <TextBlock Text="Initial cash" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding InitialCash, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/>
+        <TextBlock Text="USDC · simulated funds" Style="{StaticResource MutedText}" Margin="0,12,0,0"/>
+       </StackPanel>
+      </Border>
+     </UniformGrid>
+     <TextBlock Margin="0,10,0,0">
+      <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+       <Setter Property="Text" Value="{Binding Account.State, StringFormat='Account state: {0}', TargetNullValue=Account state unavailable, FallbackValue=Account state unavailable}"/>
+       <Style.Triggers><DataTrigger Binding="{Binding Account.Generation}" Value="{x:Null}"><Setter Property="Text" Value="{Binding AccountText}"/></DataTrigger></Style.Triggers>
+      </Style></TextBlock.Style>
+     </TextBlock>
+     <TextBlock Text="Cash balances only. Holdings and settlement are in Portfolio." Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+    </StackPanel></Border>
+    <Border x:Name="RiskCard" Style="{StaticResource TradingCard}" AutomationProperties.AutomationId="RiskPolicySummary"><StackPanel>
+<DockPanel Margin="0,0,0,8"><controls:StatusBadge DockPanel.Dock="Right" Label="{Binding RiskStatus.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Tone="{Binding RiskStatus.State, Converter={StaticResource StatusTone}}" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+      <TextBlock Text="Risk Policy" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center"/></DockPanel>
+<TextBlock Text="{Binding RiskStatus.Policy.Revision, StringFormat='Revision: {0}', TargetNullValue=No saved policy, FallbackValue=No saved policy}" ToolTip="{Binding RiskStatus.Policy.Revision}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,0,10"/>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Cash reserve" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MinimumCashReserveFraction, StringFormat={}{0:0.############################%}, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.AutomationId="SavedCashReserve"/>
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max single execution" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MaximumSingleExecutionDebitFraction, StringFormat={}{0:0.############################%}, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max total open cost" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MaximumOpenCostBasisFraction, StringFormat={}{0:0.############################%}, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max market exposure" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MaximumMarketCostBasisFraction, StringFormat={}{0:0.############################%}, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max instrument exposure" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MaximumInstrumentCostBasisFraction, StringFormat={}{0:0.############################%}, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max open positions" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MaximumOpenPositions, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max open executions" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding RiskStatus.Policy.Limits.MaximumOpenExecutions, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.AutomationId="SavedExecutionLimit"/>
+     </Grid>
+     <TextBlock Text="Saved limits for new paper entries. Edit the full policy below." Style="{StaticResource MutedText}" Margin="0,10,0,0"/>
+    </StackPanel></Border>
+    <Border x:Name="AutoCard" Style="{StaticResource TradingCard}" AutomationProperties.AutomationId="AutoPaperSummary"><StackPanel>
+<DockPanel Margin="0,0,0,8"><controls:StatusBadge DockPanel.Dock="Right" Label="{Binding AutomationStatus.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Tone="{Binding AutomationStatus.State, Converter={StaticResource StatusTone}}" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+      <TextBlock Text="Auto Paper" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center"/></DockPanel>
+<TextBlock Text="{Binding AutomationStatus.Profile.Revision, StringFormat='Profile: {0}', TargetNullValue=No saved profile, FallbackValue=No saved profile}" ToolTip="{Binding AutomationStatus.Profile.Revision}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,0,10"/>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Sizing mode" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+      <TextBlock Grid.Column="1" AutomationProperties.AutomationId="SavedSizingMode" VerticalAlignment="Center">
+       <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="Text" Value="{Binding AutomationStatus.Profile.Settings.SizingMode, TargetNullValue=Unavailable, FallbackValue=Unavailable}"/><Style.Triggers>
+        <DataTrigger Binding="{Binding AutomationStatus.Profile.Settings.SizingMode}" Value="FixedQuantity"><Setter Property="Text" Value="Fixed quantity"/></DataTrigger>
+        <DataTrigger Binding="{Binding AutomationStatus.Profile.Settings.SizingMode}" Value="LargestAdmissibleGridQuantity"><Setter Property="Text" Value="Adaptive grid"/></DataTrigger>
+       </Style.Triggers></Style></TextBlock.Style>
+      </TextBlock>
+     </Grid>
+     <StackPanel><StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding AutomationStatus.Profile.Settings.SizingMode}" Value="FixedQuantity"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Fixed quantity" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.FixedQuantity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.AutomationId="SavedFixedQuantity"/>
+     </Grid>
      </StackPanel>
-    </Border>
-   </UniformGrid>
-
-   <TextBlock Text="Configuration and controls" Style="{StaticResource SectionTitleText}" Margin="0,8,0,6"/>
-   <TextBlock Text="Review saved state above. Editing a field does not activate a policy or arm a session." Style="{StaticResource PageSubtitleText}" Margin="0,0,0,16"/>
-   <Border Style="{StaticResource CardBorder}"><StackPanel>
+     <StackPanel><StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding AutomationStatus.Profile.Settings.SizingMode}" Value="LargestAdmissibleGridQuantity"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Minimum quantity" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.MinimumQuantity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Maximum quantity" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.MaximumQuantity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Quantity step" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.QuantityStep, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     </StackPanel>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Min edge / share" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.MinimumFeeAdjustedEdgePerShare, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Minimum profit" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.MinimumFeeAdjustedProfit, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max executions / session" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.MaximumExecutionsPerSession, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" AutomationProperties.AutomationId="SavedAutomationCap"/>
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Max executions / hour" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.MaximumExecutionsPerHour, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Require realtime" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.RequireRealtime, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <Grid Style="{StaticResource TradingMetricRow}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Polymarket BestEffort" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding AutomationStatus.Profile.Settings.AllowPolymarketBestEffort, TargetNullValue=Unavailable, FallbackValue=Unavailable}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+     </Grid>
+     <controls:StatusBadge HorizontalAlignment="Left" Margin="0,10,0,0">
+      <controls:StatusBadge.Style><Style TargetType="controls:StatusBadge"><Setter Property="Label" Value="Kill switch: unknown"/><Setter Property="Tone" Value="Neutral"/><Style.Triggers>
+       <DataTrigger Binding="{Binding AutomationStatus.KillSwitch.IsLatched}" Value="False"><Setter Property="Label" Value="Kill switch: clear"/><Setter Property="Tone" Value="Good"/></DataTrigger>
+       <DataTrigger Binding="{Binding AutomationStatus.KillSwitch.IsLatched}" Value="True"><Setter Property="Label" Value="Kill switch: latched"/><Setter Property="Tone" Value="Error"/></DataTrigger>
+      </Style.Triggers></Style></controls:StatusBadge.Style>
+     </controls:StatusBadge>
+    </StackPanel></Border>
+   </Grid>
+   <Grid x:Name="SecondaryGrid" SizeChanged="OnSecondarySizeChanged">
+    <Border Style="{StaticResource TradingCard}" AutomationProperties.AutomationId="CurrentPaperOpportunity"><StackPanel>
+     <TextBlock Text="Current Paper Opportunity" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
+     <StackPanel>
+      <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding OpportunityKey}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding Account.Generation}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+      <TextBlock Text="{Binding OpportunityKey, StringFormat='Opportunity: {0}'}" ToolTip="{Binding OpportunityKey}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Style="{StaticResource MutedText}"/>
+      <TextBlock Text="{Binding PreviewText}" ToolTip="{Binding PreviewText}" TextTrimming="WordEllipsis" TextWrapping="Wrap" MaxHeight="60" Margin="0,8,0,0"/>
+      <TextBlock Text="Review the full snapshot and confirmations in Explicit Paper Entry below." Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
+     </StackPanel>
+     <StackPanel>
+      <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding OpportunityKey}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding Account.Generation}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+      <TextBlock AutomationProperties.AutomationId="CurrentOpportunityEmpty"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="Text" Value="Current paper opportunity unavailable."/><Style.Triggers><DataTrigger Binding="{Binding OpportunityKey}" Value=""><Setter Property="Text" Value="No paper opportunity selected."/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+      <TextBlock Text="Open Opportunities and choose Paper preview." Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
+     </StackPanel>
+    </StackPanel></Border>
+    <Border Style="{StaticResource TradingCard}" AutomationProperties.AutomationId="PaperEquitySnapshot"><StackPanel>
+     <TextBlock Text="Paper Equity" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
+     <TextBlock Text="Historical equity series is not available."/>
+     <TextBlock Text="Current cash balances remain separated by venue and currency in Paper Account. Review holdings and valuations in Portfolio." Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
+    </StackPanel></Border>
+   </Grid>
+   <TextBlock Text="Configuration and controls" Style="{StaticResource SectionTitleText}" Margin="0,4,0,6"/>
+   <TextBlock Text="Editing fields does not activate a policy or arm a session." Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+   <Expander x:Name="GenerationDetails" Style="{StaticResource DetailsExpander}" Header="Paper Generation" IsExpanded="False"><StackPanel>
     <TextBlock Text="Initialize / Reset paper generation" Style="{StaticResource SectionTitleText}"/>
     <TextBlock Text="Review initial amounts and reason before confirming a generation change." Style="{StaticResource MutedText}" Margin="0,4,0,4"/>
     <WrapPanel Margin="0,8">
@@ -104,10 +193,10 @@
      <StackPanel Margin="0,0,0,8"><TextBlock Text="Initialization / reset reason"/><TextBox Text="{Binding ResetReason, UpdateSourceTrigger=PropertyChanged}" Width="320" AutomationProperties.Name="Paper generation reason"/></StackPanel>
     </WrapPanel>
     <WrapPanel><Button Style="{StaticResource DangerButton}" Margin="0,0,8,6" Content="Initialize / Reset paper generation…" Command="{Binding InitializeCommand}"/><Button Style="{StaticResource PrimaryButton}" Content="Refresh paper account" Command="{Binding RefreshCommand}" Margin="0,0,0,6"/></WrapPanel>
-   </StackPanel></Border>
-   <views:PaperRiskView/>
-   <views:PaperAutomationView/>
-   <Border Style="{StaticResource CardBorder}"><StackPanel>
+   </StackPanel></Expander>
+   <views:PaperRiskView x:Name="RiskEditor"/>
+   <views:PaperAutomationView x:Name="AutomationEditor"/>
+   <Expander x:Name="EntryDetails" Style="{StaticResource DetailsExpander}" Header="Explicit Paper Entry" IsExpanded="False"><StackPanel>
     <TextBlock Text="EXPLICIT PAPER ENTRY" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
     <TextBlock Text="Explicit snapshot preview" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8"/>
     <TextBlock Text="Select Paper preview on a current opportunity. USD and USDC are separate; no conversion is assumed." TextWrapping="Wrap"/>
@@ -118,7 +207,7 @@
     <DataGrid ItemsSource="{Binding Preview.Fills}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="180" AutomationProperties.Name="Preview snapshot fills">
      <DataGrid.Columns><DataGridTextColumn Header="Venue" Binding="{Binding Exchange}" Width="120"/><DataGridTextColumn Header="Instrument" Binding="{Binding InstrumentId}" Width="150"/><DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="110"/><DataGridTextColumn Header="BUY quantity" Binding="{Binding Quantity}" Width="110"/><DataGridTextColumn Header="Price" Binding="{Binding Price}" Width="100"/><DataGridTextColumn Header="Modeled fee" Binding="{Binding Fee}" Width="120"/><DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="90"/><DataGridTextColumn Header="Liquidity origin" Binding="{Binding LiquidityOrigin}" Width="180"/><DataGridTextColumn Header="Book version" Binding="{Binding BookVersion}" Width="120"/></DataGrid.Columns>
     </DataGrid>
-   </StackPanel></Border>
+   </StackPanel></Expander>
   </StackPanel>
  </ScrollViewer>
 </UserControl>

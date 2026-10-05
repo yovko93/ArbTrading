@@ -103,6 +103,10 @@ public sealed class WpfThemePaletteApplier(ResourceDictionary resources) : IThem
             ["Color.SelectionBackground"] = SystemColors.HighlightColor,
             ["Color.SelectionText"] = SystemColors.HighlightTextColor,
             ["Color.DisabledBackground"] = SystemColors.ControlColor,
+            ["Color.ScrollTrack"] = SystemColors.WindowColor,
+            ["Color.ScrollThumb"] = SystemColors.WindowTextColor,
+            ["Color.ScrollThumbHover"] = SystemColors.HighlightColor,
+            ["Color.ScrollThumbPressed"] = SystemColors.HighlightColor,
             ["Color.DisabledText"] = SystemColors.GrayTextColor
         };
     }

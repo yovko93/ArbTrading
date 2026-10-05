@@ -1,16 +1,35 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Single vector source for the in-app mark and the generated Windows icon. -->
-    <DrawingImage x:Key="AppMark">
+    <!-- Canonical symbol: the reference's abstract A and three ascending market bars. -->
+    <DrawingCollection x:Key="BrandMarkParts">
+        <GeometryDrawing Brush="#298AFF" Geometry="M 0,124 L 72,3 Q 76,-3 80,3 L 108,51 L 90,64 L 76,40 L 27,124 Z" />
+        <GeometryDrawing Brush="#16C875" Geometry="M 96,72 L 111,56 L 152,124 L 125,124 Z" />
+        <GeometryDrawing Brush="#16C875" Geometry="M 47,108 L 53,103 L 57,104 L 57,124 L 47,124 Z" />
+        <GeometryDrawing Brush="#16C875" Geometry="M 63,95 L 70,90 L 75,92 L 75,124 L 63,124 Z" />
+        <GeometryDrawing Brush="#16C875" Geometry="M 81,80 L 88,75 L 94,80 L 94,124 L 81,124 Z" />
+    </DrawingCollection>
+    <DrawingGroup x:Key="BrandMarkDrawing" Children="{StaticResource BrandMarkParts}" />
+    <DrawingImage x:Key="AppMark" Drawing="{StaticResource BrandMarkDrawing}" />
+    <!-- Icon composition reuses the symbol, with transparent outer corners and a navy tile. -->
+    <DrawingImage x:Key="AppIconArtwork">
         <DrawingImage.Drawing>
             <DrawingGroup>
-                <GeometryDrawing Brush="#121E2C">
+                <GeometryDrawing>
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#1C2C3A" Offset="0" />
+                            <GradientStop Color="#080F14" Offset="1" />
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
                     <GeometryDrawing.Geometry>
                         <RectangleGeometry Rect="0,0,256,256" RadiusX="52" RadiusY="52" />
                     </GeometryDrawing.Geometry>
                 </GeometryDrawing>
-                <GeometryDrawing Brush="#59B9F5" Geometry="M 50,62 L 150,62 L 150,40 L 210,80 L 150,120 L 150,98 L 50,98 Z" />
-                <GeometryDrawing Brush="#51D2A1" Geometry="M 206,158 L 106,158 L 106,136 L 46,176 L 106,216 L 106,194 L 206,194 Z" />
+                <DrawingGroup Children="{StaticResource BrandMarkParts}">
+                    <DrawingGroup.Transform>
+                        <TransformGroup><ScaleTransform ScaleX="1.22" ScaleY="1.22" /><TranslateTransform X="35" Y="52" /></TransformGroup>
+                    </DrawingGroup.Transform>
+                </DrawingGroup>
             </DrawingGroup>
         </DrawingImage.Drawing>
     </DrawingImage>

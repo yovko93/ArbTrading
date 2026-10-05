@@ -23,9 +23,9 @@ try {
 finally {
     $reader.Dispose()
 }
-$mark = $resources['AppMark']
+$mark = $resources['AppIconArtwork']
 if ($mark -isnot [System.Windows.Media.DrawingImage]) {
-    throw 'Branding.xaml must contain the AppMark DrawingImage.'
+    throw 'Branding.xaml must contain the AppIconArtwork DrawingImage using the canonical AppMark geometry.'
 }
 $mark.Freeze()
 

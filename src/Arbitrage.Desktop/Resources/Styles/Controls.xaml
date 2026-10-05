@@ -154,9 +154,9 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="Padding" Value="14,10" />
-    <Setter Property="Margin" Value="0,3" />
-    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="Margin" Value="0,1" />
+    <Setter Property="MinHeight" Value="34" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     <Setter Property="FocusVisualStyle" Value="{x:Null}" />
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
@@ -164,10 +164,10 @@
         <TextBlock x:Name="GroupCaption" IsHitTestVisible="False">
           <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource EyebrowText}">
             <Setter Property="Text" Value="" />
-            <Setter Property="Margin" Value="14,14,0,8" />
+            <Setter Property="Margin" Value="12,8,0,4" />
             <Setter Property="Visibility" Value="Collapsed" />
             <Style.Triggers>
-              <DataTrigger Binding="{Binding Destination}" Value="Dashboard"><Setter Property="Text" Value="WORKSPACE" /><Setter Property="Visibility" Value="Visible" /><Setter Property="Margin" Value="14,2,0,8" /></DataTrigger>
+              <DataTrigger Binding="{Binding Destination}" Value="Dashboard"><Setter Property="Text" Value="WORKSPACE" /><Setter Property="Visibility" Value="Visible" /><Setter Property="Margin" Value="12,2,0,4" /></DataTrigger>
               <DataTrigger Binding="{Binding Destination}" Value="Trading"><Setter Property="Text" Value="PAPER OPERATIONS" /><Setter Property="Visibility" Value="Visible" /></DataTrigger>
               <DataTrigger Binding="{Binding Destination}" Value="Diagnostics"><Setter Property="Text" Value="SYSTEM" /><Setter Property="Visibility" Value="Visible" /></DataTrigger>
             </Style.Triggers>
@@ -261,7 +261,52 @@
     <Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
     <Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBackground}" /><Setter Property="Foreground" Value="{DynamicResource SelectionText}" /></Trigger></Style.Triggers>
   </Style>
-  <Style TargetType="ScrollBar"><Setter Property="Background" Value="{DynamicResource SurfaceBackground}" /><Setter Property="Foreground" Value="{DynamicResource SecondaryText}" /></Style>
+  <Style x:Key="ScrollPageButton" TargetType="RepeatButton">
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton">
+      <Border Background="Transparent" />
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="ScrollThumbStyle" TargetType="Thumb">
+    <Setter Property="MinHeight" Value="18" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb">
+      <Border x:Name="ThumbChrome" Background="{DynamicResource ScrollThumb}" CornerRadius="4" Margin="1" />
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbChrome" Property="Background" Value="{DynamicResource ScrollThumbHover}" /></Trigger>
+        <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbChrome" Property="Background" Value="{DynamicResource ScrollThumbPressed}" /></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="ScrollBar">
+    <Setter Property="Background" Value="{DynamicResource ScrollTrack}" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Width" Value="10" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+      <Border Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+        <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True"
+               Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" ViewportSize="{TemplateBinding ViewportSize}"
+               Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+          <Track.DecreaseRepeatButton><RepeatButton x:Name="PageDecrease" Style="{StaticResource ScrollPageButton}" Command="ScrollBar.PageUpCommand" /></Track.DecreaseRepeatButton>
+          <Track.Thumb><Thumb x:Name="ScrollThumb" Style="{StaticResource ScrollThumbStyle}" /></Track.Thumb>
+          <Track.IncreaseRepeatButton><RepeatButton x:Name="PageIncrease" Style="{StaticResource ScrollPageButton}" Command="ScrollBar.PageDownCommand" /></Track.IncreaseRepeatButton>
+        </Track>
+      </Border>
+      <ControlTemplate.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+          <Setter TargetName="PageDecrease" Property="Command" Value="ScrollBar.PageLeftCommand" />
+          <Setter TargetName="PageIncrease" Property="Command" Value="ScrollBar.PageRightCommand" />
+          <Setter TargetName="ScrollThumb" Property="MinHeight" Value="0" />
+          <Setter TargetName="ScrollThumb" Property="MinWidth" Value="18" />
+        </Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+    <Style.Triggers>
+      <Trigger Property="Orientation" Value="Horizontal"><Setter Property="Width" Value="Auto" /><Setter Property="Height" Value="10" /></Trigger>
+    </Style.Triggers>
+  </Style>
   <Style TargetType="ToolTip"><Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBackground}" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" /><Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}" /></Style>
   <Style TargetType="ContextMenu"><Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBackground}" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" /><Setter Property="BorderBrush" Value="{DynamicResource DefaultBorder}" /></Style>
   <Style TargetType="MenuItem"><Setter Property="Background" Value="{DynamicResource ElevatedSurfaceBackground}" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" /></Style>

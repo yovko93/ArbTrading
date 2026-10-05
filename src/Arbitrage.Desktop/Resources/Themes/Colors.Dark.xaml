@@ -23,4 +23,8 @@
   <Color x:Key="Color.ErrorBackground">#402832</Color>
   <Color x:Key="Color.InfoBackground">#183656</Color>
   <Color x:Key="Color.InfoForeground">#9CCBFF</Color>
+  <Color x:Key="Color.ScrollTrack">#101B2B</Color>
+  <Color x:Key="Color.ScrollThumb">#52647C</Color>
+  <Color x:Key="Color.ScrollThumbHover">#7187A3</Color>
+  <Color x:Key="Color.ScrollThumbPressed">#86A5CB</Color>
 </ResourceDictionary>

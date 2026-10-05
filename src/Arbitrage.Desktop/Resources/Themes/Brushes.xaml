@@ -18,6 +18,10 @@
   <SolidColorBrush x:Key="SelectionText" Color="{DynamicResource Color.SelectionText}" />
   <SolidColorBrush x:Key="DisabledBackground" Color="{DynamicResource Color.DisabledBackground}" />
   <SolidColorBrush x:Key="DisabledText" Color="{DynamicResource Color.DisabledText}" />
+  <SolidColorBrush x:Key="ScrollTrack" Color="{DynamicResource Color.ScrollTrack}" />
+  <SolidColorBrush x:Key="ScrollThumb" Color="{DynamicResource Color.ScrollThumb}" />
+  <SolidColorBrush x:Key="ScrollThumbHover" Color="{DynamicResource Color.ScrollThumbHover}" />
+  <SolidColorBrush x:Key="ScrollThumbPressed" Color="{DynamicResource Color.ScrollThumbPressed}" />
   <SolidColorBrush x:Key="SemanticBrush.SuccessBackground" Color="{DynamicResource Color.SuccessBackground}" />
   <SolidColorBrush x:Key="SemanticBrush.SuccessBorder" Color="{DynamicResource Color.Success}" />
   <SolidColorBrush x:Key="SemanticBrush.SuccessForeground" Color="{DynamicResource Color.Success}" />

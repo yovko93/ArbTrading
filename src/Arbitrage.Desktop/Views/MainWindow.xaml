@@ -30,26 +30,26 @@
     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
     <Border Grid.RowSpan="3" Grid.Column="0" Background="{DynamicResource NavigationBackground}"
             BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,0,1,0">
-      <Grid Margin="12,16,12,12">
+      <Grid Margin="12,12,12,12">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <StackPanel Margin="8,4,8,16">
+        <StackPanel Margin="0,2,0,10">
           <DockPanel>
             <Image Source="{StaticResource AppMark}" Width="38" Height="38" Margin="0,0,10,0" AutomationProperties.Name="Arbitrage Trading mark"/>
             <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="Arbitrage" FontSize="18" FontWeight="SemiBold"/>
-              <TextBlock Text="TRADING" Style="{StaticResource EyebrowText}" Foreground="{DynamicResource Accent}"/>
+              <TextBlock Text="ARBITRAGE" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+              <TextBlock Text="TRADING" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
             </StackPanel>
           </DockPanel>
-          <TextBlock Text="Local workstation" Style="{StaticResource MutedText}" Margin="0,14,0,0" />
+          <TextBlock Text="Local workstation" Style="{StaticResource MutedText}" Margin="0,8,0,0" />
         </StackPanel>
         <ListBox Grid.Row="1" ItemsSource="{Binding Navigation}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                  ItemContainerStyle="{StaticResource SidebarItem}" BorderThickness="0" Background="Transparent"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Application navigation">
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Application navigation">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <DockPanel LastChildFill="True" MinHeight="24">
+              <DockPanel LastChildFill="True" MinHeight="20">
                 <Path DockPanel.Dock="Left" Data="{Binding Icon}" Width="16" Height="16" Stretch="Uniform"
-                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" StrokeThickness="1.8" Margin="0,0,12,0" VerticalAlignment="Center" />
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" StrokeThickness="1.8" Margin="0,0,10,0" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Label}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
                            VerticalAlignment="Center" />
               </DockPanel>

@@ -8,6 +8,7 @@
  </ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel>
+      <TextBlock Text="Reading the paper summary…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
    <controls:SectionHeader Title="Analytics" Subtitle="Read-only paper capital, performance, executable valuation, and reliability summary."/>
    <WrapPanel Margin="0,0,0,12"><controls:StatusBadge Label="PAPER SUMMARY" Tone="Info" Margin="0,0,12,8"/><Button Content="Refresh summary" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,0,0,8" AutomationProperties.Name="Refresh paper analytics summary"/></WrapPanel>
    <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Notice}"><TextBlock Text="{Binding Notice}" TextWrapping="Wrap"/></Border>

@@ -133,7 +133,7 @@ public sealed class Ui02BPortfolioWpfTests(WpfFixture fixture)
         Assert.Equal(0, data.Handler.Requests);
     });
 
-    private sealed class PortfolioFixture : IDisposable
+    internal sealed class PortfolioFixture : IDisposable
     {
         private static readonly DateTimeOffset At = DateTimeOffset.Parse("2026-10-05T10:00:00Z");
         private static Guid Id(int value) => Guid.Parse($"00000000-0000-0000-0000-{value:D12}");

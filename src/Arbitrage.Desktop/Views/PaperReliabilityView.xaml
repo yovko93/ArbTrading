@@ -17,6 +17,7 @@
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AutomationProperties.AutomationId="ReliabilityScroll">
     <StackPanel>
+      <TextBlock Text="Paper reliability request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
       <TextBlock Text="Paper Reliability Campaign" Style="{StaticResource PageTitleText}" Margin="0,0,0,6" />
       <TextBlock Text="Campaign observations, independent evidence criteria, and safety invariants." Style="{StaticResource PageSubtitleText}" Margin="0,0,0,12" />
       <Border Style="{StaticResource StatusBanner}" Tag="Warning" Margin="0,0,0,12">

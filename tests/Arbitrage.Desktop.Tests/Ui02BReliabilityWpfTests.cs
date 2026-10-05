@@ -165,12 +165,12 @@ public sealed class Ui02BReliabilityWpfTests(WpfFixture fixture)
         Assert.Same(vm.ReadReportCommand, Assert.Single(Descendants<Button>(view), b => Equals(b.Content, "Read selected report")).Command);
     }
 
-    private static PaperReliabilityCampaignResponse Campaign() => new(CampaignId, WorkspaceId,
+    internal static PaperReliabilityCampaignResponse Campaign() => new(CampaignId, WorkspaceId,
         Guid.Parse("c02b0000-0000-0000-0000-000000000004"), Guid.Parse("c02b0000-0000-0000-0000-000000000005"),
         "UI-02B paper evidence fixture", "Deterministic isolated observations", At, null, null, "Collecting", 1,
         new string('A', 64), false, false, false, Guid.Parse("c02b0000-0000-0000-0000-000000000006"));
 
-    private static PaperReliabilityReportResponse Report(PaperReliabilityCampaignResponse campaign) => new(
+    internal static PaperReliabilityReportResponse Report(PaperReliabilityCampaignResponse campaign) => new(
         campaign.Id, campaign.WorkspaceId, campaign.Name, At, At.AddHours(2), campaign.State, 1, campaign.PolicyFingerprint,
         "InsufficientEvidence", false,
         new Dictionary<string, long>

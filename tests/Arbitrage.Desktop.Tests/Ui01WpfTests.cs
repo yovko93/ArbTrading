@@ -159,7 +159,7 @@ public sealed class Ui01WpfTests(WpfFixture fixture)
         finally { harness.Window.Close(); }
     });
 
-    private static PaperRiskStatusResponse Risk()
+    internal static PaperRiskStatusResponse Risk()
     {
         var at = DateTimeOffset.Parse("2026-10-04T08:00:00Z");
         var revision = Guid.NewGuid();
@@ -168,7 +168,7 @@ public sealed class Ui01WpfTests(WpfFixture fixture)
             new("Approved", 1, revision, new string('A', 64), Guid.NewGuid(), 1, [], [], [], 1, 2, 1, 2, 0, 1, [], at));
     }
 
-    private static PaperAutomationStatusResponse Automation()
+    internal static PaperAutomationStatusResponse Automation()
     {
         var at = DateTimeOffset.Parse("2026-10-04T08:00:00Z");
         return new("Disarmed", "OwnerDisarmed", new(1, Guid.NewGuid(), new("FixedQuantity", 1, .005m, .05m, 7, 10, 1, 5, 60, .25m, 20, true, false),

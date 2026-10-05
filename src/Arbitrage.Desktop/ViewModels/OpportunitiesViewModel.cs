@@ -13,6 +13,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     private readonly MainViewModel state;
     private readonly BackendClient backend;
     private CancellationTokenSource lifetime = new();
+    private readonly ReadNotice readNotice = new();
     private bool active, disposed;
     private long generation, readGeneration;
     public ObservableCollection<OpportunityResponse> Items { get; } = [];
@@ -140,9 +141,10 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
             Items.Clear(); foreach (var item in result.Items) Items.Add(item);
             Total = result.Total; Job = result.Job;
             Selected = Items.FirstOrDefault(i => i.OpportunityKey == key);
+            Notice = readNotice.Recover(Notice);
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure failure) { if (Context() == context && read == readGeneration) { Items.Clear(); Selected = null; Total = 0; Failure(failure); } }
+        catch (BackendFailure failure) { if (Context() == context && read == readGeneration) { Items.Clear(); Selected = null; Total = 0; Failure(failure); Notice = readNotice.Remember(Notice); } }
     }
     [RelayCommand] private async Task CancelEvaluationAsync()
     {
@@ -182,6 +184,7 @@ public partial class OpportunitiesViewModel : ObservableObject, IDisposable
     partial void OnTotalChanged(int value) => OnPropertyChanged(nameof(PageLabel));
     private void Failure(BackendFailure failure)
     {
+        readNotice.Forget();
         if (failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied) state.SetRealtimeStatus(failure.State.ToString(), failure.Message);
         else Notice = "Result validation unavailable; displayed results cleared. Retry explicitly.";
     }

@@ -10,6 +10,7 @@
       <!-- Availability is contextual: only Paper receives success emphasis. Live labels remain literal and neutral. -->
       <Style x:Key="SettingsCapability" TargetType="controls:StatusBadge" BasedOn="{StaticResource WorkflowState}">
         <Style.Triggers>
+          <Trigger Property="Label" Value="Available"><Setter Property="Tone" Value="Neutral" /></Trigger>
           <Trigger Property="Label" Value="Unknown"><Setter Property="Tone" Value="Warning" /></Trigger>
         </Style.Triggers>
       </Style>
@@ -35,7 +36,7 @@
             <Border Style="{StaticResource WorkflowMetric}" Margin="0,0,0,8">
               <StackPanel>
                 <TextBlock Text="Effective appearance" Style="{StaticResource EyebrowText}" />
-                <TextBlock Text="{Binding Theme.EffectiveAppearance}" FontWeight="SemiBold" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding Theme.EffectiveAppearance}" Style="{StaticResource CardHeadingText}" Margin="0,4,0,0" />
               </StackPanel>
             </Border>
           </WrapPanel>
@@ -50,7 +51,7 @@
               AutomationProperties.AutomationId="SettingsAccessDenied"
               Visibility="{Binding State.IsWorkspaceAccessDenied, Converter={StaticResource BooleanToVisibility}}">
         <StackPanel>
-          <TextBlock Text="Workspace access unavailable" FontWeight="SemiBold" Margin="0,0,0,4" />
+          <TextBlock Text="Workspace access unavailable" Style="{StaticResource CardHeadingText}" Margin="0,0,0,4" />
           <TextBlock Text="Workspace editing is hidden until local authentication and authorization succeed. Unsaved input is retained for this session."
                      Foreground="{DynamicResource Warning}" />
         </StackPanel>
@@ -117,7 +118,7 @@
           </Border>
           <Border Style="{StaticResource InsetPanel}" Padding="12" Margin="0">
             <StackPanel>
-              <TextBlock Text="Credential status" FontWeight="SemiBold" Margin="0,0,0,8" />
+              <TextBlock Text="Credential status" Style="{StaticResource CardHeadingText}" Margin="0,0,0,8" />
               <TextBlock Text="{Binding Status.StoreCapability, StringFormat=Storage: {0}, TargetNullValue='Storage: Unavailable', FallbackValue='Storage: Unavailable'}" />
               <TextBlock Text="{Binding Status.MaskedKeyId, StringFormat=Key: {0}, TargetNullValue='Key: Unavailable', FallbackValue='Key: Unavailable'}" Margin="0,5,0,0" />
               <TextBlock Text="{Binding Status.PublicKeyFingerprint, StringFormat=Public fingerprint: {0}, TargetNullValue='Public fingerprint: Unavailable', FallbackValue='Public fingerprint: Unavailable'}" TextWrapping="Wrap" Margin="0,5,0,0" />
@@ -136,11 +137,11 @@
           <WrapPanel Margin="0,12,0,0">
             <Border Style="{StaticResource WorkflowMetric}" Width="220"><StackPanel>
               <TextBlock Text="CONNECTION" Style="{StaticResource EyebrowText}" />
-              <TextBlock Text="{Binding State.ConnectionStatus}" FontWeight="SemiBold" Margin="0,5,0,0" />
+              <TextBlock Text="{Binding State.ConnectionStatus}" Style="{StaticResource CardHeadingText}" Margin="0,5,0,0" />
             </StackPanel></Border>
             <Border Style="{StaticResource WorkflowMetric}" Width="220"><StackPanel>
               <TextBlock Text="PROCESS" Style="{StaticResource EyebrowText}" />
-              <TextBlock Text="{Binding LocalBackend.ProcessStatus}" FontWeight="SemiBold" Margin="0,5,0,0" />
+              <TextBlock Text="{Binding LocalBackend.ProcessStatus}" Style="{StaticResource CardHeadingText}" Margin="0,5,0,0" />
             </StackPanel></Border>
             <Border Style="{StaticResource WorkflowMetric}" Width="220"><StackPanel>
               <TextBlock Text="MANAGEMENT" Style="{StaticResource EyebrowText}" />
@@ -164,19 +165,42 @@
         <StackPanel>
           <TextBlock Text="DISTRIBUTION &amp; CAPABILITIES" Style="{StaticResource EyebrowText}" />
           <TextBlock Text="Application" Style="{StaticResource SectionTitleText}" Margin="0,3,0,10" />
+          <Border Style="{StaticResource InsetPanel}" Padding="12" Margin="0,0,0,12" AutomationProperties.AutomationId="ProductInformation">
+            <StackPanel>
+              <DockPanel Margin="0,0,0,12">
+                <Image Source="{StaticResource AppMark}" Width="32" Height="32" Margin="0,0,10,0" AutomationProperties.Name="Arbitrage Trading product mark" />
+                <TextBlock Text="{Binding Product.Name}" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center" />
+              </DockPanel>
+              <WrapPanel>
+                <StackPanel Style="{StaticResource WorkflowField}" MinWidth="190">
+                  <TextBlock Text="Application version (assembly)" Style="{StaticResource FieldLabel}" />
+                  <TextBlock Text="{Binding Product.ApplicationVersion}" AutomationProperties.AutomationId="ProductVersion" />
+                </StackPanel>
+                <StackPanel Style="{StaticResource WorkflowField}" MinWidth="190">
+                  <TextBlock Text="Runtime / architecture" Style="{StaticResource FieldLabel}" />
+                  <TextBlock Text="{Binding Product.Runtime}" AutomationProperties.AutomationId="ProductRuntime" />
+                </StackPanel>
+              </WrapPanel>
+              <TextBlock Text="Build identity (informational version)" Style="{StaticResource FieldLabel}" Margin="0,2,0,3" />
+              <TextBlock Text="{Binding Product.BuildIdentity}" ToolTip="{Binding Product.BuildIdentity}" Style="{StaticResource IdentifierText}" AutomationProperties.AutomationId="ProductBuildIdentity" />
+              <TextBlock Text="Source commit" Style="{StaticResource FieldLabel}" Margin="0,8,0,3" />
+              <TextBlock Text="{Binding Product.SourceCommit}" ToolTip="{Binding Product.SourceCommit}" Style="{StaticResource IdentifierText}" AutomationProperties.AutomationId="ProductSourceCommit" />
+              <TextBlock Text="Local paper workstation · live orders are not implemented. Package and signing evidence is shown below." Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+            </StackPanel>
+          </Border>
           <Border Style="{StaticResource InsetPanel}" Padding="12" Margin="0,0,0,12" AutomationProperties.AutomationId="SettingsDistribution">
             <StackPanel>
-              <TextBlock Text="Distribution and runtime" FontWeight="SemiBold" Margin="0,0,0,7" />
+              <TextBlock Text="Distribution and runtime" Style="{StaticResource CardHeadingText}" Margin="0,0,0,7" />
               <TextBlock Text="{Binding LocalBackend.DistributionSummary, TargetNullValue='Distribution information unavailable.', FallbackValue='Distribution information unavailable.'}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
             </StackPanel>
           </Border>
           <WrapPanel>
             <Border Style="{StaticResource WorkflowMetric}" Width="220"><StackPanel>
               <TextBlock Text="Backend version" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
-              <TextBlock Text="{Binding State.BackendVersion}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding State.BackendVersion}" Style="{StaticResource CardHeadingText}" />
             </StackPanel></Border>
             <Border Style="{StaticResource WorkflowMetric}" Width="220"><StackPanel>
-              <TextBlock Text="Deployment: Local" FontWeight="SemiBold" />
+              <TextBlock Text="Deployment: Local" Style="{StaticResource CardHeadingText}" />
               <TextBlock Text="Effective environment" Style="{StaticResource FieldLabel}" Margin="0,6,0,3" />
               <TextBlock Text="{Binding State.TradingMode}" />
             </StackPanel></Border>
@@ -184,7 +208,7 @@
           <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding State.DataAge}" Margin="0,2,0,12">
             <TextBlock Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" />
           </Border>
-          <TextBlock Text="Execution capabilities" FontWeight="SemiBold" Margin="0,0,0,8" />
+          <TextBlock Text="Execution capabilities" Style="{StaticResource CardHeadingText}" Margin="0,0,0,8" />
           <WrapPanel AutomationProperties.AutomationId="SettingsCapabilities">
             <Border Style="{StaticResource WorkflowMetric}" Width="214"><StackPanel>
               <TextBlock Text="Paper execution" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />

@@ -10,6 +10,7 @@ namespace Arbitrage.Desktop.ViewModels;
 public partial class PaperTradingViewModel
 {
     private long automationReadRevision;
+    private readonly ReadNotice automationReadNotice = new("Not configured. Suggested values are inactive until saved. Backend restart always starts disarmed.");
     private long sizingReadRevision;
     [ObservableProperty] private string automationSizingMode = "FixedQuantity";
     [ObservableProperty] private string adaptiveMinimum = "1";
@@ -50,7 +51,7 @@ public partial class PaperTradingViewModel
         OnPropertyChanged(nameof(AutomationStatusText));
         ArmAutomationCommand.NotifyCanExecuteChanged(); SaveAutomationCommand.NotifyCanExecuteChanged(); ResetAutomationKillCommand.NotifyCanExecuteChanged();
     }
-    private void ClearAutomation() { automationReadRevision++; ClearSizingPreview(); AutomationStatus = null; AutomationNotice = "Refresh automatic paper status. Closing this view does not disarm the backend."; }
+    private void ClearAutomation() { automationReadRevision++; ClearSizingPreview(); AutomationStatus = null; AutomationNotice = automationReadNotice.Remember("Refresh automatic paper status. Closing this view does not disarm the backend."); }
     private void AutomationInvalidated(object? sender, EventArgs e) => ClearAutomation();
     private void ResetAutomationForm()
     {
@@ -66,10 +67,11 @@ public partial class PaperTradingViewModel
         try
         {
             var response = await backend.PaperAutomationStatusAsync(context.Workspace, lifetime.Token);
-            if (Context() == context && request == automationReadRevision && view == pollVersion) AutomationStatus = response;
+            if (Context() == context && request == automationReadRevision && view == pollVersion)
+            { AutomationStatus = response; AutomationNotice = automationReadNotice.Recover(AutomationNotice); }
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context && request == automationReadRevision) { ClearAutomation(); Failure(e); AutomationNotice = e.Message; } }
+        catch (BackendFailure e) { if (Context() == context && request == automationReadRevision) { ClearAutomation(); Failure(e); AutomationNotice = automationReadNotice.Remember(e.Message); accountReadNotice.Remember(Notice); } }
     }
     [RelayCommand] private void LoadAutomationProfile()
     {

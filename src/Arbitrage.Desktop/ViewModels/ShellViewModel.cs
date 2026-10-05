@@ -11,7 +11,10 @@ public enum PageDestination
 
 public sealed record NavigationItem(PageDestination Destination, string Label, string Icon);
 public sealed record DashboardViewModel(MainViewModel State, object? LocalBackend = null);
-public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme, object? LocalBackend = null, KalshiCredentialsViewModel? Credentials = null, FeeProfileViewModel? Fees = null);
+public sealed record SettingsViewModel(MainViewModel State, ThemeSelectionViewModel Theme, object? LocalBackend = null, KalshiCredentialsViewModel? Credentials = null, FeeProfileViewModel? Fees = null)
+{
+    public ProductInformation Product { get; } = new();
+}
 public sealed record DiagnosticsViewModel(MainViewModel State, DesktopDiagnostics Diagnostics);
 public sealed record TradingViewModel(MainViewModel State);
 public sealed record StrategiesViewModel(MainViewModel State);

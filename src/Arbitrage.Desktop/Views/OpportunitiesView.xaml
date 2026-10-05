@@ -13,6 +13,7 @@
     <TabItem Header="Explicit evaluation">
       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="WorkflowScroll">
         <StackPanel>
+      <TextBlock Text="Evaluation request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
           <TextBlock Text="Gross and fee-adjusted opportunities" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}" Style="{StaticResource PageTitleText}" Margin="0,0,0,6" />
           <TextBlock Text="PRE-FEE gross values remain independent · Net profit unknown · Live execution unavailable; paper preview is explicit" FontWeight="Bold" Foreground="{DynamicResource Warning}" TextWrapping="Wrap" />
           <TextBlock Text="Fee-aware results are modeled estimates. Diagnostics include gross opportunities with unknown fees and gross edges removed by fees." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,12" />
@@ -26,7 +27,7 @@
                 </StackPanel>
                 <Button Content="Evaluate Selected" Command="{Binding EvaluateSelectedCommand}" Margin="0,0,8,6" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" />
                 <Button Content="Evaluate Verified Relationships" Command="{Binding EvaluateVerifiedCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
-                <Button Content="Cancel Evaluation" Command="{Binding CancelEvaluationCommand}" Margin="0,0,8,6" Style="{StaticResource DangerButton}" VerticalAlignment="Bottom" />
+                <Button Content="Cancel Evaluation" Command="{Binding CancelEvaluationCommand}" Margin="0,0,8,6" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom" />
               </WrapPanel>
             </StackPanel>
           </Border>
@@ -62,7 +63,7 @@
                 <TextBlock Text="Minimum fee-adjusted edge" VerticalAlignment="Center" />
                 <TextBox Text="{Binding MinimumFeeAdjustedEdgePerShare, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="70" Margin="6,0" AutomationProperties.Name="Minimum fee-adjusted edge" />
                 <Button Content="Refresh Fee Data for selected result" Command="{Binding RefreshFeeDataCommand}" Margin="0,0,8,6" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom" />
-                <Button Content="Cancel fee refresh" Command="{Binding CancelFeeRefreshCommand}" Style="{StaticResource DangerButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+                <Button Content="Cancel fee refresh" Command="{Binding CancelFeeRefreshCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
               </WrapPanel>
             </StackPanel>
           </Border>

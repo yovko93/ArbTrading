@@ -8,6 +8,7 @@
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="WorkflowScroll">
     <StackPanel>
+      <TextBlock Text="Reading the local catalog…" Style="{StaticResource BusyText}" Visibility="{Binding Loading, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
       <controls:SectionHeader Title="Market Explorer" Subtitle="Local catalog of public prediction market metadata" />
       <TextBlock Text="{Binding ScopeNotice}" Foreground="{DynamicResource SecondaryText}" TextWrapping="Wrap" Margin="0,8,0,10" />
       <ItemsControl ItemsSource="{Binding ExchangeStatuses}">
@@ -86,7 +87,7 @@
             </StackPanel>
             <Button Content="Apply" Command="{Binding ApplyFiltersCommand}" Margin="0,0,8,6" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" />
             <Button Content="Sync Markets" Command="{Binding SyncCommand}" Margin="0,0,8,6" Style="{StaticResource SuccessButton}" VerticalAlignment="Bottom" />
-            <Button Content="Cancel Sync" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" Style="{StaticResource DangerButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+            <Button Content="Cancel Sync" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -154,7 +155,7 @@
           <TextBlock Text="Market inspector" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
           <TextBlock Text="{Binding Detail.Title, TargetNullValue=Cached metadata and orderbook state}" Style="{StaticResource SectionTitleText}" />
           <StackPanel DataContext="{Binding OrderBook}" Margin="0,0,0,16">
-            <TextBlock Text="Order Book · read-only market data" FontWeight="SemiBold" FontSize="16" Style="{StaticResource SectionTitleText}" />
+            <TextBlock Text="Order Book · read-only market data" Style="{StaticResource SectionTitleText}" />
             <WrapPanel>
               <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Response.Realtime.Continuity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Margin="0,0,8,6" />
               <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Response.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Margin="0,0,8,6" />
@@ -272,7 +273,7 @@
             <StackPanel>
               <TextBlock Text="Cached market metadata" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
               <TextBlock Text="Selected market · cached metadata" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding Detail.Title, TargetNullValue=Select a market above}" FontSize="16" TextWrapping="Wrap" Margin="0,5,0,3" />
+              <TextBlock Text="{Binding Detail.Title, TargetNullValue=Select a market above}" Style="{StaticResource SectionTitleText}" TextWrapping="Wrap" Margin="0,5,0,3" />
               <TextBlock Text="{Binding Detail.NativeId}" />
               <TextBlock Text="{Binding Detail.EventId, StringFormat=Event: {0}}" />
               <TextBlock Text="{Binding Detail.GroupId, StringFormat=Group: {0}}" />

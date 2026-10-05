@@ -12,6 +12,7 @@ public sealed record ReliabilityCriterionRow(string Code, string ObservedValue, 
 public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel state; private readonly BackendClient backend; private readonly CancellationTokenSource lifetime = new();
+    private readonly ReadNotice readNotice = new();
     private long revision, pollEpoch; private bool active, disposed;
     public Func<string, bool> Confirm { get; set; } = _ => false;
     public ObservableCollection<PaperReliabilityCampaignResponse> Campaigns { get; } = [];
@@ -37,10 +38,10 @@ public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
     public PaperReliabilityViewModel(MainViewModel state, BackendClient backend)
     { this.state = state; this.backend = backend; state.AccessInvalidated += Clear; state.PropertyChanged += StateChanged; state.PaperValuationInvalidated += Invalidate; }
     private (Guid Workspace, long Access, string Backend)? Context() => !disposed && state.ConnectionStatus == "Connected" && state.HasSnapshot && Guid.TryParse(state.WorkspaceIdentifier, out var w) ? (w, state.AccessGeneration, state.BackendInstance) : null;
-    private void Clear(object? sender, EventArgs e) { revision++; Campaign = null; Report = null; Campaigns.Clear(); Notice = "Private reliability data cleared. Refresh after access is restored."; }
+    private void Clear(object? sender, EventArgs e) { revision++; Campaign = null; Report = null; Campaigns.Clear(); Notice = readNotice.Remember("Private reliability data cleared. Refresh after access is restored."); }
     private void Invalidate(object? sender, EventArgs e) { revision++; Report = null; }
     private void StateChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(MainViewModel.BackendInstance) || e.PropertyName == nameof(MainViewModel.ConnectionStatus) && state.ConnectionStatus != "Connected") Clear(sender, EventArgs.Empty); }
-    private void Failure(BackendFailure e) { Clear(null, EventArgs.Empty); Notice = e.Message; if (e.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied) state.SetRealtimeStatus(e.State.ToString(), e.Message); }
+    private void Failure(BackendFailure e) { Clear(null, EventArgs.Empty); Notice = readNotice.Remember(e.Message); if (e.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied) state.SetRealtimeStatus(e.State.ToString(), e.Message); }
     public void Activate() { if (active || disposed) return; active = true; _ = PollAsync(++pollEpoch); }
     public void Deactivate() { active = false; pollEpoch++; Clear(null, EventArgs.Empty); }
     private async Task PollAsync(long epoch) { try { while (active && !disposed && epoch == pollEpoch) { await RefreshAsync(); await Task.Delay(5000, lifetime.Token); } } catch (OperationCanceledException) { } }
@@ -56,7 +57,8 @@ public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
             Campaign = selected == current.Campaign?.Id ? current.Campaign : history.FirstOrDefault(c => c.Id == selected) ?? current.Campaign;
             if (Campaign?.Id == current.Campaign?.Id) Report = current.Report;
             else await ReadReportAsync();
-            if (current.TelemetryPersistenceFailures > 0) Notice = "Telemetry persistence failure observed; campaign evidence may be incomplete.";
+            if (Context() == context && (Campaign?.Id == current.Campaign?.Id || Report is not null)) Notice = readNotice.Recover(Notice);
+            if (current.TelemetryPersistenceFailures > 0) Notice = readNotice.Remember("Telemetry persistence failure observed; campaign evidence may be incomplete.");
         }
         catch (OperationCanceledException) { }
         catch (BackendFailure e) { if (Context() == context && captured == revision) Failure(e); }
@@ -81,7 +83,7 @@ public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
             if (Context() == context && captured == revision) { Campaign = result; Notice = "Campaign action completed: " + action; await ReadReportAsync(); }
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context && captured == revision) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && captured == revision) { Failure(e); readNotice.Forget(); } }
         finally { Busy = false; }
     }
     [RelayCommand] private async Task ExportAsync()
@@ -89,7 +91,7 @@ public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
         if (Context() is not { } context || Campaign is not { } c) return; var captured = ++revision;
         try { var result = await backend.PaperReliabilityExportAsync(context.Workspace, c.Id, lifetime.Token); if (Context() == context && captured == revision) Notice = "Report exported to " + result.Path; }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context && captured == revision) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && captured == revision) { Failure(e); readNotice.Forget(); } }
     }
     [RelayCommand] private async Task NextHistoryAsync() { if (HistoryPage < 10000) HistoryPage++; await RefreshAsync(); }
     [RelayCommand] private async Task PreviousHistoryAsync() { if (HistoryPage > 1) HistoryPage--; await RefreshAsync(); }

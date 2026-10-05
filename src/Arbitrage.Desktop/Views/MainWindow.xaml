@@ -25,7 +25,7 @@
     <DataTemplate DataType="{x:Type vm:RelationshipsViewModel}"><views:RelationshipsView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:UnavailablePageViewModel}"><views:UnavailablePageView /></DataTemplate>
   </Window.Resources>
-  <Grid>
+  <Grid Background="{DynamicResource ApplicationBackground}">
     <Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
     <Border Grid.RowSpan="3" Grid.Column="0" Background="{DynamicResource NavigationBackground}"
@@ -58,7 +58,7 @@
         </ListBox>
         <Border Grid.Row="2" Style="{StaticResource InsetPanel}" Margin="2,12,2,0" Padding="12">
           <StackPanel>
-            <TextBlock Text="LOCAL MODE" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold" FontSize="11" />
+            <TextBlock Text="LOCAL MODE" Style="{StaticResource EyebrowText}" />
             <TextBlock Text="{Binding State.LocalModeSummary}" Style="{StaticResource MutedText}" Margin="0,5,0,0" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
@@ -71,9 +71,9 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel>
           <TextBlock Text="ARBITRAGE TRADING" Style="{StaticResource EyebrowText}" Foreground="{DynamicResource Accent}" />
-          <TextBlock Text="{Binding PageTitle}" FontSize="24" FontWeight="SemiBold" Margin="0,3,0,4" />
-          <TextBlock Text="{Binding State.WorkspaceHeader}" Style="{StaticResource MutedText}"
-                     TextTrimming="CharacterEllipsis" MaxWidth="400" HorizontalAlignment="Left" />
+          <TextBlock Text="{Binding PageTitle}" Style="{StaticResource PageTitleText}" Margin="0,3,0,4" />
+          <TextBlock Text="{Binding State.WorkspaceHeader}" ToolTip="{Binding State.WorkspaceHeader}" Style="{StaticResource MutedText}"
+                     TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="400" HorizontalAlignment="Left" />
         </StackPanel>
           <WrapPanel Grid.Row="1" Margin="0,10,12,0" VerticalAlignment="Center">
             <controls:StatusBadge Label="Local" Tone="Info" Margin="0,0,7,5" />
@@ -85,8 +85,7 @@
           </WrapPanel>
         <controls:ThemePicker Grid.Column="1" DataContext="{Binding Theme}" HorizontalAlignment="Right" VerticalAlignment="Top" />
         <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,8,0,0">
-          <TextBlock Text="LOCAL BACKEND" Foreground="{DynamicResource SecondaryText}" FontWeight="SemiBold"
-                     FontSize="11" HorizontalAlignment="Right" Margin="0,0,0,6" />
+          <TextBlock Text="LOCAL BACKEND" Style="{StaticResource EyebrowText}" HorizontalAlignment="Right" Margin="0,0,0,6" />
           <StackPanel Orientation="Horizontal">
             <Button Style="{StaticResource SuccessButton}" Content="Start" Command="{Binding LocalBackend.StartCommand}" IsEnabled="{Binding LocalBackend.CanStart}"
                     ToolTip="{Binding LocalBackend.StartExplanation}" AutomationProperties.Name="Start local backend" Margin="0,0,6,0" />
@@ -106,11 +105,11 @@
     <Border Grid.Row="2" Grid.Column="1" Background="{DynamicResource SurfaceBackground}"
             BorderBrush="{DynamicResource DefaultBorder}" BorderThickness="0,1,0,0" Padding="24,9">
       <DockPanel LastChildFill="True">
-        <TextBlock DockPanel.Dock="Right" Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" />
+        <TextBlock DockPanel.Dock="Right" Text="{Binding State.DataAge}" Style="{StaticResource MutedText}" TextWrapping="NoWrap" />
         <TextBlock DockPanel.Dock="Right" Text="  ·  " Style="{StaticResource MutedText}" />
-        <TextBlock DockPanel.Dock="Left" Text="{Binding State.ConnectionStatus}" FontWeight="SemiBold" />
-        <TextBlock DockPanel.Dock="Left" Text="{Binding LocalBackend.ManagementStatus}" Margin="10,0,0,0" Style="{StaticResource MutedText}" />
-        <TextBlock Text="{Binding State.Message}" Foreground="{DynamicResource SecondaryText}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" />
+        <TextBlock DockPanel.Dock="Left" Text="{Binding State.ConnectionStatus}" FontWeight="SemiBold" TextWrapping="NoWrap" />
+        <TextBlock DockPanel.Dock="Left" Text="{Binding LocalBackend.ManagementStatus}" Margin="10,0,0,0" Style="{StaticResource MutedText}" TextWrapping="NoWrap" />
+        <TextBlock Text="{Binding State.Message}" ToolTip="{Binding State.Message}" Foreground="{DynamicResource SecondaryText}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
       </DockPanel>
     </Border>
   </Grid>

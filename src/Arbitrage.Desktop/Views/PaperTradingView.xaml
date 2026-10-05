@@ -8,12 +8,13 @@
  </UserControl.Resources>
  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <StackPanel MaxWidth="1160" HorizontalAlignment="Stretch">
+      <TextBlock Text="Paper request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
    <DockPanel Margin="0,0,0,6">
     <controls:StatusBadge DockPanel.Dock="Right" Label="SIMULATION ONLY" Tone="Info" VerticalAlignment="Center"/>
     <TextBlock Text="Paper Trading" Style="{StaticResource PageTitleText}"/>
    </DockPanel>
    <TextBlock Text="Mode: Paper. No real orders submitted. Explicit snapshot entries. Review holdings and settlement in Portfolio." Style="{StaticResource PageSubtitleText}" Margin="0,0,0,14"/>
-   <Border Style="{StaticResource InsetPanel}" Margin="0,0,0,16"><TextBlock Text="{Binding Notice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></Border>
+   <Border Style="{StaticResource NoticeBanner}" ToolTip="{Binding Notice}" Margin="0,0,0,16"><TextBlock Text="{Binding Notice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></Border>
    <Border Style="{StaticResource CardBorder}"><StackPanel>
     <TextBlock Text="Paper capital" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
     <Border Style="{StaticResource InsetPanel}" Margin="0,0,0,14">

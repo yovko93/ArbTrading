@@ -8,6 +8,7 @@
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="WorkflowScroll">
     <StackPanel>
+      <TextBlock Text="Relationship request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
       <TextBlock Text="Market Matching" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}" Style="{StaticResource PageTitleText}" Margin="0,0,0,6" />
       <TextBlock Text="Inspect reasons not to match. Titles, labels and group membership never establish settlement equivalence." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,0,0,12" />
       <Border Style="{StaticResource WorkflowCard}">
@@ -36,7 +37,7 @@
             </StackPanel>
             <CheckBox Content="Cross exchange" IsChecked="{Binding CrossExchange}" VerticalAlignment="Center" Margin="8,0" />
             <Button Content="Generate Candidates" Command="{Binding GenerateCommand}" Style="{StaticResource SuccessButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
-            <Button Content="Cancel job" Command="{Binding CancelJobCommand}" Margin="0,0,8,6" Style="{StaticResource DangerButton}" VerticalAlignment="Bottom" />
+            <Button Content="Cancel job" Command="{Binding CancelJobCommand}" Margin="0,0,8,6" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom" />
             <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Job.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
           </WrapPanel>
         </StackPanel>

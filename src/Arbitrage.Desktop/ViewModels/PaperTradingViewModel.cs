@@ -14,6 +14,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     private CancellationTokenSource lifetime = new();
     private long revision;
     private long pollVersion;
+    private readonly ReadNotice accountReadNotice = new();
     private bool active, disposed;
     private PaperPage activePage;
     private ConfirmPaperRequest? pendingRequest;
@@ -29,7 +30,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private decimal kalshiStartingCash = 10000;
     [ObservableProperty] private decimal polymarketStartingCash = 10000;
     [ObservableProperty] private string resetReason = "User-confirmed paper account initialization";
-    [ObservableProperty] private string notice = "SIMULATION ONLY. Initialize paper funds explicitly. No real orders are submitted.";
+    [ObservableProperty] private string notice = "SIMULATION ONLY. No real orders are submitted.";
     [ObservableProperty] private bool busy;
     [ObservableProperty] private int historyPage = 1;
     public string AccountText => Account is null ? "Paper account unavailable" : Account.Generation is not { } g ? "Uninitialized — no paper funds exist." :
@@ -78,6 +79,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
     private void ClearPreview() { revision++; Preview = null; pendingRequest = null; }
     private void Failure(BackendFailure failure)
     {
+        accountReadNotice.Forget();
         if (failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied)
             state.SetRealtimeStatus(failure.State.ToString(), failure.Message);
         Notice = failure.Message;
@@ -90,7 +92,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
         ResetRiskForm();
         ClearAutomation(); ResetAutomationForm();
         ClearValuation();
-        Notice = "Workspace access changed; private paper data cleared.";
+        Notice = accountReadNotice.Remember("Workspace access changed; private paper data cleared.");
     }
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
     { if (e.PropertyName == nameof(MainViewModel.BackendInstance) || e.PropertyName == nameof(MainViewModel.ConnectionStatus) && state.ConnectionStatus != "Connected") AccessChanged(sender, EventArgs.Empty); }
@@ -110,6 +112,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
             if (Context() != context || viewVersion != pollVersion) return;
             if (Account?.Generation?.Id != a.Generation?.Id && Account is not null) ClearPreview();
             Account = a;
+            Notice = accountReadNotice.Recover(Notice);
             if (activePage == PaperPage.Portfolio)
             {
                 var h = await backend.PaperHistoryAsync(context.Workspace, HistoryPage, lifetime.Token);
@@ -124,7 +127,7 @@ public partial class PaperTradingViewModel : ObservableObject, IDisposable
             }
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context && viewVersion == pollVersion) Failure(e); }
+        catch (BackendFailure e) { if (Context() == context && viewVersion == pollVersion) { Failure(e); Notice = accountReadNotice.Remember(Notice); } }
     }
     [RelayCommand] private async Task InitializeAsync()
     {

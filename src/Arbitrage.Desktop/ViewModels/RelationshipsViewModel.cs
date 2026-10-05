@@ -20,6 +20,7 @@ public partial class RelationshipsViewModel : ObservableObject, IDisposable
     private readonly MainViewModel state;
     private readonly BackendClient backend;
     private bool active, disposed;
+    private readonly ReadNotice readNotice = new();
     private long listGeneration, detailGeneration;
     private CancellationTokenSource lifetime = new();
     public Func<string, bool>? Confirm { get; set; }
@@ -61,7 +62,7 @@ public partial class RelationshipsViewModel : ObservableObject, IDisposable
     {
         Invalidate(); Items.Clear(); Selected = null; Detail = null; Job = null; Total = 0; Reason = ""; ReviewType = null; MappingEditors.Clear();
         MutuallyExclusive = CollectivelyExhaustive = "Unknown";
-        Notice = "Workspace access unavailable. Refresh to reauthorize.";
+        Notice = readNotice.Remember("Workspace access unavailable. Refresh to reauthorize.");
     }
     private void ReadRequested(object? sender, EventArgs e) { if (active) Observe(RefreshAsync()); }
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
@@ -71,6 +72,7 @@ public partial class RelationshipsViewModel : ObservableObject, IDisposable
     private bool Current((Guid Workspace, long Access, string Instance) context) => Context() == context;
     private void Failure(BackendFailure failure)
     {
+        readNotice.Forget();
         if (failure.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied) state.SetRealtimeStatus(failure.State.ToString(), failure.Message);
         else Notice = "Relationship request could not be completed. Refresh sources/status and retry explicitly.";
     }
@@ -91,9 +93,10 @@ public partial class RelationshipsViewModel : ObservableObject, IDisposable
                 var status = await backend.RelationshipJobAsync(context.Workspace, job.Id, false, ct);
                 if (Current(context) && generation == listGeneration) Job = status;
             }
+            if (Current(context) && generation == listGeneration) Notice = readNotice.Recover(Notice);
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure failure) { if (Current(context) && generation == listGeneration) Failure(failure); }
+        catch (BackendFailure failure) { if (Current(context) && generation == listGeneration) { Failure(failure); Notice = readNotice.Remember(Notice); } }
     }
     partial void OnSelectedChanged(RelationshipSummaryResponse? value)
     {

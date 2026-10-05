@@ -168,7 +168,7 @@ public sealed class Ui02BSettingsWpfTests(WpfFixture fixture)
         Assert.Equal(label, badge.Label); Assert.Equal(tone, badge.Tone);
     }
 
-    private sealed class SettingsFixture : IDisposable
+    internal sealed class SettingsFixture : IDisposable
     {
         private static readonly DateTimeOffset At = new(2026, 10, 5, 9, 30, 0, TimeSpan.Zero);
         private static readonly Guid Workspace = Guid.Parse("d58f4d82-556c-49c5-bdd1-36ba2a9ca100");
@@ -215,7 +215,7 @@ public sealed class Ui02BSettingsWpfTests(WpfFixture fixture)
         public void Dispose() { Credentials.Dispose(); Fees.Dispose(); Theme.Dispose(); State.Dispose(); http.Dispose(); }
     }
 
-    private sealed class BackendFixture
+    internal sealed class BackendFixture
     {
         public string ProcessStatus => "Running";
         public string ManagementStatus => "Managed";

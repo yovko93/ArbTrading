@@ -15,6 +15,7 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
     private bool active, disposed, fetching, dirty = true;
     private long generation, readGeneration;
     private DateTimeOffset lastRead;
+    private readonly ReadNotice readNotice = new();
     public ObservableCollection<MonitoringRankingResponse> Items { get; } = [];
     public ObservableCollection<MonitoringAlertResponse> Alerts { get; } = [];
     public Action<OpportunityResponse>? PaperRequested { get; set; }
@@ -42,7 +43,7 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int total;
     [ObservableProperty] private int alertPage = 1;
     [ObservableProperty] private int alertTotal;
-    [ObservableProperty] private string notice = "Stopped by default. Start consumes local cached inputs only; it does not fetch or subscribe.";
+    [ObservableProperty] private string notice = "Start consumes local cached inputs only; it does not fetch or subscribe.";
     public string CoverageText => Status is not { } s ? "Monitoring status unavailable" :
         $"{s.State} · {s.Coverage.RelationshipsMonitored}/{s.Coverage.ApprovedRelationshipsAvailable} approved relationships · skipped {s.Coverage.RelationshipsSkippedByBound} · partial coverage: {s.Coverage.CoveragePartial}\n" +
         $"Plans {s.Coverage.PlansBuilt} · books {s.Coverage.PlansWithBooksAvailable} · actionable {s.Coverage.PlansWithActionableBooks} · resolved fees {s.Coverage.PlansWithResolvedFees} · queue {s.DirtyQueueDepth} · CSV {s.CsvExportStatus} {s.LastCsvErrorCode}\n" +
@@ -68,7 +69,7 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
         generation++; readGeneration++; lifetime.Cancel(); lifetime.Dispose(); lifetime = new(); fetching = false; dirty = true;
         Items.Clear(); Alerts.Clear(); Selected = null; SelectedAlert = null; Status = null; Total = AlertTotal = 0; Profile = new();
     }
-    private void AccessChanged(object? sender, EventArgs e) { Reset(); Notice = "Access changed; monitoring display cleared."; if (active) Observe(PollAsync(lifetime.Token)); }
+    private void AccessChanged(object? sender, EventArgs e) { Reset(); Notice = readNotice.Remember("Access changed; monitoring display cleared."); if (active) Observe(PollAsync(lifetime.Token)); }
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
     { if (e.PropertyName is nameof(MainViewModel.ConnectionStatus) or nameof(MainViewModel.BackendInstance)) { if (state.ConnectionStatus != "Connected") AccessChanged(sender, EventArgs.Empty); else dirty = true; } }
     private void Invalidated(object? sender, MonitoringInvalidation e)
@@ -95,9 +96,10 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
             var key = Selected?.Opportunity.OpportunityKey; Items.Clear(); foreach (var row in rows.Items) Items.Add(row); Total = rows.Total;
             Selected = Items.FirstOrDefault(x => x.Opportunity.OpportunityKey == key);
             Alerts.Clear(); foreach (var alert in alerts.Items) Alerts.Add(alert); AlertTotal = alerts.Total; lastRead = DateTimeOffset.UtcNow;
+            Notice = readNotice.Recover(Notice);
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure f) { if (Context() == context) Failure(f); }
+        catch (BackendFailure f) { if (Context() == context) { Failure(f); Notice = readNotice.Remember(Notice); } }
         finally { if (Context() == context) fetching = false; }
     }
     private async Task MutationAsync(string? action)
@@ -142,6 +144,7 @@ public partial class MonitoringViewModel : ObservableObject, IDisposable
     private void InvalidateRead() { readGeneration++; dirty = true; Items.Clear(); Selected = null; }
     private void Failure(BackendFailure f)
     {
+        readNotice.Forget();
         Items.Clear(); Selected = null; Notice = "Monitoring request failed; displayed current rankings cleared. Retry explicitly.";
         if (f.State is ConnectionState.AuthenticationFailed or ConnectionState.AuthorizationDenied) state.SetRealtimeStatus(f.State.ToString(), f.Message);
     }

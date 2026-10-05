@@ -32,4 +32,15 @@
     <Setter Property="FontSize" Value="13" />
     <Setter Property="LineHeight" Value="20" />
   </Style>
+  <Style x:Key="CardHeadingText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style x:Key="IdentifierText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontFamily" Value="Consolas" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style x:Key="BusyText" TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+    <Setter Property="Foreground" Value="{DynamicResource SemanticBrush.InfoForeground}" />
+    <Setter Property="Margin" Value="0,0,0,10" />
+  </Style>
 </ResourceDictionary>

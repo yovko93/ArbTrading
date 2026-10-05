@@ -4,7 +4,7 @@
   <TextBlock Text="Paper capital and risk policy" Style="{StaticResource EyebrowText}"/>
   <TextBlock Text="Applies only to NEW paper entries. Does not close positions, settle markets, change balances, or alter real exchange accounts. Suggested values are inactive until saved. Enter decimals with a dot; percentages use 20 for 20%." TextWrapping="Wrap" Margin="0,8"/>
   <TextBlock Text="{Binding RiskStatusText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-  <TextBlock Text="{Binding RiskNotice}" TextWrapping="Wrap" Margin="0,8"/>
+  <Border Style="{StaticResource NoticeBanner}" ToolTip="{Binding RiskNotice}" Margin="0,8" AutomationProperties.AutomationId="RiskNotice"><TextBlock Text="{Binding RiskNotice}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/></Border>
   <ItemsControl ItemsSource="{Binding RiskInputs}">
    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
    <ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="225" Margin="0,6,12,6">

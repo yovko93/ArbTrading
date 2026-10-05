@@ -18,24 +18,25 @@
     <Setter Property="Padding" Value="14"/><Setter Property="Margin" Value="0,8,0,0"/>
     <Setter Property="Visibility" Value="Collapsed"/>
   </Style>
-  <Style x:Key="WorkflowNotice" TargetType="Border" BasedOn="{StaticResource StatusBanner}">
-    <Setter Property="Margin" Value="0,0,0,10"/>
-    <Style.Triggers>
-      <Trigger Property="ToolTip" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger>
-      <Trigger Property="ToolTip" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></Trigger>
-    </Style.Triggers>
-  </Style>
+  <Style x:Key="WorkflowNotice" TargetType="Border" BasedOn="{StaticResource NoticeBanner}" />
   <Style x:Key="WorkflowState" TargetType="controls:StatusBadge">
     <Setter Property="Tone" Value="Neutral"/><Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Style.Triggers>
+      <Trigger Property="Label" Value="Healthy"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Connected"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Available"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Approved"><Setter Property="Tone" Value="Good"/></Trigger>
+      <Trigger Property="Label" Value="Unknown"><Setter Property="Tone" Value="Warning"/></Trigger>
+      <Trigger Property="Label" Value="Denied"><Setter Property="Tone" Value="Error"/></Trigger>
+      <Trigger Property="Label" Value="KillSwitchLatched"><Setter Property="Tone" Value="Error"/></Trigger>
       <Trigger Property="Label" Value="Complete"><Setter Property="Tone" Value="Good"/></Trigger>
       <Trigger Property="Label" Value="Completed"><Setter Property="Tone" Value="Good"/></Trigger>
       <Trigger Property="Label" Value="Succeeded"><Setter Property="Tone" Value="Good"/></Trigger>
       <Trigger Property="Label" Value="FeeAdjusted"><Setter Property="Tone" Value="Good"/></Trigger>
       <Trigger Property="Label" Value="RealtimeContinuous"><Setter Property="Tone" Value="Good"/></Trigger>
       <Trigger Property="Label" Value="Continuous"><Setter Property="Tone" Value="Good"/></Trigger>
-      <Trigger Property="Label" Value="Running"><Setter Property="Tone" Value="Info"/></Trigger>
+      <Trigger Property="Label" Value="Running"><Setter Property="Tone" Value="Good"/></Trigger>
       <Trigger Property="Label" Value="FreshRest"><Setter Property="Tone" Value="Info"/></Trigger>
       <Trigger Property="Label" Value="Fresh"><Setter Property="Tone" Value="Info"/></Trigger>
       <Trigger Property="Label" Value="GrossOnly"><Setter Property="Tone" Value="Info"/></Trigger>

@@ -160,7 +160,7 @@ public sealed class Ui02WpfTests(WpfFixture fixture)
     {
         new WpfThemePaletteApplier(Application.Current.Resources).Apply(theme, false);
         var resources = new ResourceDictionary { Source = new Uri("/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml", UriKind.Relative) };
-        foreach (var (label, tone) in new[] { ("Complete", "Good"), ("Running", "Info"), ("Partial", "Warning"), ("Failed", "Error"), ("Cancelled", "Neutral"), ("Never", "Neutral"), ("Unrecognized", "Neutral"), ("FeeAdjusted", "Good"), ("GrossOnly", "Info"), ("NearEdge", "Warning"), ("Blocked", "Error") })
+        foreach (var (label, tone) in new[] { ("Complete", "Good"), ("Running", "Good"), ("Partial", "Warning"), ("Failed", "Error"), ("Cancelled", "Neutral"), ("Never", "Neutral"), ("Unrecognized", "Neutral"), ("FeeAdjusted", "Good"), ("GrossOnly", "Info"), ("NearEdge", "Warning"), ("Blocked", "Error") })
         {
             var badge = new StatusBadge { Label = label, Style = (Style)resources["WorkflowState"] };
             Assert.Equal(tone, badge.Tone);
@@ -218,7 +218,7 @@ public sealed class Ui02WpfTests(WpfFixture fixture)
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var output = File.Create(Path.Combine(path, $"UI02-{theme}-{name}.png")); encoder.Save(output);
     }
-    private sealed class BindingErrors : TraceListener, IDisposable
+    internal sealed class BindingErrors : TraceListener, IDisposable
     {
         public List<string> Messages { get; } = [];
         public BindingErrors() => PresentationTraceSources.DataBindingSource.Listeners.Add(this);
@@ -226,18 +226,18 @@ public sealed class Ui02WpfTests(WpfFixture fixture)
         public override void WriteLine(string? message) { if (message?.Contains("Error:", StringComparison.Ordinal) == true) Messages.Add(message); }
         protected override void Dispose(bool disposing) { PresentationTraceSources.DataBindingSource.Listeners.Remove(this); base.Dispose(disposing); }
     }
-    private sealed class RejectHandler : HttpMessageHandler
+    internal sealed class RejectHandler : HttpMessageHandler
     {
         public int Requests { get; private set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         { Requests++; throw new InvalidOperationException("No runtime or network access in visual fixtures."); }
     }
-    private sealed class MissingConnection : ILocalConnectionFile
+    internal sealed class MissingConnection : ILocalConnectionFile
     {
         public Task<LocalConnection> ReadAsync(CancellationToken cancellationToken) => throw new FileNotFoundException("Isolated visual fixture.");
         public Task WriteAsync(LocalConnection connection, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
-    private sealed class WorkflowFixture : IDisposable
+    internal sealed class WorkflowFixture : IDisposable
     {
         private static readonly DateTimeOffset At = DateTimeOffset.Parse("2026-10-04T12:00:00Z");
         public RejectHandler Handler { get; } = new();

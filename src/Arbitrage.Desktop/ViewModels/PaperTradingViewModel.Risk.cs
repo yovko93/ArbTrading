@@ -15,6 +15,7 @@ public sealed partial class PaperRiskInput(string name, string value) : Observab
 public partial class PaperTradingViewModel
 {
     private long riskReadRevision;
+    private readonly ReadNotice riskReadNotice = new("Not configured. Suggested form values are inactive until explicitly saved.");
     private void RiskInvalidated(object? sender, EventArgs e) { ClearRisk(); ClearPreview(); }
     private void ResetRiskForm()
     {
@@ -30,7 +31,7 @@ public partial class PaperTradingViewModel
     public string RiskStatusText => RiskStatus is not { } s ? RiskNotice : $"{s.State} · policy revision {s.Policy?.Revision}\n" + RiskDescription(s.Assessment);
     partial void OnRiskStatusChanged(PaperRiskStatusResponse? value) => OnPropertyChanged(nameof(RiskStatusText));
     partial void OnRiskNoticeChanged(string value) => OnPropertyChanged(nameof(RiskStatusText));
-    private void ClearRisk() { riskReadRevision++; RiskStatus = null; RiskNotice = "Risk state unavailable; refresh local policy."; }
+    private void ClearRisk() { riskReadRevision++; RiskStatus = null; RiskNotice = riskReadNotice.Remember("Risk state unavailable; refresh local policy."); }
     public static string RiskDescription(PaperRiskDecisionResponse? d) => d is null ? "Risk decision unavailable." :
         $"Risk: {d.Decision} · revision {d.PolicyRevision}\nPositions {d.ProjectedOpenPositions}; open executions {d.ProjectedOpenExecutions}; relationship {d.ProjectedRelationshipOpenExecutions}\n" +
         string.Join("\n", d.BucketAssessments.Select(b => $"{b.Exchange} {b.Currency}: cash after {b.ProjectedAvailableCash}; reserve {b.RequiredCashReserve}; open cost {b.ProjectedOpenCostBasis} / {b.MaximumOpenCostBasis}")) + "\n" +
@@ -46,9 +47,10 @@ public partial class PaperTradingViewModel
             if (Context() != context || version != riskReadRevision || view != pollVersion || generation != Account?.Generation?.Id) return;
             if (Preview?.RiskDecision is { } reviewed && (reviewed.PolicyRevision != r.Policy?.Revision || reviewed.FinancialRevision != r.Assessment.FinancialRevision)) ClearPreview();
             RiskStatus = r;
+            RiskNotice = riskReadNotice.Recover(RiskNotice);
         }
         catch (OperationCanceledException) { }
-        catch (BackendFailure e) { if (Context() == context && version == riskReadRevision) { ClearRisk(); Failure(e); RiskNotice = e.Message; } }
+        catch (BackendFailure e) { if (Context() == context && version == riskReadRevision) { ClearRisk(); Failure(e); RiskNotice = riskReadNotice.Remember(e.Message); accountReadNotice.Remember(Notice); } }
     }
     [RelayCommand] private void LoadRiskPolicy()
     {

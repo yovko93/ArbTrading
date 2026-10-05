@@ -86,6 +86,13 @@
       <Trigger Property="Tag" Value="Info"><Setter Property="Background" Value="{DynamicResource SemanticBrush.InfoBackground}" /><Setter Property="BorderBrush" Value="{DynamicResource SemanticBrush.InfoBorder}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource SemanticBrush.InfoForeground}" /></Trigger>
     </Style.Triggers>
   </Style>
+  <Style x:Key="NoticeBanner" TargetType="Border" BasedOn="{StaticResource StatusBanner}">
+    <Setter Property="Margin" Value="0,0,0,10" />
+    <Style.Triggers>
+      <Trigger Property="ToolTip" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+      <Trigger Property="ToolTip" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+    </Style.Triggers>
+  </Style>
   <Style TargetType="TextBox">
     <Setter Property="MinHeight" Value="34" />
     <Setter Property="Padding" Value="8,5" />

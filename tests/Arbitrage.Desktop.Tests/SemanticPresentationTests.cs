@@ -25,7 +25,7 @@ public sealed class StatusToneTests
     [InlineData("Unavailable", "Neutral")]
     [InlineData("Inactive", "Neutral")]
     [InlineData("Disabled", "Neutral")]
-    [InlineData("Unknown", "Neutral")]
+    [InlineData("Unknown", "Warning")]
     [InlineData("FutureUnrecognizedState", "Neutral")]
     [InlineData("StopRequested", "Warning")]
     [InlineData("Synchronizing", "Warning")]

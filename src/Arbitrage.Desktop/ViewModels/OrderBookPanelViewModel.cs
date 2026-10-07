@@ -25,8 +25,8 @@ public partial class OrderBookPanelViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string depthNotice = "Choose a quantity for a read-only gross depth estimate.";
     public string[] DepthSides { get; } = ["Consume asks", "Consume bids"];
     public string RealtimeDetails => Response?.Realtime is { } r
-        ? $"Source: Realtime · {r.State} · {r.Continuity}\nConnection: {(r.Connected ? "connected" : "disconnected")} · Anchor: {(r.AnchorAt is null ? "awaiting" : r.AnchorAt.Value.ToString("HH:mm:ss 'UTC'"))} · Sequence: {r.Sequence?.ToString() ?? "not provided"}\nResync reason: {r.ResyncReason ?? "none"} · Version: {r.Version}"
-        : "Source: REST Snapshot · Not subscribed";
+        ? $"Source: {r.SourceMode} · {r.State} · {r.Continuity}\nConnection: {(r.Connected ? "connected" : "disconnected")} · Anchor: {(r.AnchorAt is null ? "awaiting" : r.AnchorAt.Value.ToString("HH:mm:ss 'UTC'"))} · Sequence: {r.Sequence?.ToString() ?? "not provided"}\nResync reason: {r.ResyncReason ?? "none"} · Version: {r.Version}"
+        : Response?.Snapshot is null ? "Source: Unavailable · No realtime subscription status available" : "Source: REST Snapshot · Not subscribed";
     [RelayCommand] private Task StartRealtimeAsync() => MutateAsync(true);
     [RelayCommand] private Task StopRealtimeAsync() => MutateAsync(false);
     private async Task MutateAsync(bool start)
@@ -99,6 +99,12 @@ public partial class OrderBookPanelViewModel : ObservableObject, IDisposable
     public string Provenance => Response?.Snapshot?.Asks.Any(l => l.Origin == "DerivedComplement") == true
         ? "Asks: derived from opposite-side bids" : market?.Exchange == "Kalshi" ? "Native YES/NO bids; binary asks are derived when supported" : "Native bids and asks";
     public string Age => Response?.Snapshot is { } b ? $"Age: {Math.Max(0, (clock.GetUtcNow() - b.RetrievedAtUtc).Ticks / (decimal)TimeSpan.TicksPerSecond):0.0}s" : "Age: unavailable";
+    public string SourceMode => Response?.Realtime?.SourceMode ?? (Response?.Snapshot is null ? "Unavailable" : "REST Snapshot");
+    public string DisplayFreshness => Response?.Snapshot is null ? "Unavailable" :
+        Response.Freshness == "Fresh" && clock.GetUtcNow() - Response.Snapshot.RetrievedAtUtc > TimeSpan.FromSeconds(Response.FreshnessSeconds)
+            ? "Stale" : Response.Freshness;
+    public string BookAvailability => Response?.Snapshot is null ? "Orderbook unavailable" : DisplayFreshness == "Stale"
+        ? "Orderbook stale — retained levels are cached. Refresh or inspect realtime continuity." : "Orderbook snapshot available — inspect source, freshness and continuity separately.";
     public string SnapshotState => state.ConnectionStatus != "Connected" ? "Disconnected · cached snapshot not actionable" :
         Response?.Realtime is { } live ? $"Realtime · {(Response.Snapshot is { } snapshot && clock.GetUtcNow() - snapshot.RetrievedAtUtc > TimeSpan.FromSeconds(Response.FreshnessSeconds) && live.State == "Streaming" ? "Stale" : live.State)} · {live.Continuity}" :
         Loading ? "Loading" : Response?.Snapshot is { } b && Response.State == "Fresh" &&
@@ -199,6 +205,7 @@ public partial class OrderBookPanelViewModel : ObservableObject, IDisposable
     private void NotifyClock()
     {
         OnPropertyChanged(nameof(Age)); OnPropertyChanged(nameof(SnapshotState));
+        OnPropertyChanged(nameof(DisplayFreshness)); OnPropertyChanged(nameof(BookAvailability));
         if (depthSnapshot is not null && (Response?.Snapshot?.Id != depthSnapshot || Response.IsActionable == false ||
             Response.Snapshot is { } book && clock.GetUtcNow() - book.RetrievedAtUtc > TimeSpan.FromSeconds(Response.FreshnessSeconds)))
         { depthSnapshot = null; DepthNotice = "Depth estimate expired. Preview the current actionable book again."; }
@@ -214,7 +221,7 @@ public partial class OrderBookPanelViewModel : ObservableObject, IDisposable
     partial void OnLoadingChanged(bool value) => OnPropertyChanged(nameof(SnapshotState));
     partial void OnResponseChanged(OrderBookResponse? value)
     {
-        foreach (var property in new[] { nameof(Bids), nameof(Asks), nameof(BestBid), nameof(BestAsk), nameof(Spread), nameof(Provenance), nameof(RealtimeDetails) }) OnPropertyChanged(property);
+        foreach (var property in new[] { nameof(Bids), nameof(Asks), nameof(BestBid), nameof(BestAsk), nameof(Spread), nameof(Provenance), nameof(RealtimeDetails), nameof(SourceMode) }) OnPropertyChanged(property);
         NotifyClock();
     }
     private static async void Observe(Task task) { try { await task; } catch (Exception) { /* Observe event work. */ } }

@@ -6,7 +6,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml" />
+        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/OperatorWorkflow.xaml" />
       </ResourceDictionary.MergedDictionaries>
       <Style x:Key="ReliabilityEmptyText" TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
         <Setter Property="Margin" Value="0,10,0,4" />
@@ -24,19 +24,24 @@
         <TextBlock Text="PAPER SIMULATION EVIDENCE ONLY. CriteriaMet never enables live trading. No actual fills, exchange latency or real-capital profitability is demonstrated." TextWrapping="Wrap" />
       </Border>
 
-      <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="ReliabilityCampaignSummary">
+      <Border Style="{StaticResource OperatorPanel}" AutomationProperties.AutomationId="ReliabilityCampaignSummary">
         <StackPanel>
+          <TextBlock Text="{Binding Campaign.Name, TargetNullValue=No selected campaign, FallbackValue=No selected campaign}" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
           <WrapPanel Margin="0,0,0,8">
             <StackPanel Margin="0,0,24,8">
               <TextBlock Text="CAMPAIGN STATE" Style="{StaticResource EyebrowText}" Margin="0,0,0,4" />
-              <controls:StatusBadge Label="{Binding Campaign.State, TargetNullValue=NoActiveCampaign, FallbackValue=NoActiveCampaign}" Style="{StaticResource WorkflowState}" AutomationProperties.AutomationId="ReliabilityCampaignState" />
+              <controls:StatusBadge Label="{Binding Campaign.State, TargetNullValue=NoActiveCampaign, FallbackValue=NoActiveCampaign}" Style="{StaticResource OperatorState}" AutomationProperties.AutomationId="ReliabilityCampaignState" />
             </StackPanel>
             <StackPanel Margin="0,0,24,8">
               <TextBlock Text="PAPER EVIDENCE STATE" Style="{StaticResource EyebrowText}" Margin="0,0,0,4" />
-              <controls:StatusBadge Label="{Binding Report.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource WorkflowEvidenceState}" AutomationProperties.AutomationId="ReliabilityEvidenceState" />
+              <controls:StatusBadge Label="{Binding Report.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource OperatorState}" AutomationProperties.AutomationId="ReliabilityEvidenceState" />
             </StackPanel>
           </WrapPanel>
-          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
+          <TextBlock Text="CriteriaMet unlocks no live execution capability." FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,10" />
+          <TextBlock Text="{Binding Campaign.StartedAt, Converter={StaticResource OperatorTime}, StringFormat=Started: {0}}" Style="{StaticResource MutedText}" />
+          <TextBlock Text="{Binding Report.EvaluatedAt, Converter={StaticResource OperatorTime}, StringFormat=Persisted evaluation: {0}}" Style="{StaticResource MutedText}" />
+          <TextBlock Text="{Binding Report.EvidenceGapDetected, StringFormat=Report evidence gap detected: {0}, TargetNullValue=Report evidence gap: Unknown, FallbackValue=Report evidence gap: Unknown}" Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+          <Expander Header="Campaign identity and policy diagnostics" Style="{StaticResource DetailsExpander}" Margin="0,6"><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" /></Expander>
           <TextBlock Text="{Binding Campaign.Id, StringFormat=Campaign ID: {0}, TargetNullValue=Campaign ID: Unavailable, FallbackValue=Campaign ID: Unavailable}" Style="{StaticResource MutedText}" Margin="0,8,0,0" />
           <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Notice}" Margin="0,10,0,0">
             <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" />
@@ -78,12 +83,35 @@
             <DataGrid.Columns>
               <DataGridTextColumn Header="Invariant" Binding="{Binding Code}" Width="2*" MinWidth="120" ElementStyle="{StaticResource WorkflowWrappedCellText}" />
               <DataGridTemplateColumn Header="Status" Width="125">
-                <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:StatusBadge Label="{Binding State}" Style="{StaticResource WorkflowEvidenceState}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:StatusBadge Label="{Binding State}" Style="{StaticResource OperatorState}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
               <DataGridTextColumn Header="Evidence" Binding="{Binding ExplanationCode}" Width="2*" MinWidth="140" ElementStyle="{StaticResource WorkflowWrappedCellText}" />
             </DataGrid.Columns>
           </DataGrid>
           <TextBlock Text="Safety invariant evidence is unavailable. Unknown is not Satisfied." Style="{StaticResource ReliabilityEmptyText}" Tag="{Binding HasItems, ElementName=ReliabilityInvariants}" Foreground="{DynamicResource Warning}" />
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource OperatorPanel}" AutomationProperties.AutomationId="ReliabilityRemainingEvidence">
+        <StackPanel>
+          <TextBlock Text="Remaining evidence" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8" />
+          <TextBlock Text="{Binding RemainingEvidenceSummary}" Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+          <ItemsControl ItemsSource="{Binding RemainingEvidence}">
+            <ItemsControl.ItemTemplate><DataTemplate>
+              <Border Style="{StaticResource InsetPanel}" Margin="0,0,0,8">
+                <StackPanel>
+                  <TextBlock Text="{Binding Kind}" Style="{StaticResource EyebrowText}" />
+                  <TextBlock Text="{Binding Code}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4" />
+                  <WrapPanel>
+                    <controls:StatusBadge Label="{Binding State}" Style="{StaticResource OperatorState}" Margin="0,0,12,6" />
+                    <TextBlock Text="{Binding ObservedValue, StringFormat=Observed: {0}}" Margin="0,0,18,6" />
+                    <TextBlock Text="{Binding RequiredValue, StringFormat=Required: {0}}" Margin="0,0,18,6" />
+                  </WrapPanel>
+                  <TextBlock Text="{Binding ExplanationCode}" Style="{StaticResource MutedText}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
       </Border>
 
@@ -104,7 +132,7 @@
               <DataGridTextColumn Header="Observed" Binding="{Binding ObservedValue}" Width="*" MinWidth="110" ElementStyle="{StaticResource WorkflowEconomics}" />
               <DataGridTextColumn Header="Required" Binding="{Binding RequiredValue}" Width="*" MinWidth="110" ElementStyle="{StaticResource WorkflowCellText}" />
               <DataGridTemplateColumn Header="Status" Width="150">
-                <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:StatusBadge Label="{Binding State}" Style="{StaticResource WorkflowEvidenceState}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:StatusBadge Label="{Binding State}" Style="{StaticResource OperatorState}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
               <DataGridTextColumn Header="Evidence" Binding="{Binding ExplanationCode}" Width="*" MinWidth="160" ElementStyle="{StaticResource WorkflowWrappedCellText}" />
             </DataGrid.Columns>

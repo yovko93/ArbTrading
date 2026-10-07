@@ -37,16 +37,17 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string notice = "Open Market Explorer to browse the local catalog.";
     [ObservableProperty] private MarketResponse? selectedMarket;
     [ObservableProperty] private MarketResponse? detail;
+    [ObservableProperty] private DateTimeOffset? statusCheckedAt;
     public string ScopeNotice => "Public non-finalized buckets: Polymarket closed=false; Kalshi unopened, open, paused, closed. Cached metadata, not an atomic snapshot.";
     public string PageLabel => $"Page {Page} · {Total} stored markets match";
     public bool CanPrevious => Page > 1 && !Loading;
     public bool CanNext => Page * 30 < Total && !Loading;
     public bool CanCancel => ExchangeStatuses.Any(s => s.LatestRun?.State == "Running");
 
-    public MarketExplorerViewModel(MainViewModel state, BackendClient backend)
+    public MarketExplorerViewModel(MainViewModel state, BackendClient backend, TimeProvider? clock = null)
     {
         this.state = state; this.backend = backend;
-        OrderBook = new(state, backend);
+        OrderBook = new(state, backend, clock);
         state.AccessInvalidated += AccessInvalidated;
         state.CatalogInvalidated += CatalogInvalidated;
         state.CatalogRefreshRequested += CatalogInvalidated;
@@ -74,7 +75,7 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
         Interlocked.Increment(ref queryGeneration); Interlocked.Increment(ref detailGeneration);
         refreshPending = false; refreshCancellation?.Cancel(); detailCancellation?.Cancel(); Loading = false;
         Markets.Clear(); ExchangeStatuses.Clear(); Tags.Clear(); Tags.Add("All");
-        SelectedMarket = null; Detail = null; Total = 0;
+        SelectedMarket = null; Detail = null; Total = 0; StatusCheckedAt = null;
         Notice = "Local workspace access was denied. Refresh to reauthorize.";
     }
     private void CatalogInvalidated(object? sender, EventArgs args)
@@ -152,7 +153,9 @@ public partial class MarketExplorerViewModel : ObservableObject, IDisposable
             var previousTag = SelectedTag;
             Tags.Clear(); Tags.Add("All"); foreach (var item in result.AvailableTags) Tags.Add(item);
             SelectedTag = Tags.Contains(previousTag) ? previousTag : "All";
-            ExchangeStatuses.Clear(); foreach (var item in (await statusTask).Exchanges) ExchangeStatuses.Add(item);
+            var catalogStatus = await statusTask;
+            ExchangeStatuses.Clear(); foreach (var item in catalogStatus.Exchanges) ExchangeStatuses.Add(item);
+            StatusCheckedAt = catalogStatus.CheckedAt;
             SelectedMarket = selectedKey is null ? null : Markets.FirstOrDefault(m =>
                 m.Exchange == selectedKey.Value.Exchange && m.NativeId == selectedKey.Value.NativeId);
             Notice = ExchangeStatuses.Any(s => s.LatestRun?.State is "Partial" or "Failed" or "Cancelled")

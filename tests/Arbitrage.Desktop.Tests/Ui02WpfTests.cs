@@ -246,11 +246,11 @@ public sealed class Ui02WpfTests(WpfFixture fixture)
         public MarketExplorerViewModel Catalog { get; }
         public RelationshipsViewModel Relationships { get; }
         public OpportunitiesViewModel Opportunities { get; }
-        public WorkflowFixture()
+        public WorkflowFixture(TimeProvider? clock = null)
         {
             http = new(Handler); var client = new BackendClient(http, new MissingConnection());
             state = new(client, NullLogger<MainViewModel>.Instance);
-            Catalog = new(state, client) { Notice = "Deterministic visual fixture · cached public metadata", Total = 2 };
+            Catalog = new(state, client, clock) { Notice = "Deterministic visual fixture · cached public metadata", Total = 2 };
             Catalog.Markets.Add(Market("Kalshi", "K-FIXTURE-NATIVE-ID-2026-EXTENDED", "Will the certified measure exceed the published threshold?"));
             Catalog.Markets.Add(Market("Polymarket", "P-FIXTURE-NATIVE-ID-2026-EXTENDED", "Will the published measure meet the threshold by the deadline?"));
             Catalog.ExchangeStatuses.Add(new("Kalshi", "Public", 367848, At.AddHours(-2), At, new(Guid.Empty, "Kalshi", "Public", null, "Failed", At, At, 42, 8400, 3, "InternalFailure", null), "Available", "Public", "Available", "Unavailable"));

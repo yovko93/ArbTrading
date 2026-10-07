@@ -2,7 +2,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml" />
+        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/OperatorWorkflow.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -11,14 +11,27 @@
       <TextBlock Text="Continuous opportunity monitoring" FontWeight="SemiBold" Style="{StaticResource PageTitleText}" Margin="0,0,0,6" />
       <TextBlock Text="READ-ONLY · Local cached inputs · No automatic subscriptions or fetches · Net profit unknown · Live execution unavailable; paper preview is explicit" Foreground="{DynamicResource Warning}" TextWrapping="Wrap" />
       <TextBlock Text="Backend-owned: closing this page or desktop does not stop monitoring. Restarting the backend leaves it Stopped." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+      <Border Style="{StaticResource OperatorPanel}">
+        <StackPanel>
+          <controls:StatusBadge Label="{Binding Status.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource OperatorState}" Margin="0,0,0,8" />
+          <TextBlock Text="{Binding Status.LastEvaluationAt, Converter={StaticResource OperatorTime}, StringFormat=Last backend evaluation: {0}}" Style="{StaticResource MutedText}" />
+          <WrapPanel Margin="0,6,0,8">
+            <TextBlock Text="{Binding Status.DirtyQueueDepth, StringFormat=Queue depth: {0}, TargetNullValue=Queue: Unavailable, FallbackValue=Queue: Unavailable}" Margin="0,0,18,4" />
+            <TextBlock Text="{Binding Status.AlertsRaised, StringFormat=Alerts raised: {0}, TargetNullValue=Alerts: Unavailable, FallbackValue=Alerts: Unavailable}" Margin="0,0,18,4" />
+          </WrapPanel>
+          <TextBlock Text="Monitoring controls" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+          <WrapPanel Margin="0,8">
+            <Button Content="Start Monitoring" Command="{Binding StartCommand}" Style="{StaticResource SuccessButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+            <Button Content="Stop Monitoring" Command="{Binding StopCommand}" Margin="0,0,8,6" Style="{StaticResource DangerButton}" VerticalAlignment="Bottom" />
+            <Button Content="Refresh display" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
+          <Button Content="Save monitoring profile" Command="{Binding SaveProfileCommand}" HorizontalAlignment="Left" Margin="0,0,8,6" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" />
+          </WrapPanel>
+          <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Notice}">
+            <TextBlock Text="{Binding Notice}" />
+          </Border>
+        </StackPanel>
+      </Border>
       <WrapPanel AutomationProperties.AutomationId="MonitoringSummary" Margin="0,0,0,4">
-        <Border Style="{StaticResource WorkflowMetric}">
-          <StackPanel>
-            <TextBlock Text="Monitoring state" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
-            <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Status.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Margin="0,0,8,6" />
-            <TextBlock Text="{Binding Status.LastEvaluationAt, StringFormat=Evaluated: {0:HH:mm:ss} UTC, TargetNullValue=Not evaluated}" Style="{StaticResource MutedText}" />
-          </StackPanel>
-        </Border>
         <Border Style="{StaticResource WorkflowMetric}" MinWidth="150">
           <StackPanel>
             <TextBlock Text="MONITORED" Style="{StaticResource EyebrowText}" />
@@ -57,19 +70,7 @@
       </WrapPanel>
       <Border Style="{StaticResource WorkflowCard}">
         <StackPanel>
-          <TextBlock Text="Monitoring controls" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
-          <WrapPanel Margin="0,8">
-            <Button Content="Start Monitoring" Command="{Binding StartCommand}" Style="{StaticResource SuccessButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
-            <Button Content="Stop Monitoring" Command="{Binding StopCommand}" Margin="0,0,8,6" Style="{StaticResource DangerButton}" VerticalAlignment="Bottom" />
-            <Button Content="Refresh display" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
-          </WrapPanel>
-          <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Notice}">
-            <TextBlock Text="{Binding Notice}" />
-          </Border>
-        </StackPanel>
-      </Border>
-      <Border Style="{StaticResource WorkflowCard}">
-        <StackPanel>
+          <Border Style="{StaticResource StatusBanner}" Tag="Info" Margin="0,0,0,10"><TextBlock Text="{Binding Status, Converter={StaticResource OperatorText}, ConverterParameter=Coverage}" TextWrapping="Wrap" AutomationProperties.AutomationId="MonitoringInputSummary" /></Border>
           <TextBlock Text="Coverage and output" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
           <WrapPanel>
             <Border Style="{StaticResource WorkflowMetric}">
@@ -90,27 +91,9 @@
                 <TextBlock Text="{Binding Status.Coverage.PlansWithResolvedFees, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
               </StackPanel>
             </Border>
-            <Border Style="{StaticResource WorkflowMetric}">
-              <StackPanel>
-                <TextBlock Text="QUEUE DEPTH" Style="{StaticResource EyebrowText}" />
-                <TextBlock Text="{Binding Status.DirtyQueueDepth, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-              </StackPanel>
-            </Border>
-            <Border Style="{StaticResource WorkflowMetric}">
-              <StackPanel>
-                <TextBlock Text="CSV STATUS" Style="{StaticResource EyebrowText}" />
-                <TextBlock Text="{Binding Status.CsvExportStatus, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-              </StackPanel>
-            </Border>
-            <Border Style="{StaticResource WorkflowMetric}">
-              <StackPanel>
-                <TextBlock Text="ALERTS RAISED" Style="{StaticResource EyebrowText}" />
-                <TextBlock Text="{Binding Status.AlertsRaised, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-              </StackPanel>
-            </Border>
           </WrapPanel>
           <TextBlock Text="{Binding Status.LastCsvErrorCode, StringFormat=CSV reason: {0}, TargetNullValue=CSV reason: None}" />
-          <TextBlock Text="{Binding CoverageText}" TextWrapping="Wrap" />
+          <Expander Header="Full coverage diagnostics" Style="{StaticResource DetailsExpander}" Margin="0,8,0,0"><TextBlock Text="{Binding CoverageText}" TextWrapping="Wrap" /></Expander>
         </StackPanel>
       </Border>
       <Expander Header="Monitoring profile — save changes explicitly" Margin="0,4" Style="{StaticResource DetailsExpander}">
@@ -123,7 +106,7 @@
             <CheckBox Content="Local CSV output" IsChecked="{Binding Profile.CsvEnabled}" />
           </WrapPanel>
           <WrapPanel x:Name="ProfileFields" />
-          <Button Content="Save monitoring profile" Command="{Binding SaveProfileCommand}" HorizontalAlignment="Left" Margin="0,0,8,6" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" />
+
         </StackPanel>
       </Expander>
       <Border Style="{StaticResource WorkflowCard}">
@@ -163,13 +146,15 @@
       <Border Style="{StaticResource WorkflowCard}">
         <StackPanel>
           <TextBlock Text="Current rankings" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+          <TextBlock Text="CURRENT · latest backend ranking snapshot" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
+          <TextBlock Text="No current rankings returned for these filters." Tag="{Binding Items.Count}" Style="{StaticResource OperatorEmptyText}" />
           <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Current monitoring rankings" MaxHeight="230" MinHeight="100">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Rank" Binding="{Binding Rank}" Width="50" ElementStyle="{StaticResource WorkflowCellText}" />
               <DataGridTemplateColumn Header="Lane" Width="125">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
-                    <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Lane}" />
+                    <controls:StatusBadge Style="{StaticResource OperatorState}" Label="{Binding Lane}" />
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
@@ -200,6 +185,8 @@
       <Border Style="{StaticResource WorkflowCard}" AutomationProperties.AutomationId="HistoricalAlerts">
         <StackPanel>
           <TextBlock Text="Historical alerts — values at trigger time, not current opportunities" FontWeight="SemiBold" Margin="0,8" />
+          <TextBlock Text="HISTORICAL · recorded at trigger time · inspect current separately" Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+          <TextBlock Text="No historical alerts returned." Tag="{Binding Alerts.Count}" Style="{StaticResource OperatorEmptyText}" />
           <DataGrid ItemsSource="{Binding Alerts}" SelectedItem="{Binding SelectedAlert}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Historical monitoring alerts" MaxHeight="140" MinHeight="100">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Triggered UTC" Binding="{Binding TriggeredAt}" Width="180" ElementStyle="{StaticResource WorkflowCellText}" />

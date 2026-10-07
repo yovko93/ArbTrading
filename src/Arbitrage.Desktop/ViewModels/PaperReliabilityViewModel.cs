@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 namespace Arbitrage.Desktop.ViewModels;
 
 public sealed record ReliabilityCriterionRow(string Code, string ObservedValue, string RequiredValue, string State, string ExplanationCode);
+public sealed record ReliabilityRemainingRow(string Kind, string Code, string ObservedValue, string RequiredValue, string State, string ExplanationCode);
 
 public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
 {
@@ -27,14 +28,22 @@ public partial class PaperReliabilityViewModel : ObservableObject, IDisposable
         $"{c.Name} · {c.State}\nStarted {c.StartedAt:O} · policy {c.PolicyVersion} · revision {c.Revision}\n" +
         $"Evidence: {(c.InvariantViolationDetected ? "InvariantViolation" : c.EvidenceGapDetected ? "InsufficientEvidence" : Report?.State ?? "InsufficientEvidence")} · gap: {c.EvidenceGapDetected || Report?.EvidenceGapDetected == true} · invariant violation: {c.InvariantViolationDetected}\n" +
         $"Last evaluation {Report?.EvaluatedAt:O}. Values are the last persisted evaluation, not live financial authority.";
-    public string Runtime => Report is not { } r ? "Evaluate to obtain runtime evidence." : string.Join("\n", new[] { "BackendObservedTicks", "MonitoringRunningTicks", "AutomationArmedTicks", "AutomationHealthyTicks" }.Select(k => $"{k.Replace("Ticks", "", StringComparison.Ordinal)}: {TimeSpan.FromTicks(r.Counters.GetValueOrDefault(k))}"));
+    public string Runtime => Report is not { } r ? "Evaluate to obtain runtime evidence." : string.Join("\n", new[] { "BackendObservedTicks", "MonitoringRunningTicks", "AutomationArmedTicks", "AutomationHealthyTicks" }.Select(k => $"{k.Replace("Ticks", "", StringComparison.Ordinal)}: {(r.Counters.TryGetValue(k, out var ticks) ? TimeSpan.FromTicks(ticks).ToString("c") : "Unavailable")}"));
+    public IReadOnlyList<ReliabilityRemainingRow> RemainingEvidence => Report is not { } report ? [] :
+        report.Invariants.Where(c => c.State != "Satisfied").Select(c => Remaining("Safety invariant", c))
+            .Concat(report.Criteria.Where(c => c.State != "Satisfied").Select(c => Remaining("Evidence criterion", c))).ToArray();
+    public string RemainingEvidenceSummary => Report is null ? "No persisted report available. Remaining evidence is unknown." :
+        RemainingEvidence.Count == 0 ? $"No unsatisfied checks reported. Authoritative evaluation state: {Report.State}." :
+        $"{RemainingEvidence.Count} checks are not Satisfied in the persisted report. Authoritative evaluation state: {Report.State}.";
+    private static ReliabilityRemainingRow Remaining(string kind, PaperReliabilityCheckResponse check) => new(kind, check.Code,
+        Display(check.Code, check.ObservedValue), Display(check.Code, check.RequiredValue), check.State, check.ExplanationCode);
     public IReadOnlyList<ReliabilityCriterionRow> Criteria => (Report?.Criteria ?? []).Select(c => new ReliabilityCriterionRow(
         System.Text.RegularExpressions.Regex.Replace(c.Code.Replace("Ticks", " duration", StringComparison.Ordinal), "(?<=[a-z])(?=[A-Z])", " "),
         Display(c.Code, c.ObservedValue), Display(c.Code, c.RequiredValue), c.State, c.ExplanationCode)).ToArray();
     private static string Display(string code, decimal value) => code.EndsWith("Ticks", StringComparison.Ordinal) && value >= long.MinValue && value <= long.MaxValue
         ? TimeSpan.FromTicks((long)value).ToString("c", System.Globalization.CultureInfo.InvariantCulture) : value.ToString(System.Globalization.CultureInfo.CurrentCulture);
     partial void OnCampaignChanged(PaperReliabilityCampaignResponse? value) { revision++; Report = null; OnPropertyChanged(nameof(Summary)); }
-    partial void OnReportChanged(PaperReliabilityReportResponse? value) { OnPropertyChanged(nameof(Summary)); OnPropertyChanged(nameof(Runtime)); OnPropertyChanged(nameof(Criteria)); }
+    partial void OnReportChanged(PaperReliabilityReportResponse? value) { OnPropertyChanged(nameof(Summary)); OnPropertyChanged(nameof(Runtime)); OnPropertyChanged(nameof(Criteria)); OnPropertyChanged(nameof(RemainingEvidence)); OnPropertyChanged(nameof(RemainingEvidenceSummary)); }
     public PaperReliabilityViewModel(MainViewModel state, BackendClient backend)
     { this.state = state; this.backend = backend; state.AccessInvalidated += Clear; state.PropertyChanged += StateChanged; state.PaperValuationInvalidated += Invalidate; }
     private (Guid Workspace, long Access, string Backend)? Context() => !disposed && state.ConnectionStatus == "Connected" && state.HasSnapshot && Guid.TryParse(state.WorkspaceIdentifier, out var w) ? (w, state.AccessGeneration, state.BackendInstance) : null;

@@ -2,7 +2,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml" />
+        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/OperatorWorkflow.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -11,6 +11,9 @@
       <TextBlock Text="Reading the local catalog…" Style="{StaticResource BusyText}" Visibility="{Binding Loading, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
       <controls:SectionHeader Title="Market Explorer" Subtitle="Local catalog of public prediction market metadata" />
       <TextBlock Text="{Binding ScopeNotice}" Foreground="{DynamicResource SecondaryText}" TextWrapping="Wrap" Margin="0,8,0,10" />
+      <TextBlock Text="CATALOG SYNC" Style="{StaticResource EyebrowText}" />
+      <TextBlock Text="{Binding StatusCheckedAt, Converter={StaticResource OperatorTime}, StringFormat=Backend status checked: {0}}" Style="{StaticResource MutedText}" Margin="0,4,0,10" />
+      <TextBlock Text="Catalog status unavailable. Refresh the catalog view after backend access is restored." Tag="{Binding ExchangeStatuses.Count}" Style="{StaticResource OperatorEmptyText}" />
       <ItemsControl ItemsSource="{Binding ExchangeStatuses}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
@@ -19,12 +22,18 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <Border Style="{StaticResource WorkflowCard}" Margin="0,0,0,10">
+            <Border Style="{StaticResource OperatorPanel}" Margin="0,0,0,10" AutomationProperties.AutomationId="CatalogSyncExchange">
               <StackPanel>
                 <WrapPanel>
                   <TextBlock Text="{Binding Exchange}" Style="{StaticResource SectionTitleText}" Margin="0,0,10,0" />
-                  <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding LatestRun.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
+                  <controls:StatusBadge Style="{StaticResource OperatorState}" Label="{Binding LatestRun.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
                 </WrapPanel>
+                <Border Style="{StaticResource StatusBanner}" Tag="{Binding LatestRun.State, Converter={StaticResource OperatorTone}}" Margin="0,4,0,10">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Converter={StaticResource OperatorText}, ConverterParameter=Catalog}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    <TextBlock Text="{Binding LatestRun.ErrorCode, StringFormat=Current run reason: {0}, TargetNullValue=Current run reason: None reported, FallbackValue=Current run reason: Unavailable}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,4,0,0" />
+                  </StackPanel>
+                </Border>
                 <WrapPanel>
                   <Border Style="{StaticResource WorkflowMetric}">
                     <StackPanel>
@@ -35,25 +44,24 @@
                   <Border Style="{StaticResource WorkflowMetric}">
                     <StackPanel>
                       <TextBlock Text="OBSERVED" Style="{StaticResource EyebrowText}" />
-                      <TextBlock Text="{Binding LatestRun.MarketsObserved, TargetNullValue=0, FallbackValue=0}" Style="{StaticResource MetricText}" />
+                      <TextBlock Text="{Binding LatestRun.MarketsObserved, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
                     </StackPanel>
                   </Border>
                   <Border Style="{StaticResource WorkflowMetric}">
                     <StackPanel>
                       <TextBlock Text="PAGES" Style="{StaticResource EyebrowText}" />
-                      <TextBlock Text="{Binding LatestRun.Pages, TargetNullValue=0, FallbackValue=0}" Style="{StaticResource MetricText}" />
+                      <TextBlock Text="{Binding LatestRun.Pages, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
                     </StackPanel>
                   </Border>
                   <Border Style="{StaticResource WorkflowMetric}">
                     <StackPanel>
                       <TextBlock Text="MALFORMED" Style="{StaticResource EyebrowText}" />
-                      <TextBlock Text="{Binding LatestRun.MalformedRecords, TargetNullValue=0, FallbackValue=0}" Style="{StaticResource MetricText}" />
+                      <TextBlock Text="{Binding LatestRun.MalformedRecords, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
                     </StackPanel>
                   </Border>
                   <StackPanel Margin="4,0,0,8" MaxWidth="390">
-                    <TextBlock Text="{Binding LatestRun.ErrorCode, StringFormat=Reason: {0}, TargetNullValue=Reason: None}" />
-                    <TextBlock Text="{Binding LatestRetrievedAt, StringFormat=Cache updated: {0:yyyy-MM-dd HH:mm} UTC, TargetNullValue=Cache updated: Never}" Style="{StaticResource MutedText}" Margin="0,0,18,0" />
-                    <TextBlock Text="{Binding LastCompletedAt, StringFormat=Last complete: {0:yyyy-MM-dd HH:mm} UTC, TargetNullValue=Last complete: Never}" Style="{StaticResource MutedText}" />
+                    <TextBlock Text="{Binding LatestRetrievedAt, Converter={StaticResource OperatorTime}, ConverterParameter=Never, StringFormat=Cache updated: {0}}" Style="{StaticResource MutedText}" />
+                    <TextBlock Text="{Binding LastCompletedAt, Converter={StaticResource OperatorTime}, ConverterParameter=Never, StringFormat=Last successful complete: {0}}" Style="{StaticResource MutedText}" />
                   </StackPanel>
                 </WrapPanel>
               </StackPanel>
@@ -156,10 +164,28 @@
           <TextBlock Text="{Binding Detail.Title, TargetNullValue=Cached metadata and orderbook state}" Style="{StaticResource SectionTitleText}" />
           <StackPanel DataContext="{Binding OrderBook}" Margin="0,0,0,16">
             <TextBlock Text="Order Book · read-only market data" Style="{StaticResource SectionTitleText}" />
-            <WrapPanel>
-              <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Response.Realtime.Continuity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Margin="0,0,8,6" />
-              <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Response.State, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Margin="0,0,8,6" />
-            </WrapPanel>
+            <Border Style="{StaticResource OperatorPanel}" AutomationProperties.AutomationId="OrderbookOperatorSummary" Margin="0,8,0,10">
+              <StackPanel>
+                <TextBlock Text="SOURCE · CONTINUITY · FRESHNESS" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
+                <WrapPanel>
+                  <controls:StatusBadge Label="{Binding SourceMode}" Style="{StaticResource OperatorState}" Margin="0,0,8,6" />
+                  <controls:StatusBadge Label="{Binding Response.Realtime.Continuity, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource OperatorState}" Margin="0,0,8,6" />
+                  <controls:StatusBadge Label="{Binding DisplayFreshness}" Style="{StaticResource OperatorState}" Margin="0,0,8,6" />
+                </WrapPanel>
+                <TextBlock Text="{Binding BookAvailability}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,4" />
+                <TextBlock Text="{Binding Response.Realtime.State, StringFormat=Realtime state: {0}, TargetNullValue=Realtime state: Unavailable, FallbackValue=Realtime state: Unavailable}" Style="{StaticResource MutedText}" />
+                <TextBlock Text="{Binding Response.Reason, StringFormat=Book reason: {0}, TargetNullValue=Book reason: None reported, FallbackValue=Book reason: Unavailable}" Style="{StaticResource MutedText}" />
+                <TextBlock Text="{Binding Response.LastRefreshFailure.Code, StringFormat=Last refresh failure: {0}, TargetNullValue=Last refresh failure: None reported, FallbackValue=Last refresh failure: Unavailable}" Style="{StaticResource MutedText}" />
+                <WrapPanel Margin="0,6,0,0">
+                  <TextBlock Text="{Binding BestBid, StringFormat=Best bid: {0}, TargetNullValue=Best bid: Unavailable}" Margin="0,0,18,4" />
+                  <TextBlock Text="{Binding BestAsk, StringFormat=Best ask: {0}, TargetNullValue=Best ask: Unavailable}" Margin="0,0,18,4" />
+                  <TextBlock Text="{Binding Spread, StringFormat=Spread: {0}, TargetNullValue=Spread: Unavailable}" Margin="0,0,18,4" />
+                  <TextBlock Text="{Binding Age}" Margin="0,0,18,4" />
+                </WrapPanel>
+                <TextBlock Text="{Binding Response.Snapshot.RetrievedAtUtc, Converter={StaticResource OperatorTime}, StringFormat=Last retrieved: {0}}" Style="{StaticResource MutedText}" />
+              </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding Response.State, StringFormat=Last backend book state: {0}, TargetNullValue=Last backend book state: Unavailable, FallbackValue=Last backend book state: Unavailable}" Style="{StaticResource MutedText}" />
             <WrapPanel Margin="0,8,0,8">
               <ComboBox ItemsSource="{Binding Instruments}" SelectedItem="{Binding SelectedInstrument}" MinWidth="150" AutomationProperties.Name="Orderbook outcome" Width="160" Margin="0,0,8,6">
                 <ComboBox.ItemTemplate>
@@ -185,32 +211,6 @@
               <TextBlock Text="{Binding Age}" Margin="0,0,0,0" />
             </WrapPanel>
             <TextBlock Text="{Binding Provenance}" Foreground="{DynamicResource SecondaryText}" />
-            <WrapPanel>
-              <Border Style="{StaticResource WorkflowMetric}">
-                <StackPanel>
-                  <TextBlock Text="BEST BID" Style="{StaticResource EyebrowText}" />
-                  <TextBlock Text="{Binding BestBid, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-                </StackPanel>
-              </Border>
-              <Border Style="{StaticResource WorkflowMetric}">
-                <StackPanel>
-                  <TextBlock Text="BEST ASK" Style="{StaticResource EyebrowText}" />
-                  <TextBlock Text="{Binding BestAsk, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-                </StackPanel>
-              </Border>
-              <Border Style="{StaticResource WorkflowMetric}">
-                <StackPanel>
-                  <TextBlock Text="SPREAD" Style="{StaticResource EyebrowText}" />
-                  <TextBlock Text="{Binding Spread, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-                </StackPanel>
-              </Border>
-              <Border Style="{StaticResource WorkflowMetric}">
-                <StackPanel>
-                  <TextBlock Text="AGE / FRESHNESS" Style="{StaticResource EyebrowText}" />
-                  <TextBlock Text="{Binding Age, TargetNullValue=Unavailable, FallbackValue=Unavailable}" Style="{StaticResource MetricText}" />
-                </StackPanel>
-              </Border>
-            </WrapPanel>
             <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Notice}">
               <TextBlock Text="{Binding Notice}" />
             </Border>

@@ -2,7 +2,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/MarketWorkflow.xaml" />
+        <ResourceDictionary Source="/Arbitrage.Desktop;component/Resources/Styles/OperatorWorkflow.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -11,7 +11,7 @@
       <TextBlock Text="Relationship request in progress…" Style="{StaticResource BusyText}" Visibility="{Binding Busy, Converter={StaticResource BooleanToVisibility}}" AutomationProperties.LiveSetting="Polite" />
       <TextBlock Text="Market Matching" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryText}" Style="{StaticResource PageTitleText}" Margin="0,0,0,6" />
       <TextBlock Text="Inspect reasons not to match. Titles, labels and group membership never establish settlement equivalence." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,0,0,12" />
-      <Border Style="{StaticResource WorkflowCard}">
+      <Border Style="{StaticResource OperatorPanel}">
         <StackPanel>
           <TextBlock Text="Candidate generation" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
           <WrapPanel Margin="0,8">
@@ -38,7 +38,12 @@
             <CheckBox Content="Cross exchange" IsChecked="{Binding CrossExchange}" VerticalAlignment="Center" Margin="8,0" />
             <Button Content="Generate Candidates" Command="{Binding GenerateCommand}" Style="{StaticResource SuccessButton}" Margin="0,0,8,6" VerticalAlignment="Bottom" />
             <Button Content="Cancel job" Command="{Binding CancelJobCommand}" Margin="0,0,8,6" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom" />
-            <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Job.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
+            <controls:StatusBadge Style="{StaticResource OperatorState}" Label="{Binding Job.State, TargetNullValue=Never, FallbackValue=Never}" Margin="0,0,8,6" />
+          </WrapPanel>
+          <WrapPanel AutomationProperties.AutomationId="RelationshipJobCounters">
+            <TextBlock Text="{Binding Job.Sources, StringFormat=Sources: {0}, TargetNullValue=Sources: Unavailable, FallbackValue=Sources: Unavailable}" Style="{StaticResource MutedText}" Margin="0,0,18,4" />
+            <TextBlock Text="{Binding Job.Comparisons, StringFormat=Comparisons: {0}, TargetNullValue=Comparisons: Unavailable, FallbackValue=Comparisons: Unavailable}" Style="{StaticResource MutedText}" Margin="0,0,18,4" />
+            <TextBlock Text="{Binding Job.Written, StringFormat=Written: {0}, TargetNullValue=Written: Unavailable, FallbackValue=Written: Unavailable}" Style="{StaticResource MutedText}" Margin="0,0,18,4" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -48,7 +53,10 @@
       <Border Style="{StaticResource WorkflowNotice}" ToolTip="{Binding Job.Notice}">
         <TextBlock Text="{Binding Job.Notice}" />
       </Border>
-      <Border Style="{StaticResource WorkflowCard}">
+      <Grid x:Name="ReviewWorkspace" SizeChanged="ReviewWorkspaceSizeChanged">
+        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="0" /></Grid.ColumnDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <Border x:Name="CandidatePanel" Style="{StaticResource WorkflowCard}" VerticalAlignment="Top">
         <StackPanel>
           <TextBlock Text="Candidate relationships" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
           <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="Candidate relationships" MaxHeight="240" MinHeight="100">
@@ -69,11 +77,12 @@
           </WrapPanel>
         </StackPanel>
       </Border>
-      <ScrollViewer x:Name="ReviewScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
+      <ScrollViewer x:Name="ReviewScroll" Grid.Row="1" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-          <Border Style="{StaticResource StatusBanner}" AutomationProperties.AutomationId="RelationshipBlockers" Tag="Warning" Margin="0,0,0,12">
+          <Border Style="{StaticResource StatusBanner}" AutomationProperties.AutomationId="RelationshipBlockers" Tag="{Binding Detail, Converter={StaticResource OperatorText}, ConverterParameter=BlockerTone}" Margin="0,0,0,12">
             <StackPanel>
-              <TextBlock Text="Blocking differences — resolve these before approving" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <TextBlock Text="Blocking differences" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
+              <TextBlock Text="{Binding Detail, Converter={StaticResource OperatorText}, ConverterParameter=Blockers}" TextWrapping="Wrap" Margin="0,0,0,6" />
               <ItemsControl ItemsSource="{Binding Blockers}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
@@ -86,8 +95,10 @@
           <Border Style="{StaticResource WorkflowCard}">
             <StackPanel>
               <TextBlock Text="Relationship state" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
-              <controls:StatusBadge Style="{StaticResource WorkflowState}" Label="{Binding Detail.Summary.State, TargetNullValue=Select a candidate, FallbackValue=Select a candidate}" Margin="0,0,8,6" />
+              <controls:StatusBadge Style="{StaticResource OperatorState}" Label="{Binding Detail.Summary.State, TargetNullValue=Select a candidate, FallbackValue=Select a candidate}" Margin="0,0,8,6" />
+              <TextBlock Text="Automatic Paper requires deterministic verification." Style="{StaticResource MutedText}" Margin="0,0,0,8" />
               <TextBox Text="{Binding Detail.Summary.Id, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="Relationship ID for explicit opportunity evaluation" ToolTip="Copy this ID to Evaluate Selected on the Opportunities page" />
+              <controls:CopyIdentifierButton Text="{Binding Detail.Summary.Id}" IdentifierName="relationship ID" HorizontalAlignment="Left" MinWidth="80" Margin="0,6,0,8" />
               <ItemsControl ItemsSource="{Binding Detail.Warnings}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
@@ -101,16 +112,18 @@
               </WrapPanel>
             </StackPanel>
           </Border>
-          <Grid>
+          <Grid x:Name="MarketPair" SizeChanged="MarketPairSizeChanged">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Border Style="{StaticResource InsetPanel}" Grid.Column="0" Margin="0,0,8,0">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Border x:Name="SourcePanel" Style="{StaticResource InsetPanel}" Grid.Column="0" Margin="0,0,8,0">
               <StackPanel>
                 <TextBlock Text="Source market" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
                 <TextBlock Text="{Binding Detail.Source.Title}" FontWeight="Bold" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" />
                 <TextBlock Text="{Binding Detail.Source.NativeId}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                <controls:CopyIdentifierButton Text="{Binding Detail.Source.NativeId}" IdentifierName="source native ID" HorizontalAlignment="Left" MinWidth="80" Margin="0,6" />
                 <TextBlock Text="{Binding Detail.Source.Rules, TargetNullValue=Rules unavailable}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" Margin="0,6" />
                 <TextBlock Text="{Binding Detail.Source.ResolutionSource, TargetNullValue=Resolution source unknown}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
                 <TextBlock Text="{Binding Detail.Source.MarketClose, StringFormat=Market close (not deadline): {0}}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
@@ -120,11 +133,12 @@
                 </Expander>
               </StackPanel>
             </Border>
-            <Border Style="{StaticResource InsetPanel}" Grid.Column="1" Margin="0">
+            <Border x:Name="TargetPanel" Style="{StaticResource InsetPanel}" Grid.Column="1" Margin="0">
               <StackPanel>
                 <TextBlock Text="Target market" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10" />
                 <TextBlock Text="{Binding Detail.Target.Title}" FontWeight="Bold" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" />
                 <TextBlock Text="{Binding Detail.Target.NativeId}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                <controls:CopyIdentifierButton Text="{Binding Detail.Target.NativeId}" IdentifierName="target native ID" HorizontalAlignment="Left" MinWidth="80" Margin="0,6" />
                 <TextBlock Text="{Binding Detail.Target.Rules, TargetNullValue=Rules unavailable}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" Margin="0,6" />
                 <TextBlock Text="{Binding Detail.Target.ResolutionSource, TargetNullValue=Resolution source unknown}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
                 <TextBlock Text="{Binding Detail.Target.MarketClose, StringFormat=Market close (not deadline): {0}}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
@@ -189,6 +203,7 @@
           </Border>
         </StackPanel>
       </ScrollViewer>
+      </Grid>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

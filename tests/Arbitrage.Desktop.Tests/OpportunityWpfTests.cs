@@ -58,7 +58,8 @@ public sealed class OpportunityWpfTests(WpfFixture fixture)
             Assert.DoesNotContain(Descendants<Button>(view), b => b.Content is "Trade" or "Execute" or "Paper Trade");
             // Record init setters remain writable to WPF's binding engine; exercise an actual edit.
             var monitoring = Descendants<MonitoringView>(view).Single();
-            var expander = Descendants<Expander>(monitoring).Single(); expander.IsExpanded = true; view.UpdateLayout();
+            var expander = Descendants<Expander>(monitoring).Single(e => Equals(e.Header, "Monitoring profile — save changes explicitly"));
+            expander.IsExpanded = true; view.UpdateLayout();
             var field = Descendants<TextBox>(monitoring).First(); field.Text = "123"; field.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
             Assert.Equal(123, m.Profile.RelationshipLimit); expander.IsExpanded = false; view.UpdateLayout();
             if (Environment.GetEnvironmentVariable("ARBITRAGE_UI_CAPTURE_DIRECTORY") is { } capture)

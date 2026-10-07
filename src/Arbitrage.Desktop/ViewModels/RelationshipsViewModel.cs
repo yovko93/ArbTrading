@@ -39,7 +39,7 @@ public partial class RelationshipsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? reviewType;
     [ObservableProperty] private string reason = "";
     [ObservableProperty] private string selectedNativeId = "";
-    [ObservableProperty] private bool crossExchange = true;
+    [ObservableProperty] private bool crossExchange;
     [ObservableProperty] private int page = 1;
     [ObservableProperty] private int total;
     [ObservableProperty] private bool busy;
